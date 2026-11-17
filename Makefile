@@ -1,0 +1,7 @@
+PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+# Configuration for DuckDB's out-of-tree extension build.
+EXT_NAME=open_data_duck
+EXT_CONFIG=${PROJ_DIR}extension_config.cmake
+
+include extension-ci-tools/makefiles/duckdb_extension.Makefile

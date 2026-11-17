@@ -10,7 +10,7 @@ from typing import Any
 from odd.registry import Source, find_source, load_sources, render_source_sql
 
 MANIFEST_VERSION = 1
-DUCKDB_HELPERS_PATH = Path(__file__).resolve().parents[1] / "duckdb" / "open_data_duck.sql"
+DUCKDB_HELPERS_PATH = Path(__file__).resolve().parents[1] / "sql" / "open_data_duck.sql"
 
 
 @dataclass(frozen=True)

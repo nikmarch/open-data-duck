@@ -1,7 +1,12 @@
 .DS_Store
 .env
 .venv/
+.verify-venv/
 *.duckdb
 *.db
 __pycache__/
 .pytest_cache/
+.cache/
+build/
+cmake-build-debug/
+duckdb_unittest_tempdir/
