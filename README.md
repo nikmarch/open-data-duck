@@ -42,6 +42,23 @@ A source can become `verified` only when it has:
 - validation query
 - freshness or release-check method
 
+## Development
+
+Install dependencies and run the test suite:
+
+```bash
+uv sync --extra dev
+uv run pytest
+```
+
+Validate the registry locally:
+
+```bash
+uv run odd validate
+```
+
+The same checks run in GitHub Actions on pushes and pull requests.
+
 ## Example direction
 
 ```sql
