@@ -31,3 +31,23 @@ ArcGIS FeatureServer and MapServer layers remain the first engine-maintenance ta
 5. Fork native extension work only if the upstream/community path stalls.
 
 Do not emit or document `INSTALL arcgis FROM community;` as a working user path until it succeeds against real DuckDB.
+
+### ArcGIS evidence checklist
+
+An ArcGIS source family can move from `connector-blocked` to `candidate` only after the PR shows all of this:
+
+- a public FeatureServer or MapServer layer URL that does not require a key;
+- metadata discovery for the layer's object-id field;
+- a count request using `returnCountOnly=true`;
+- planned query pages using `resultOffset`, `resultRecordCount`, and deterministic `orderByFields`;
+- more than one planned page against a public source, so pagination is proven rather than assumed;
+- normal CI that does not install or load unsigned native DuckDB extensions;
+- no claim that `INSTALL arcgis FROM community;` works before real DuckDB proves it.
+
+A registry entry can move to `verified` only after the public-source smoke test also proves the generated page requests remain valid for that source.
+
+Run the opt-in ArcGIS smoke locally with:
+
+```bash
+ODD_ARCGIS_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_arcgis_engine.py
+```
