@@ -13,6 +13,8 @@ def test_engine_maintenance_tracker_links_current_engine_issues() -> None:
     assert "connector-blocked" in tracker
     assert "real smoke tests against public sources" in tracker
     assert "INSTALL arcgis FROM community" in tracker
+    assert "CKAN/DCAT direct-resource path" in tracker
+    assert "fictional `ckan_*` / `dcat_*` DuckDB table function" in tracker
 
 
 def test_research_worker_requires_engine_issue_links_for_blocked_sources() -> None:

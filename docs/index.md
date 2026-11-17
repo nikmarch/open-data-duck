@@ -46,6 +46,22 @@ USGS National Map ArcGIS contour layer for elevation-line features and terrain c
 - AI use cases: inspect terrain context, locate contour features, enrich map analysis
 - Caveats: connector is blocked; large geometry layers need paging
 
+## ckan
+
+### `ckan.data-gov-au.wyndham-pets` — Data.gov.au Wyndham registered dogs and cats
+
+Australian Government CKAN catalog package with a public CSV distribution of Wyndham registered dog and cat counts by suburb.
+
+- Status: `candidate`
+- Authority: Wyndham City Council via data.gov.au
+- Homepage: https://data.gov.au/data/dataset/wyndham-registered-dogs-catscsv
+- License: https://creativecommons.org/licenses/by/3.0/au/
+- Tags: `ckan`, `dcat`, `australia`, `csv`, `animals`
+- Topics: open data catalogs, local government, pets
+- Cadence: catalog-maintained updates
+- AI use cases: test CKAN resource discovery, query a simple government CSV distribution
+- Caveats: CKAN is not a DuckDB table function; only directly readable distributions should be marked candidate
+
 ## other
 
 ### `aws.noaa-ghcn-daily` — NOAA Global Historical Climatology Network Daily

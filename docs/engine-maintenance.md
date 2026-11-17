@@ -20,6 +20,18 @@ Open Data Duck should not mark a source as queryable just because an authoritati
 - Smoke tests should prove the risky part of the engine path: pagination, install/load shape, API export format, authentication-free access, or version compatibility.
 - Normal CI should avoid unsigned native-extension state unless that state is explicitly part of an opt-in engine test.
 
+## CKAN/DCAT direct-resource path
+
+CKAN and DCAT catalogs should be treated as discovery metadata first, not as a DuckDB engine by themselves. The supported path is:
+
+1. Use CKAN `package_show` / `package_search` or a DCAT distribution list to discover resource URLs.
+2. Move a registry entry to `candidate` only when at least one public distribution is directly readable by DuckDB (`read_csv_auto`, `read_json_auto`, `read_parquet`, or `ST_Read`) over `httpfs`.
+3. Keep entries `connector-blocked` when the catalog only exposes API pages, authenticated downloads, zipped archives without a stable unpacking path, non-tabular documents, or formats that need a future wrapper.
+4. Do not emit or document a fictional `ckan_*` / `dcat_*` DuckDB table function. If a table function or extension appears later, prove it with real DuckDB before registry entries depend on it.
+5. Public smoke coverage must fetch at least one official catalog package/feed and show that a resource URL can be converted into DuckDB SQL using `httpfs`.
+
+A CKAN/DCAT registry entry can move to `verified` only after the direct resource SQL itself is run against the public source or a stable wrapper is proven by normal CI.
+
 ## ArcGIS first target
 
 ArcGIS FeatureServer and MapServer layers remain the first engine-maintenance target. The current path is:

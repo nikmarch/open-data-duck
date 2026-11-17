@@ -171,7 +171,28 @@ def test_project_registry_meets_seed_source_targets() -> None:
     assert "overture.maps.release" in source_ids
     assert source_types.count("stac") >= 3
     assert source_types.count("arcgis") >= 3
+    assert source_types.count("ckan") >= 1
     assert sum(source_id.startswith("aws.") for source_id in source_ids) >= 3
+
+
+def test_project_ckan_sources_use_direct_resources_until_table_function_is_proven() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    ckan_sources = [source for source in registry["sources"] if source["source_type"] == "ckan"]
+
+    assert len(ckan_sources) >= 1
+    for source in ckan_sources:
+        assert source["status"] == "candidate", source["id"]
+        rendered_sql = "\n".join(
+            (
+                source["duckdb"].get("install", ""),
+                source["duckdb"]["example_query"],
+                source["duckdb"]["validation_query"],
+            )
+        ).casefold()
+        assert "load httpfs" in rendered_sql
+        assert any(reader in rendered_sql for reader in ("read_csv_auto", "read_json_auto", "read_parquet", "st_read"))
+        assert "ckan_" not in rendered_sql
+        assert "dcat_" not in rendered_sql
 
 
 def test_project_arcgis_sources_are_connector_blocked_until_engine_path_is_stable() -> None:
