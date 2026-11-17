@@ -3,13 +3,21 @@
 
 sources:
   - id: overture.maps.release
-    name: Overture Maps release catalog
+    name: Overture Maps source family
     status: candidate
     source_type: overture
     authority: Overture Maps Foundation
     homepage: https://docs.overturemaps.org/getting-data/
     license_url: https://docs.overturemaps.org/attribution/
     attribution: Overture Maps Foundation and contributing data providers.
+    release:
+      latest:
+        method: release-calendar
+        url: https://docs.overturemaps.org/release-calendar/
+      pinned:
+        duckdb_setting: overture_release
+        s3_base_setting: overture_s3_base
+        example: "2026-03-18.0"
     duckdb:
       extensions:
         - spatial
@@ -24,11 +32,52 @@ sources:
         LOAD httpfs;
         LOAD overture;
         SET s3_region='us-west-2';
-        SELECT * FROM read_overture_places(west := -150, east := -149, south := 60, north := 61) LIMIT 10;
+
+        -- Latest release: omit the overture_release variable.
+        -- Pinned release: uncomment and set a known release tag.
+        -- SET VARIABLE overture_release = '2026-03-18.0';
+
+        SELECT 'places' AS dataset, count(*) AS rows
+        FROM read_overture_places(west := -150, east := -149, south := 60, north := 61)
+        UNION ALL
+        SELECT 'buildings' AS dataset, count(*) AS rows
+        FROM read_overture_buildings(west := -150, east := -149, south := 60, north := 61)
+        UNION ALL
+        SELECT 'roads' AS dataset, count(*) AS rows
+        FROM read_overture_roads(west := -150, east := -149, south := 60, north := 61)
+        UNION ALL
+        SELECT 'addresses' AS dataset, count(*) AS rows
+        FROM geocode('main', west := -150, east := -149, south := 60, north := 61);
       validation_query: |
-        SELECT count(*) >= 0 AS ok
+        LOAD spatial;
+        LOAD httpfs;
+        LOAD overture;
+        SET s3_region='us-west-2';
+
+        SELECT count(*) = 4 AS required_overture_functions_available
+        FROM duckdb_functions()
+        WHERE function_name IN ('read_overture_places', 'read_overture_buildings', 'read_overture_roads', 'geocode');
+
+        SELECT count(*) >= 0 AS small_bbox_query_ok
         FROM read_overture_places(west := -150, east := -149, south := 60, north := 61)
         LIMIT 1;
+      examples:
+        places: |
+          SELECT *
+          FROM read_overture_places(west := -150, east := -149, south := 60, north := 61)
+          LIMIT 10;
+        buildings: |
+          SELECT *
+          FROM read_overture_buildings(west := -150, east := -149, south := 60, north := 61)
+          LIMIT 10;
+        roads: |
+          SELECT *
+          FROM read_overture_roads(west := -150, east := -149, south := 60, north := 61)
+          LIMIT 10;
+        addresses: |
+          SELECT *
+          FROM geocode('main', west := -150, east := -149, south := 60, north := 61)
+          LIMIT 10;
     freshness:
       method: release-calendar
       url: https://docs.overturemaps.org/release-calendar/

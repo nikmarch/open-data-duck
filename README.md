@@ -27,6 +27,28 @@ Open Data Duck does **not** mirror datasets. It stores source metadata, licenses
 - `ckan` — CKAN/data.gov-style catalogs.
 - `socrata` — Socrata open-data portals.
 
+## Overture source family
+
+Open Data Duck is an **unofficial router/index**, not an Overture Maps mirror.
+It does not copy Overture data into this repo. The registry points DuckDB users to
+Overture's public release data through the DuckDB community `overture` extension.
+
+The Overture registry entry supports two release modes:
+
+- **latest release** — leave `overture_release` unset and follow the Overture release calendar.
+- **pinned release** — set DuckDB's `overture_release` variable, for example:
+
+```sql
+SET VARIABLE overture_release = '2026-03-18.0';
+```
+
+The first-class Overture examples cover:
+
+- places: `read_overture_places(...)`
+- buildings: `read_overture_buildings(...)`
+- roads: `read_overture_roads(...)`
+- addresses: `geocode(...)` over Overture address data
+
 ## Registry entry lifecycle
 
 ```text

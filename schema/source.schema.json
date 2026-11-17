@@ -30,14 +30,41 @@
             "extensions": { "type": "array", "items": { "type": "string" } },
             "install": { "type": "string" },
             "example_query": { "type": "string" },
-            "validation_query": { "type": "string" }
+            "validation_query": { "type": "string" },
+            "examples": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
           }
         },
+        "release": { "$ref": "#/$defs/release" },
         "freshness": {
           "type": "object",
           "properties": {
             "method": { "type": "string" },
             "url": { "type": "string", "format": "uri" }
+          }
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "properties": {
+        "latest": {
+          "type": "object",
+          "required": ["url"],
+          "properties": {
+            "url": { "type": "string", "format": "uri" },
+            "method": { "type": "string" }
+          }
+        },
+        "pinned": {
+          "type": "object",
+          "required": ["duckdb_setting", "example"],
+          "properties": {
+            "duckdb_setting": { "type": "string" },
+            "example": { "type": "string" },
+            "s3_base_setting": { "type": "string" }
           }
         }
       }
