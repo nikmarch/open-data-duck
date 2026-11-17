@@ -238,7 +238,14 @@ def render_source_detail(source: Source) -> str:
 
 
 def render_index_markdown(sources: list[Source]) -> str:
-    lines = ["# Open Data Duck source index", ""]
+    lines = [
+        '<p align="center">',
+        '  <img src="assets/brand/odd-wordmark.svg" alt="Open Data Duck" width="360">',
+        "</p>",
+        "",
+        "# Open Data Duck source index",
+        "",
+    ]
     lines.append("AI-friendly catalog of public data sources with DuckDB recipes, licenses, and usage hints.")
     lines.append("")
     for source_type in sorted({source.source_type for source in sources}):

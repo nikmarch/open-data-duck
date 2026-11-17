@@ -1,5 +1,9 @@
 # Open Data Duck
 
+<p align="center">
+  <img src="docs/assets/brand/odd-wordmark.svg" alt="Open Data Duck" width="360">
+</p>
+
 An open, DuckDB-friendly index of pluggable public data tables.
 
 Open Data Duck does **not** mirror datasets. It stores source metadata, licenses, attribution, and executable query recipes so DuckDB users and AI workers can discover and query authoritative open data safely.
