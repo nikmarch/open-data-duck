@@ -142,14 +142,13 @@ def test_overture_source_family_has_release_modes_and_core_examples() -> None:
     assert source["release"]["pinned"]["example"]
 
     examples = source["duckdb"]["examples"]
-    assert "read_overture_places" in examples["places"]
-    assert "read_overture_buildings" in examples["buildings"]
-    assert "read_overture_roads" in examples["roads"]
-    assert "geocode" in examples["addresses"]
+    assert "read_parquet" in examples["places_direct_s3"]
+    assert "overturemaps-us-west-2" in examples["places_direct_s3"]
 
     validation_query = source["duckdb"]["validation_query"]
-    assert "duckdb_functions()" in validation_query
-    assert "read_overture_places" in validation_query
+    assert "read_parquet" in validation_query
+    assert "overturemaps-us-west-2" in validation_query
+    assert "read_overture_places" not in validation_query
 
 
 def test_seed_sources_include_required_query_metadata() -> None:
