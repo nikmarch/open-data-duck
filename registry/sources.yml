@@ -1,5 +1,5 @@
 # Open Data Duck seed registry.
-# Status values: candidate, verified, deprecated.
+# Status values: candidate, connector-blocked, verified, deprecated.
 
 sources:
   - id: overture.maps.release
@@ -166,7 +166,7 @@ sources:
 
   - id: arcgis.census.tigerweb.state-county
     name: U.S. Census TIGERweb state and county layers
-    status: candidate
+    status: connector-blocked
     source_type: arcgis
     authority: U.S. Census Bureau
     homepage: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer
@@ -176,9 +176,11 @@ sources:
       extensions:
         - arcgis
       install: |
-        -- arcgis extension is not yet in DuckDB community extensions.
-        -- Track packaging in GitHub issues.
+        -- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.
+        -- Current releases install from unsigned exact-version binaries.
+        -- Open DuckDB with allow_unsigned_extensions before installing a release file.
       example_query: |
+        -- Future duckdb-arcgis shape once the connector has a stable install path.
         LOAD arcgis;
         SELECT *
         FROM arcgis_query('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1')
@@ -192,7 +194,7 @@ sources:
 
   - id: arcgis.fema.nfhl.flood-hazard-zones
     name: FEMA National Flood Hazard Layer flood hazard zones
-    status: candidate
+    status: connector-blocked
     source_type: arcgis
     authority: Federal Emergency Management Agency
     homepage: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer
@@ -202,9 +204,11 @@ sources:
       extensions:
         - arcgis
       install: |
-        -- arcgis extension is not yet in DuckDB community extensions.
-        -- Track packaging in GitHub issues.
+        -- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.
+        -- Current releases install from unsigned exact-version binaries.
+        -- Open DuckDB with allow_unsigned_extensions before installing a release file.
       example_query: |
+        -- Future duckdb-arcgis shape once the connector has a stable install path.
         LOAD arcgis;
         SELECT *
         FROM arcgis_query('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28')
@@ -218,7 +222,7 @@ sources:
 
   - id: arcgis.usgs.national-map-contours
     name: USGS National Map elevation contours
-    status: candidate
+    status: connector-blocked
     source_type: arcgis
     authority: U.S. Geological Survey
     homepage: https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer
@@ -228,9 +232,11 @@ sources:
       extensions:
         - arcgis
       install: |
-        -- arcgis extension is not yet in DuckDB community extensions.
-        -- Track packaging in GitHub issues.
+        -- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.
+        -- Current releases install from unsigned exact-version binaries.
+        -- Open DuckDB with allow_unsigned_extensions before installing a release file.
       example_query: |
+        -- Future duckdb-arcgis shape once the connector has a stable install path.
         LOAD arcgis;
         SELECT *
         FROM arcgis_query('https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2')

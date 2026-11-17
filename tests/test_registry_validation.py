@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from odd.arcgis import plan_offset_pages
 from odd.cli import main
 from odd.registry import find_source, render_source_sql, search_sources, validate_registry
 
@@ -40,6 +41,14 @@ def write_registry(tmp_path: Path, registry: dict) -> tuple[Path, Path]:
 
 def test_validate_registry_accepts_valid_source(tmp_path: Path) -> None:
     registry_path, schema_path = write_registry(tmp_path, VALID_REGISTRY)
+
+    assert validate_registry(registry_path, schema_path) == []
+
+
+def test_validate_registry_accepts_connector_blocked_status(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
+    registry["sources"][0]["status"] = "connector-blocked"
+    registry_path, schema_path = write_registry(tmp_path, registry)
 
     assert validate_registry(registry_path, schema_path) == []
 
@@ -131,6 +140,49 @@ def test_project_registry_meets_seed_source_targets() -> None:
     assert source_types.count("stac") >= 3
     assert source_types.count("arcgis") >= 3
     assert sum(source_id.startswith("aws.") for source_id in source_ids) >= 3
+
+
+def test_project_arcgis_sources_are_connector_blocked_until_engine_path_is_stable() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    arcgis_sources = [source for source in registry["sources"] if source["source_type"] == "arcgis"]
+
+    assert len(arcgis_sources) >= 3
+    for source in arcgis_sources:
+        assert source["status"] == "connector-blocked", source["id"]
+        rendered_sql = "\n".join(
+            (
+                source["duckdb"].get("install", ""),
+                source["duckdb"]["example_query"],
+            )
+        ).casefold()
+        assert "duckdb-arcgis is not in duckdb community extensions" in rendered_sql
+        assert "allow_unsigned_extensions" in rendered_sql
+        assert "install arcgis from community" not in rendered_sql
+
+
+def test_arcgis_feature_server_pagination_acceptance_uses_multiple_pages() -> None:
+    layer_url = (
+        "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/"
+        "CongressionalDistricts/FeatureServer/0"
+    )
+
+    pages = plan_offset_pages(
+        layer_url,
+        total_records=435,
+        page_size=200,
+        object_id_field="OBJECTID",
+        out_fields="OBJECTID,DISTRICTID,NAME",
+        return_geometry=False,
+    )
+
+    assert len(pages) == 3
+    assert [page.offset for page in pages] == [0, 200, 400]
+    assert [page.record_count for page in pages] == [200, 200, 35]
+    assert all(page.layer_url == layer_url for page in pages)
+    assert [page.params["resultOffset"] for page in pages] == ["0", "200", "400"]
+    assert [page.params["resultRecordCount"] for page in pages] == ["200", "200", "35"]
+    assert all(page.params["returnGeometry"] == "false" for page in pages)
+    assert all(page.params["orderByFields"] == "OBJECTID" for page in pages)
 
 
 def test_overture_source_family_has_release_modes_and_core_examples() -> None:
