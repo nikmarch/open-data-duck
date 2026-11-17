@@ -127,10 +127,10 @@ uv run odd show overture.maps.release
 uv run odd generate-index
 ```
 
-The checked-in `docs/index.md` and `docs/index.json` files are generated from
-`registry/sources.yml`. The JSON shape is intentionally agent-friendly: every
-source includes a description, tags/topics, coverage/cadence, AI usage hints,
-license/attribution, and DuckDB recipe metadata.
+`registry/sources.yml` is the only source of truth for source configuration.
+The checked-in `docs/index.md` file is generated from that YAML for human review.
+JSON is rendered on demand with `odd index --format json` so the repo does not
+store duplicate config in a second format.
 
 Run the optional MCP server for AI clients:
 

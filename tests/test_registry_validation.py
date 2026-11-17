@@ -159,7 +159,7 @@ def test_checked_in_index_artifacts_are_current() -> None:
     sources = load_sources(Path("registry/sources.yml"))
 
     assert Path("docs/index.md").read_text(encoding="utf-8") == render_index_markdown(sources)
-    assert Path("docs/index.json").read_text(encoding="utf-8") == render_index_json(sources, include_sql=False)
+    assert not Path("docs/index.json").exists()
 
 
 def test_project_registry_meets_seed_source_targets() -> None:
@@ -308,9 +308,9 @@ def test_write_index_artifacts_creates_markdown_and_json(tmp_path: Path) -> None
 
     paths = write_index_artifacts(registry_path, output_dir)
 
-    assert {path.name for path in paths} == {"index.md", "index.json"}
+    assert {path.name for path in paths} == {"index.md"}
     assert "Example source description" in (output_dir / "index.md").read_text(encoding="utf-8")
-    assert '\"example.source\"' in (output_dir / "index.json").read_text(encoding="utf-8")
+    assert not (output_dir / "index.json").exists()
 
 
 def test_mcp_server_module_is_import_safe_and_returns_tool_payloads(tmp_path: Path) -> None:
@@ -400,7 +400,7 @@ def test_cli_show_prints_source_detail(tmp_path: Path, capsys: pytest.CaptureFix
     assert "Example source description" in output
 
 
-def test_cli_generate_index_writes_docs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_generate_index_writes_markdown_docs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
     output_dir = tmp_path / "docs"
 
@@ -409,7 +409,7 @@ def test_cli_generate_index_writes_docs(tmp_path: Path, capsys: pytest.CaptureFi
     assert exit_code == 0
     assert "index.md" in capsys.readouterr().out
     assert (output_dir / "index.md").exists()
-    assert (output_dir / "index.json").exists()
+    assert not (output_dir / "index.json").exists()
 
 
 def test_cli_search_exits_nonzero_when_no_sources_match(

@@ -280,10 +280,8 @@ def write_index_artifacts(registry_path: Path, output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     sources = load_sources(registry_path)
     markdown_path = output_dir / "index.md"
-    json_path = output_dir / "index.json"
     markdown_path.write_text(render_index_markdown(sources), encoding="utf-8")
-    json_path.write_text(render_index_json(sources, include_sql=False), encoding="utf-8")
-    return [markdown_path, json_path]
+    return [markdown_path]
 
 
 def validate_registry(registry_path: Path, schema_path: Path) -> list[ValidationError]:

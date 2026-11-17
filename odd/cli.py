@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     show_parser.add_argument("--format", choices=("text", "json"), default="text")
     show_parser.add_argument("--include-sql", action="store_true", help="include SQL recipes in JSON output")
 
-    docs_parser = subparsers.add_parser("generate-index", help="write docs/index.md and docs/index.json")
+    docs_parser = subparsers.add_parser("generate-index", help="write generated docs/index.md from registry YAML")
     docs_parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     docs_parser.add_argument("--output-dir", type=Path, default=DEFAULT_DOCS_DIR)
 
