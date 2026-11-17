@@ -68,7 +68,7 @@ jobs:
           submodules: recursive
 
       - name: Build extension
-        run: make BUILD_EXTENSION_TEST_DEPS=none
+        run: make -j$(nproc) BUILD_EXTENSION_TEST_DEPS=none
 
       - name: Run extension SQL smoke test
         run: make test BUILD_EXTENSION_TEST_DEPS=none T=test/sql/open_data_duck.test
