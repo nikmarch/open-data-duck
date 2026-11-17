@@ -40,9 +40,9 @@ jobs:
       - name: Install DuckDB CLI
         run: |
           curl --fail --location --show-error \
-            --output duckdb_cli-linux-amd64.zip \
-            https://github.com/duckdb/duckdb/releases/download/v2.0.0/duckdb_cli-linux-amd64.zip
-          unzip -q duckdb_cli-linux-amd64.zip
+            --output duckdb-cli-linux-amd64.tar.gz \
+            https://github.com/duckdb/duckdb/releases/download/v2.0.0/duckdb-cli-linux-amd64.tar.gz
+          tar -xzf duckdb-cli-linux-amd64.tar.gz
           chmod +x duckdb
 
       - name: Load artifact and run core functions

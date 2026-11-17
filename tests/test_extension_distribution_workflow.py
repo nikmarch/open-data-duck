@@ -21,7 +21,7 @@ def test_extension_distribution_workflow_smokes_downloaded_artifact() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
     assert "actions/download-artifact@v4" in workflow
-    assert "duckdb_cli-linux-amd64.zip" in workflow
+    assert "duckdb-cli-linux-amd64.tar.gz" in workflow
     assert "./duckdb -unsigned -noheader -csv :memory:" in workflow
     assert "LOAD './extension-artifact/open_data_duck.duckdb_extension';" in workflow
     assert "SELECT open_data_duck_ping();" in workflow
