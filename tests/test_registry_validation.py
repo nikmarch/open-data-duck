@@ -121,6 +121,28 @@ def test_project_registry_is_valid() -> None:
     assert [error.format() for error in errors] == []
 
 
+def test_project_registry_meets_seed_source_targets() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    sources = registry["sources"]
+    source_types = [source["source_type"] for source in sources]
+    source_ids = [source["id"] for source in sources]
+
+    assert "overture.maps.release" in source_ids
+    assert source_types.count("stac") >= 3
+    assert source_types.count("arcgis") >= 3
+    assert sum(source_id.startswith("aws.") for source_id in source_ids) >= 3
+
+
+def test_seed_sources_include_required_query_metadata() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+
+    for source in registry["sources"]:
+        assert source["license_url"].startswith("https://"), source["id"]
+        assert source["attribution"].strip(), source["id"]
+        assert source["duckdb"]["example_query"].strip(), source["id"]
+        assert source["duckdb"]["validation_query"].strip(), source["id"]
+
+
 def test_search_sources_matches_terms_and_filters(tmp_path: Path) -> None:
     registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
 
