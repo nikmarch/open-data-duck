@@ -13,16 +13,39 @@
   "$defs": {
     "source": {
       "type": "object",
-      "required": ["id", "name", "status", "source_type", "authority", "homepage", "license_url", "attribution", "duckdb"],
+      "required": ["id", "name", "description", "status", "source_type", "authority", "homepage", "license_url", "attribution", "duckdb"],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
         "name": { "type": "string" },
+        "description": { "type": "string" },
         "status": { "enum": ["candidate", "connector-blocked", "verified", "deprecated"] },
         "source_type": { "enum": ["overture", "stac", "arcgis", "parquet", "ckan", "socrata", "iceberg", "ducklake", "other"] },
         "authority": { "type": "string" },
         "homepage": { "type": "string", "format": "uri" },
         "license_url": { "type": "string", "format": "uri" },
         "attribution": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "topics": { "type": "array", "items": { "type": "string" } },
+        "coverage": {
+          "type": "object",
+          "properties": {
+            "spatial": { "type": "string" },
+            "temporal": { "type": "string" },
+            "grain": { "type": "string" }
+          },
+          "additionalProperties": { "type": "string" }
+        },
+        "cadence": { "type": "string" },
+        "ai": {
+          "type": "object",
+          "properties": {
+            "summary": { "type": "string" },
+            "use_cases": { "type": "array", "items": { "type": "string" } },
+            "caveats": { "type": "array", "items": { "type": "string" } },
+            "prompt_hints": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": true
+        },
         "duckdb": {
           "type": "object",
           "required": ["extensions", "example_query", "validation_query"],

@@ -27,6 +27,7 @@ def test_rendered_validation_sql_executes_in_real_duckdb_for_simple_source(tmp_p
 sources:
   - id: local.simple
     name: Local simple source
+    description: Minimal local source used to prove rendered SQL executes in DuckDB.
     status: candidate
     source_type: other
     authority: Local test
