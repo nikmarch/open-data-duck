@@ -132,7 +132,33 @@ contracts stay in Python/SQL:
 LOAD open_data_duck;
 SELECT open_data_duck_ping();
 SELECT open_data_duck_version();
+SELECT open_data_duck_registry_source_count();
+SELECT open_data_duck_registry_json();
 ```
+
+### Embedded registry contract
+
+The native extension must not depend on Python, PyYAML, or repo-relative files at
+runtime. `registry/sources.yml` stays the single source of truth; a generated C++
+header embeds a JSON snapshot of it into the extension binary:
+
+```text
+registry/sources.yml  --(uv run odd generate-extension-registry)-->  src/include/open_data_duck_registry.generated.hpp
+```
+
+Contributor workflow when the registry changes:
+
+```bash
+uv run odd generate-extension-registry          # rewrite the header
+uv run odd generate-extension-registry --check  # exit non-zero on drift (also runs in CI and pytest)
+```
+
+The embedded JSON has `schema_version`, `source_count`, and a `sources` array. Each
+source carries `id`, `name`, `source_type`, `status`, `description`, `authority`,
+`homepage`, `license_url`, `attribution`, `tags`, and a `duckdb` object with
+`extensions`, `install`, `example_query`, and `validation_query`. Bump
+`schema_version` in `odd/extension_registry.py` when the shape changes in a
+non-additive way.
 
 Search registered sources:
 

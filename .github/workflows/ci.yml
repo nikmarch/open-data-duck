@@ -31,6 +31,9 @@ jobs:
       - name: Validate registry
         run: uv run odd validate
 
+      - name: Check embedded extension registry is current
+        run: uv run odd generate-extension-registry --check
+
   duckdb-extension-e2e:
     name: Real DuckDB extension E2E
     runs-on: ubuntu-latest
