@@ -23,6 +23,8 @@ The project site is published from a dedicated GitHub Actions workflow to the de
 
 The workflow builds the static landing page in `site/`, copies the checked-in brand assets from `docs/assets/brand/`, and deploys the generated `_site/` artifact. No custom domain is configured yet.
 
+The site also includes a static terminal-style demo with allowlisted Open Data Duck examples. It renders real generated SQL output without accepting arbitrary SQL or running a backend; see [Interactive terminal architecture](docs/interactive-terminal.md) for the DuckDB-Wasm and Worker tradeoffs.
+
 ## Non-goals
 
 - No copied public datasets in this repo.
