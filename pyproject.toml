@@ -19,6 +19,9 @@ dev = [
   "duckdb>=2.0.0",
   "pytest>=8.0",
 ]
+mcp = [
+  "mcp>=1.0",
+]
 
 [project.scripts]
 odd = "odd.cli:main"

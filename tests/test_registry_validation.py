@@ -1,13 +1,24 @@
 from __future__ import annotations
 
 from pathlib import Path
+import importlib
 
 import pytest
 import yaml
 
 from odd.arcgis import plan_offset_pages
 from odd.cli import main
-from odd.registry import find_source, render_source_sql, search_sources, validate_registry
+from odd.registry import (
+    find_source,
+    render_index_json,
+    render_index_markdown,
+    render_index_text,
+    render_source_detail,
+    render_source_sql,
+    search_sources,
+    validate_registry,
+    write_index_artifacts,
+)
 
 
 VALID_REGISTRY = {
@@ -15,12 +26,23 @@ VALID_REGISTRY = {
         {
             "id": "example.source",
             "name": "Example source",
+            "description": "Example source description for humans and AI agents.",
             "status": "candidate",
             "source_type": "parquet",
             "authority": "Example Authority",
             "homepage": "https://example.com/data",
             "license_url": "https://example.com/license",
             "attribution": "Credit Example Authority.",
+            "tags": ["example", "parquet"],
+            "topics": ["testing"],
+            "coverage": {"spatial": "test", "temporal": "static", "grain": "rows"},
+            "cadence": "static fixture",
+            "ai": {
+                "summary": "Use for registry tests.",
+                "use_cases": ["test search"],
+                "caveats": ["fixture only"],
+                "prompt_hints": ["Use a tiny query."],
+            },
             "duckdb": {
                 "extensions": ["httpfs"],
                 "example_query": "SELECT * FROM read_parquet('https://example.com/data.parquet');",
@@ -57,6 +79,7 @@ def test_validate_registry_accepts_connector_blocked_status(tmp_path: Path) -> N
     ("field_path", "expected_path"),
     [
         (("authority",), "authority"),
+        (("description",), "description"),
         (("license_url",), "license_url"),
         (("attribution",), "attribution"),
         (("duckdb", "example_query"), "duckdb.example_query"),
@@ -128,6 +151,15 @@ def test_project_registry_is_valid() -> None:
     errors = validate_registry(Path("registry/sources.yml"), Path("schema/source.schema.json"))
 
     assert [error.format() for error in errors] == []
+
+
+def test_checked_in_index_artifacts_are_current() -> None:
+    from odd.registry import load_sources
+
+    sources = load_sources(Path("registry/sources.yml"))
+
+    assert Path("docs/index.md").read_text(encoding="utf-8") == render_index_markdown(sources)
+    assert Path("docs/index.json").read_text(encoding="utf-8") == render_index_json(sources, include_sql=False)
 
 
 def test_project_registry_meets_seed_source_targets() -> None:
@@ -207,8 +239,10 @@ def test_seed_sources_include_required_query_metadata() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
 
     for source in registry["sources"]:
+        assert source["description"].strip(), source["id"]
         assert source["license_url"].startswith("https://"), source["id"]
         assert source["attribution"].strip(), source["id"]
+        assert source.get("ai", {}).get("summary", "").strip(), source["id"]
         assert source["duckdb"]["example_query"].strip(), source["id"]
         assert source["duckdb"]["validation_query"].strip(), source["id"]
 
@@ -219,6 +253,77 @@ def test_search_sources_matches_terms_and_filters(tmp_path: Path) -> None:
     matches = search_sources(registry_path, "example parquet", source_type="parquet", status="candidate")
 
     assert [source.id for source in matches] == ["example.source"]
+
+
+def test_search_sources_matches_description_and_ai_metadata(tmp_path: Path) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+
+    matches = search_sources(registry_path, "humans agents fixture")
+
+    assert [source.id for source in matches] == ["example.source"]
+
+
+def test_source_ai_dict_exposes_metadata_without_sql_by_default(tmp_path: Path) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+    source = find_source(registry_path, "example.source")
+
+    assert source is not None
+    payload = source.to_ai_dict(include_sql=False)
+
+    assert payload["description"] == "Example source description for humans and AI agents."
+    assert payload["tags"] == ["example", "parquet"]
+    assert payload["ai"]["summary"] == "Use for registry tests."
+    assert "example_query" not in payload["duckdb"]
+
+
+def test_render_index_outputs_pretty_text_markdown_and_json(tmp_path: Path) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+    source = find_source(registry_path, "example.source")
+
+    assert source is not None
+    text = render_index_text([source])
+    markdown = render_index_markdown([source])
+    json_output = render_index_json([source])
+
+    assert "Open Data Duck source index" in text
+    assert "Example source description" in text
+    assert "### `example.source`" in markdown
+    assert '\"source_count\": 1' in json_output
+
+
+def test_render_source_detail_includes_ai_usage(tmp_path: Path) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+    source = find_source(registry_path, "example.source")
+
+    assert source is not None
+    detail = render_source_detail(source)
+
+    assert "AI usage:" in detail
+    assert "Use for registry tests" in detail
+
+
+def test_write_index_artifacts_creates_markdown_and_json(tmp_path: Path) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+    output_dir = tmp_path / "docs"
+
+    paths = write_index_artifacts(registry_path, output_dir)
+
+    assert {path.name for path in paths} == {"index.md", "index.json"}
+    assert "Example source description" in (output_dir / "index.md").read_text(encoding="utf-8")
+    assert '\"example.source\"' in (output_dir / "index.json").read_text(encoding="utf-8")
+
+
+def test_mcp_server_module_is_import_safe_and_returns_tool_payloads(tmp_path: Path) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+    mcp_server = importlib.import_module("odd.mcp_server")
+
+    search_payload = mcp_server.search_registry("fixture", registry_path=registry_path)
+    source_payload = mcp_server.get_registry_source("example.source", registry_path=registry_path, include_sql=False)
+    sql_payload = mcp_server.get_registry_source_sql("example.source", registry_path=registry_path)
+
+    assert search_payload["count"] == 1
+    assert source_payload["description"] == "Example source description for humans and AI agents."
+    assert "read_parquet" in sql_payload["sql"]
 
 
 def test_search_sources_requires_all_terms(tmp_path: Path) -> None:
@@ -270,6 +375,41 @@ def test_cli_search_prints_matching_sources(tmp_path: Path, capsys: pytest.Captu
     output = capsys.readouterr().out
     assert "example.source" in output
     assert "Example source" in output
+    assert "Example source description" in output
+
+
+def test_cli_index_prints_pretty_source_index(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+
+    exit_code = main(["index", "--registry", str(registry_path)])
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert "Open Data Duck source index" in output
+    assert "example.source" in output
+
+
+def test_cli_show_prints_source_detail(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+
+    exit_code = main(["show", "example.source", "--registry", str(registry_path)])
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert "AI usage:" in output
+    assert "Example source description" in output
+
+
+def test_cli_generate_index_writes_docs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+    output_dir = tmp_path / "docs"
+
+    exit_code = main(["generate-index", "--registry", str(registry_path), "--output-dir", str(output_dir)])
+
+    assert exit_code == 0
+    assert "index.md" in capsys.readouterr().out
+    assert (output_dir / "index.md").exists()
+    assert (output_dir / "index.json").exists()
 
 
 def test_cli_search_exits_nonzero_when_no_sources_match(

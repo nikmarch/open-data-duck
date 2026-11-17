@@ -4,12 +4,25 @@
 sources:
   - id: overture.maps.release
     name: Overture Maps source family
+    description: Global open map data releases for places, buildings, transportation, divisions, and base layers queryable from public S3 with DuckDB httpfs.
     status: candidate
     source_type: overture
     authority: Overture Maps Foundation
     homepage: https://docs.overturemaps.org/getting-data/
     license_url: https://docs.overturemaps.org/attribution/
     attribution: Overture Maps Foundation and contributing data providers.
+    tags: [maps, geospatial, places, buildings, transportation]
+    topics: [basemaps, points of interest, administrative boundaries, roads]
+    coverage:
+      spatial: global
+      temporal: release snapshots
+      grain: theme/type partitioned parquet files
+    cadence: monthly releases
+    ai:
+      summary: Best default source for broad global map features when DuckDB can query public S3.
+      use_cases: [find places in a bounding box, inspect global building footprints, compare map releases]
+      caveats: [large files require tight spatial filters, attribution varies by contributing provider]
+      prompt_hints: [Ask for the Overture theme/type and a bounding box before generating SQL.]
     release:
       latest:
         method: release-calendar
@@ -73,12 +86,25 @@ sources:
 
   - id: stac.earth-search.aws
     name: Earth Search STAC API
+    description: Element 84 STAC API for cloud-optimized geospatial imagery, especially Sentinel collections hosted in the AWS open data ecosystem.
     status: candidate
     source_type: stac
     authority: Element 84 / AWS Open Data ecosystem
     homepage: https://earth-search.aws.element84.com/v1
     license_url: https://registry.opendata.aws/sentinel-2-l2a-cogs/
     attribution: Dataset-specific attribution required; verify per collection.
+    tags: [stac, imagery, aws, sentinel]
+    topics: [satellite imagery, earth observation, cloud optimized geotiff]
+    coverage:
+      spatial: global where source collections are available
+      temporal: collection-specific acquisition dates
+      grain: STAC item and asset metadata
+    cadence: collection-specific updates
+    ai:
+      summary: Good STAC search target for AWS-hosted earth observation assets.
+      use_cases: [discover Sentinel scenes, filter imagery by bounding box and date, inspect asset URLs]
+      caveats: [license and attribution are collection-specific, assets may be large]
+      prompt_hints: [Ask for collection, date range, cloud cover, and bbox before generating SQL.]
     duckdb:
       extensions:
         - httpfs
@@ -104,12 +130,25 @@ sources:
 
   - id: stac.microsoft.planetary-computer
     name: Microsoft Planetary Computer STAC API
+    description: Microsoft Planetary Computer STAC catalog for environmental, climate, and satellite datasets exposed through a STAC API.
     status: candidate
     source_type: stac
     authority: Microsoft Planetary Computer
     homepage: https://planetarycomputer.microsoft.com/catalog
     license_url: https://planetarycomputer.microsoft.com/terms
     attribution: Dataset-specific attribution required; verify per Planetary Computer collection.
+    tags: [stac, imagery, climate, microsoft]
+    topics: [earth observation, climate data, environmental analysis]
+    coverage:
+      spatial: collection-specific global and regional datasets
+      temporal: collection-specific acquisition dates
+      grain: STAC collections, items, and assets
+    cadence: collection-specific updates
+    ai:
+      summary: Broad STAC catalog for research-grade geospatial and environmental datasets.
+      use_cases: [discover public imagery collections, inspect STAC item assets, build climate-data queries]
+      caveats: [some assets require signing or Planetary Computer-specific access patterns]
+      prompt_hints: [Ask which collection and spatial/temporal filter the user wants.]
     duckdb:
       extensions:
         - httpfs
@@ -135,12 +174,25 @@ sources:
 
   - id: stac.nasa.lpcloud
     name: NASA LP DAAC LPCLOUD STAC catalog
+    description: NASA LP DAAC STAC catalog for land processes data products served through Earthdata/CMR endpoints.
     status: candidate
     source_type: stac
     authority: NASA Land Processes Distributed Active Archive Center
     homepage: https://cmr.earthdata.nasa.gov/stac/LPCLOUD/
     license_url: https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy
     attribution: NASA LP DAAC data; cite dataset-specific DOI and attribution.
+    tags: [stac, nasa, land, earthdata]
+    topics: [land processes, remote sensing, NASA earth science]
+    coverage:
+      spatial: product-specific global and regional coverage
+      temporal: product-specific acquisition dates
+      grain: STAC collection and item metadata
+    cadence: product-specific updates
+    ai:
+      summary: NASA land-processes catalog for discovering authoritative Earthdata products.
+      use_cases: [find LP DAAC products, inspect land remote-sensing assets, cite NASA datasets]
+      caveats: [some downstream assets may require Earthdata access workflows]
+      prompt_hints: [Ask for the NASA product, date range, and area of interest.]
     duckdb:
       extensions:
         - httpfs
@@ -166,12 +218,25 @@ sources:
 
   - id: arcgis.census.tigerweb.state-county
     name: U.S. Census TIGERweb state and county layers
+    description: Census TIGERweb ArcGIS layers for U.S. state and county boundaries, useful once ArcGIS paging is available in the DuckDB path.
     status: connector-blocked
     source_type: arcgis
     authority: U.S. Census Bureau
     homepage: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer
     license_url: https://www.census.gov/data/developers/about/terms-of-service.html
     attribution: U.S. Census Bureau TIGERweb.
+    tags: [arcgis, census, boundaries, us]
+    topics: [administrative boundaries, counties, states]
+    coverage:
+      spatial: United States
+      temporal: current TIGERweb service state
+      grain: ArcGIS layer features
+    cadence: Census service updates
+    ai:
+      summary: Authoritative U.S. boundary service, currently blocked on stable DuckDB ArcGIS connector packaging.
+      use_cases: [join data to county boundaries, inspect state and county geometries]
+      caveats: [connector is blocked; use REST pagination path until extension install is reliable]
+      prompt_hints: [Mention connector-blocked status and prefer REST pagination planning.]
     duckdb:
       extensions:
         - arcgis
@@ -194,12 +259,25 @@ sources:
 
   - id: arcgis.fema.nfhl.flood-hazard-zones
     name: FEMA National Flood Hazard Layer flood hazard zones
+    description: FEMA NFHL ArcGIS layer for flood hazard zones, intended for risk and property-context queries after ArcGIS paging support is stable.
     status: connector-blocked
     source_type: arcgis
     authority: Federal Emergency Management Agency
     homepage: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer
     license_url: https://www.fema.gov/about/openfema/terms-conditions
     attribution: Federal Emergency Management Agency National Flood Hazard Layer.
+    tags: [arcgis, fema, flood, hazards]
+    topics: [flood risk, hazards, property context]
+    coverage:
+      spatial: United States
+      temporal: current NFHL service state
+      grain: flood hazard zone features
+    cadence: FEMA service updates
+    ai:
+      summary: Authoritative FEMA flood-hazard layer, but DuckDB access is connector-blocked today.
+      use_cases: [identify flood hazard zones, enrich property or parcel analysis]
+      caveats: [not a substitute for official determinations; connector path is not stable yet]
+      prompt_hints: [Ask for area of interest and explain official-use caveats.]
     duckdb:
       extensions:
         - arcgis
@@ -222,12 +300,25 @@ sources:
 
   - id: arcgis.usgs.national-map-contours
     name: USGS National Map elevation contours
+    description: USGS National Map ArcGIS contour layer for elevation-line features and terrain context, pending stable ArcGIS support.
     status: connector-blocked
     source_type: arcgis
     authority: U.S. Geological Survey
     homepage: https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer
     license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
     attribution: U.S. Geological Survey National Map.
+    tags: [arcgis, usgs, elevation, contours]
+    topics: [terrain, elevation, topography]
+    coverage:
+      spatial: United States
+      temporal: current National Map service state
+      grain: contour line features
+    cadence: USGS service updates
+    ai:
+      summary: Elevation contour source for terrain questions once ArcGIS connector access is stable.
+      use_cases: [inspect terrain context, locate contour features, enrich map analysis]
+      caveats: [connector is blocked; large geometry layers need paging]
+      prompt_hints: [Ask for bbox and contour/elevation needs before SQL generation.]
     duckdb:
       extensions:
         - arcgis
@@ -250,12 +341,25 @@ sources:
 
   - id: aws.noaa-ghcn-daily
     name: NOAA Global Historical Climatology Network Daily
+    description: NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.
     status: candidate
     source_type: other
     authority: NOAA National Centers for Environmental Information
     homepage: https://registry.opendata.aws/noaa-ghcn/
     license_url: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
     attribution: NOAA National Centers for Environmental Information, Global Historical Climatology Network Daily.
+    tags: [aws, noaa, climate, weather, csv]
+    topics: [daily climate observations, stations, temperature, precipitation]
+    coverage:
+      spatial: global station network
+      temporal: year-partitioned historical daily observations
+      grain: station-day observation elements
+    cadence: daily and historical updates
+    ai:
+      summary: Station-day climate observations suitable for DuckDB CSV scans from public S3 HTTPS URLs.
+      use_cases: [analyze daily station observations, compare precipitation or temperature by year]
+      caveats: [CSV files are large; filter by year/station/element early]
+      prompt_hints: [Ask for year, station IDs, and climate elements before generating SQL.]
     duckdb:
       extensions:
         - httpfs
@@ -276,12 +380,25 @@ sources:
 
   - id: aws.noaa-gsod
     name: NOAA Global Surface Summary of the Day
+    description: NOAA GSOD daily weather summaries by station, exposed as public S3 CSV objects queryable with DuckDB httpfs.
     status: candidate
     source_type: other
     authority: NOAA National Centers for Environmental Information
     homepage: https://registry.opendata.aws/noaa-gsod/
     license_url: https://www.ncei.noaa.gov/products/land-based-weather-stations
     attribution: NOAA National Centers for Environmental Information, Global Surface Summary of the Day.
+    tags: [aws, noaa, weather, daily, csv]
+    topics: [daily weather summaries, stations, temperature]
+    coverage:
+      spatial: global station network
+      temporal: annual station files
+      grain: station-day summary rows
+    cadence: daily and historical updates
+    ai:
+      summary: Practical NOAA station-day weather summary source for quick weather history queries.
+      use_cases: [query station daily summaries, compare temperatures by station, join station weather to events]
+      caveats: [station files are split by year and station; choose a target file before scanning]
+      prompt_hints: [Ask for station, year, and desired weather fields.]
     duckdb:
       extensions:
         - httpfs
@@ -301,12 +418,25 @@ sources:
 
   - id: aws.noaa-isd-history
     name: NOAA Integrated Surface Database station history
+    description: NOAA ISD station-history lookup table with station identifiers, names, country/state, and coordinates.
     status: candidate
     source_type: other
     authority: NOAA National Centers for Environmental Information
     homepage: https://registry.opendata.aws/noaa-isd/
     license_url: https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
     attribution: NOAA National Centers for Environmental Information, Integrated Surface Database.
+    tags: [aws, noaa, stations, lookup, csv]
+    topics: [weather stations, station metadata, geocoding]
+    coverage:
+      spatial: global station network
+      temporal: station metadata history
+      grain: weather station metadata rows
+    cadence: periodic metadata updates
+    ai:
+      summary: Lightweight station lookup source for finding NOAA station IDs and coordinates before querying observations.
+      use_cases: [find nearby station IDs, map weather station locations, join station metadata to GSOD or ISD data]
+      caveats: [metadata lookup only; use observation datasets for measurements]
+      prompt_hints: [Use this first when the user knows a place but not a NOAA station ID.]
     duckdb:
       extensions:
         - httpfs

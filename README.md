@@ -118,6 +118,33 @@ uv run odd search overture
 uv run odd search "stac sentinel" --type stac
 ```
 
+Print the pretty human/AI source index:
+
+```bash
+uv run odd index
+uv run odd index --format json
+uv run odd show overture.maps.release
+uv run odd generate-index
+```
+
+The checked-in `docs/index.md` and `docs/index.json` files are generated from
+`registry/sources.yml`. The JSON shape is intentionally agent-friendly: every
+source includes a description, tags/topics, coverage/cadence, AI usage hints,
+license/attribution, and DuckDB recipe metadata.
+
+Run the optional MCP server for AI clients:
+
+```bash
+uv sync --extra mcp
+uv run python -m odd.mcp_server
+```
+
+MCP tools exposed by the server:
+
+- `search_sources_tool` — search sources by text/type/status.
+- `get_source` — return one AI-friendly source record.
+- `get_source_sql` — return executable DuckDB SQL for a source.
+
 Print the DuckDB SQL recipe for a source:
 
 ```bash
