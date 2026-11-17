@@ -31,3 +31,30 @@ ArcGIS FeatureServer and MapServer layers remain the first engine-maintenance ta
 5. Fork native extension work only if the upstream/community path stalls.
 
 Do not emit or document `INSTALL arcgis FROM community;` as a working user path until it succeeds against real DuckDB.
+
+## Socrata path
+
+Socrata portals expose every dataset through the SODA resource endpoint (`https://<domain>/resource/<four-by-four>.<csv|json|geojson>`). DuckDB can read it today with `httpfs` + `read_csv_auto` / `read_json_auto`, anonymously, without an app token. The smallest supported path is therefore **SODA export URLs with explicit paging**, not a native extension.
+
+The risky part is truncation: SODA caps every response at `$limit` (default 1,000; max 50,000 on SODA 2.1), so a bare `read_csv_auto('.../resource/<id>.csv')` silently returns the first page of a 23M-row table. `odd/socrata.py` plans pages the same way the ArcGIS helper does: count first via `$select=count(*)`, then page with `$limit` / `$offset` under a deterministic `$order`.
+
+### Socrata evidence checklist
+
+A Socrata source can move from `connector-blocked` to `candidate` only after the PR shows all of this:
+
+- a public SODA resource URL on an official portal that works without an app token;
+- a count request using `$select=count(*)`;
+- planned query pages using `$order`, `$limit`, and `$offset`, with `$limit` never above the SODA cap;
+- more than one planned page against a public source, so pagination is proven rather than assumed;
+- every recipe passes `$select` / `$where` / `$limit`; no recipe reads the bare `.csv` export of a large table;
+- normal CI does not call the network.
+
+A registry entry can move to `verified` only after the public-source smoke test also proves DuckDB `httpfs` reads a planned page and returns exactly the planned row count.
+
+Registry entries whose dataset-level license is unresolved stay blocked regardless of engine state; see the `needs-license-review` label.
+
+Run the opt-in Socrata smoke (NYC Open Data 311, `erm2-nwe9`) locally with:
+
+```bash
+ODD_SOCRATA_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_socrata_engine.py
+```
