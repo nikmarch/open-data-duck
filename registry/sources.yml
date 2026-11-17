@@ -38,7 +38,7 @@ sources:
     status: candidate
     source_type: stac
     authority: Element 84 / AWS Open Data ecosystem
-    homepage: https://earth-search.aws.element84.com/
+    homepage: https://earth-search.aws.element84.com/v1
     license_url: https://registry.opendata.aws/sentinel-2-l2a-cogs/
     attribution: Dataset-specific attribution required; verify per collection.
     duckdb:
@@ -64,14 +64,76 @@ sources:
       method: stac-api
       url: https://earth-search.aws.element84.com/v1
 
-  - id: arcgis.sample-server.usa-counties
-    name: ArcGIS sample USA counties layer
+  - id: stac.microsoft.planetary-computer
+    name: Microsoft Planetary Computer STAC API
+    status: candidate
+    source_type: stac
+    authority: Microsoft Planetary Computer
+    homepage: https://planetarycomputer.microsoft.com/catalog
+    license_url: https://planetarycomputer.microsoft.com/terms
+    attribution: Dataset-specific attribution required; verify per Planetary Computer collection.
+    duckdb:
+      extensions:
+        - httpfs
+        - spatial
+        - stac
+      install: |
+        INSTALL httpfs;
+        INSTALL spatial;
+        INSTALL stac FROM community;
+      example_query: |
+        LOAD httpfs;
+        LOAD spatial;
+        LOAD stac;
+        SELECT collection, id, bbox
+        FROM STAC_Search('https://planetarycomputer.microsoft.com/api/stac/v1/search', max_items := 10)
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM STAC_Collections('https://planetarycomputer.microsoft.com/api/stac/v1');
+    freshness:
+      method: stac-api
+      url: https://planetarycomputer.microsoft.com/api/stac/v1
+
+  - id: stac.nasa.lpcloud
+    name: NASA LP DAAC LPCLOUD STAC catalog
+    status: candidate
+    source_type: stac
+    authority: NASA Land Processes Distributed Active Archive Center
+    homepage: https://cmr.earthdata.nasa.gov/stac/LPCLOUD/
+    license_url: https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy
+    attribution: NASA LP DAAC data; cite dataset-specific DOI and attribution.
+    duckdb:
+      extensions:
+        - httpfs
+        - spatial
+        - stac
+      install: |
+        INSTALL httpfs;
+        INSTALL spatial;
+        INSTALL stac FROM community;
+      example_query: |
+        LOAD httpfs;
+        LOAD spatial;
+        LOAD stac;
+        SELECT collection, id, bbox
+        FROM STAC_Search('https://cmr.earthdata.nasa.gov/stac/LPCLOUD/search', max_items := 10)
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM STAC_Collections('https://cmr.earthdata.nasa.gov/stac/LPCLOUD/');
+    freshness:
+      method: stac-api
+      url: https://cmr.earthdata.nasa.gov/stac/LPCLOUD/
+
+  - id: arcgis.census.tigerweb.state-county
+    name: U.S. Census TIGERweb state and county layers
     status: candidate
     source_type: arcgis
-    authority: Esri sample server
-    homepage: https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer
-    license_url: https://developers.arcgis.com/terms/
-    attribution: Esri sample data; not for production registry except connector testing.
+    authority: U.S. Census Bureau
+    homepage: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer
+    license_url: https://www.census.gov/data/developers/about/terms-of-service.html
+    attribution: U.S. Census Bureau TIGERweb.
     duckdb:
       extensions:
         - arcgis
@@ -81,11 +143,139 @@ sources:
       example_query: |
         LOAD arcgis;
         SELECT *
-        FROM arcgis_query('https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer/3')
+        FROM arcgis_query('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1')
         LIMIT 10;
       validation_query: |
         SELECT count(*) > 0 AS ok
-        FROM arcgis_query('https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer/3');
+        FROM arcgis_query('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1');
     freshness:
       method: arcgis-layer-metadata
-      url: https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer/3?f=pjson
+      url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1?f=pjson
+
+  - id: arcgis.fema.nfhl.flood-hazard-zones
+    name: FEMA National Flood Hazard Layer flood hazard zones
+    status: candidate
+    source_type: arcgis
+    authority: Federal Emergency Management Agency
+    homepage: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer
+    license_url: https://www.fema.gov/about/openfema/terms-conditions
+    attribution: Federal Emergency Management Agency National Flood Hazard Layer.
+    duckdb:
+      extensions:
+        - arcgis
+      install: |
+        -- arcgis extension is not yet in DuckDB community extensions.
+        -- Track packaging in GitHub issues.
+      example_query: |
+        LOAD arcgis;
+        SELECT *
+        FROM arcgis_query('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28')
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM arcgis_query('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28');
+    freshness:
+      method: arcgis-layer-metadata
+      url: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28?f=pjson
+
+  - id: arcgis.usgs.national-map-contours
+    name: USGS National Map elevation contours
+    status: candidate
+    source_type: arcgis
+    authority: U.S. Geological Survey
+    homepage: https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer
+    license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+    attribution: U.S. Geological Survey National Map.
+    duckdb:
+      extensions:
+        - arcgis
+      install: |
+        -- arcgis extension is not yet in DuckDB community extensions.
+        -- Track packaging in GitHub issues.
+      example_query: |
+        LOAD arcgis;
+        SELECT *
+        FROM arcgis_query('https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2')
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM arcgis_query('https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2');
+    freshness:
+      method: arcgis-layer-metadata
+      url: https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2?f=pjson
+
+  - id: aws.noaa-ghcn-daily
+    name: NOAA Global Historical Climatology Network Daily
+    status: candidate
+    source_type: other
+    authority: NOAA National Centers for Environmental Information
+    homepage: https://registry.opendata.aws/noaa-ghcn/
+    license_url: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
+    attribution: NOAA National Centers for Environmental Information, Global Historical Climatology Network Daily.
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT id, date, element, data_value
+        FROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')
+        LIMIT 1;
+    freshness:
+      method: aws-open-data-s3-prefix
+      url: https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/&max-keys=5
+
+  - id: aws.noaa-gsod
+    name: NOAA Global Surface Summary of the Day
+    status: candidate
+    source_type: other
+    authority: NOAA National Centers for Environmental Information
+    homepage: https://registry.opendata.aws/noaa-gsod/
+    license_url: https://www.ncei.noaa.gov/products/land-based-weather-stations
+    attribution: NOAA National Centers for Environmental Information, Global Surface Summary of the Day.
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT station, date, latitude, longitude, temp
+        FROM read_csv_auto('https://noaa-gsod-pds.s3.amazonaws.com/2024/01001099999.csv')
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM read_csv_auto('https://noaa-gsod-pds.s3.amazonaws.com/2024/01001099999.csv');
+    freshness:
+      method: aws-open-data-s3-prefix
+      url: https://noaa-gsod-pds.s3.amazonaws.com/
+
+  - id: aws.noaa-isd-history
+    name: NOAA Integrated Surface Database station history
+    status: candidate
+    source_type: other
+    authority: NOAA National Centers for Environmental Information
+    homepage: https://registry.opendata.aws/noaa-isd/
+    license_url: https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+    attribution: NOAA National Centers for Environmental Information, Integrated Surface Database.
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT "USAF", "WBAN", "STATION NAME", "CTRY", "STATE", "LAT", "LON"
+        FROM read_csv_auto('https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv')
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM read_csv_auto('https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv');
+    freshness:
+      method: aws-open-data-s3-object
+      url: https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv
