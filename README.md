@@ -93,10 +93,10 @@ DuckDB is included in the `dev` extra. A quick real-engine smoke test:
 uv run python -c "import duckdb; con = duckdb.connect(':memory:'); print(con.execute('select 42').fetchone())"
 ```
 
-Network-backed DuckDB extension checks are opt-in so normal CI stays stable:
+Network-backed DuckDB extension checks are opt-in locally and run as a separate CI job:
 
 ```bash
-ODD_DUCKDB_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_duckdb_execution.py
+ODD_DUCKDB_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_duckdb_execution.py -k real_duckdb_can_install_and_load_supported_extensions
 ```
 
 ArcGIS public FeatureServer smoke tests are also opt-in. They exercise REST metadata, count, and paginated query planning without unsigned DuckDB extensions:
