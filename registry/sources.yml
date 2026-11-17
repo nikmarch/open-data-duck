@@ -454,6 +454,45 @@ sources:
       method: aws-open-data-s3-object
       url: https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv
 
+  - id: ckan.data-gov-au.wyndham-pets
+    name: Data.gov.au Wyndham registered dogs and cats
+    description: Australian Government CKAN catalog package with a public CSV distribution of Wyndham registered dog and cat counts by suburb.
+    status: candidate
+    source_type: ckan
+    authority: Wyndham City Council via data.gov.au
+    homepage: https://data.gov.au/data/dataset/wyndham-registered-dogs-catscsv
+    license_url: https://creativecommons.org/licenses/by/3.0/au/
+    attribution: Wyndham City Council; licensed under Creative Commons Attribution 3.0 Australia.
+    tags: [ckan, dcat, australia, csv, animals]
+    topics: [open data catalogs, local government, pets]
+    coverage:
+      spatial: Wyndham, Victoria, Australia
+      temporal: catalog-maintained snapshot
+      grain: suburb pet-registration counts
+    cadence: catalog-maintained updates
+    ai:
+      summary: CKAN/DCAT example where the catalog is discovery metadata and the usable DuckDB path is a direct public CSV resource over httpfs.
+      use_cases: [test CKAN resource discovery, query a simple government CSV distribution]
+      caveats: [CKAN is not a DuckDB table function; only directly readable distributions should be marked candidate]
+      prompt_hints: [Use the catalog to discover resources, then generate SQL against the direct CSV URL.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT *
+        FROM read_csv_auto('https://data.gov.au/data/dataset/ff0b0b45-e772-4835-9525-a6d7e20ea93d/resource/eef6a84b-ad44-446f-9cf9-fb5d135e3123/download/wyndhamcatdogslist.csv')
+        LIMIT 10;
+      validation_query: |
+        LOAD httpfs;
+        SELECT count(*) > 0 AS ok
+        FROM read_csv_auto('https://data.gov.au/data/dataset/ff0b0b45-e772-4835-9525-a6d7e20ea93d/resource/eef6a84b-ad44-446f-9cf9-fb5d135e3123/download/wyndhamcatdogslist.csv');
+    freshness:
+      method: ckan-package-show
+      url: https://data.gov.au/data/api/3/action/package_show?id=wyndham-registered-dogs-catscsv
+
   - id: sourcecoop.vida.google-microsoft-open-buildings
     name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
     description: VIDA's combined Google and Microsoft global building-footprint dataset, partitioned as public GeoParquet on Source Cooperative for direct DuckDB scans.

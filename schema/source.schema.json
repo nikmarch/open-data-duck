@@ -19,7 +19,7 @@
         "name": { "type": "string" },
         "description": { "type": "string" },
         "status": { "enum": ["candidate", "connector-blocked", "verified", "deprecated"] },
-        "source_type": { "enum": ["overture", "stac", "arcgis", "parquet", "ckan", "socrata", "iceberg", "ducklake", "other"] },
+        "source_type": { "enum": ["overture", "stac", "arcgis", "parquet", "ckan", "dcat", "socrata", "iceberg", "ducklake", "other"] },
         "authority": { "type": "string" },
         "homepage": { "type": "string", "format": "uri" },
         "license_url": { "type": "string", "format": "uri" },
