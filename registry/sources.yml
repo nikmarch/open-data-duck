@@ -1,0 +1,91 @@
+# Open Data Duck seed registry.
+# Status values: candidate, verified, deprecated.
+
+sources:
+  - id: overture.maps.release
+    name: Overture Maps release catalog
+    status: candidate
+    source_type: overture
+    authority: Overture Maps Foundation
+    homepage: https://docs.overturemaps.org/getting-data/
+    license_url: https://docs.overturemaps.org/attribution/
+    attribution: Overture Maps Foundation and contributing data providers.
+    duckdb:
+      extensions:
+        - spatial
+        - httpfs
+        - overture
+      install: |
+        INSTALL spatial;
+        INSTALL httpfs;
+        INSTALL overture FROM community;
+      example_query: |
+        LOAD spatial;
+        LOAD httpfs;
+        LOAD overture;
+        SET s3_region='us-west-2';
+        SELECT * FROM read_overture_places(west := -150, east := -149, south := 60, north := 61) LIMIT 10;
+      validation_query: |
+        SELECT count(*) >= 0 AS ok
+        FROM read_overture_places(west := -150, east := -149, south := 60, north := 61)
+        LIMIT 1;
+    freshness:
+      method: release-calendar
+      url: https://docs.overturemaps.org/release-calendar/
+
+  - id: stac.earth-search.aws
+    name: Earth Search STAC API
+    status: candidate
+    source_type: stac
+    authority: Element 84 / AWS Open Data ecosystem
+    homepage: https://earth-search.aws.element84.com/
+    license_url: https://registry.opendata.aws/sentinel-2-l2a-cogs/
+    attribution: Dataset-specific attribution required; verify per collection.
+    duckdb:
+      extensions:
+        - httpfs
+        - spatial
+        - stac
+      install: |
+        INSTALL httpfs;
+        INSTALL spatial;
+        INSTALL stac FROM community;
+      example_query: |
+        LOAD httpfs;
+        LOAD spatial;
+        LOAD stac;
+        SELECT collection, id, bbox
+        FROM STAC_Search('https://earth-search.aws.element84.com/v1/search', max_items := 10)
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM STAC_Collections('https://earth-search.aws.element84.com/v1');
+    freshness:
+      method: stac-api
+      url: https://earth-search.aws.element84.com/v1
+
+  - id: arcgis.sample-server.usa-counties
+    name: ArcGIS sample USA counties layer
+    status: candidate
+    source_type: arcgis
+    authority: Esri sample server
+    homepage: https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer
+    license_url: https://developers.arcgis.com/terms/
+    attribution: Esri sample data; not for production registry except connector testing.
+    duckdb:
+      extensions:
+        - arcgis
+      install: |
+        -- arcgis extension is not yet in DuckDB community extensions.
+        -- Track packaging in GitHub issues.
+      example_query: |
+        LOAD arcgis;
+        SELECT *
+        FROM arcgis_query('https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer/3')
+        LIMIT 10;
+      validation_query: |
+        SELECT count(*) > 0 AS ok
+        FROM arcgis_query('https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer/3');
+    freshness:
+      method: arcgis-layer-metadata
+      url: https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer/3?f=pjson

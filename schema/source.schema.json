@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/nikmarch/open-data-duck/schema/source.schema.json",
+  "title": "Open Data Duck source registry",
+  "type": "object",
+  "required": ["sources"],
+  "properties": {
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source" }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["id", "name", "status", "source_type", "authority", "homepage", "license_url", "attribution", "duckdb"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
+        "name": { "type": "string" },
+        "status": { "enum": ["candidate", "verified", "deprecated"] },
+        "source_type": { "enum": ["overture", "stac", "arcgis", "parquet", "ckan", "socrata", "iceberg", "ducklake", "other"] },
+        "authority": { "type": "string" },
+        "homepage": { "type": "string", "format": "uri" },
+        "license_url": { "type": "string", "format": "uri" },
+        "attribution": { "type": "string" },
+        "duckdb": {
+          "type": "object",
+          "required": ["extensions", "example_query", "validation_query"],
+          "properties": {
+            "extensions": { "type": "array", "items": { "type": "string" } },
+            "install": { "type": "string" },
+            "example_query": { "type": "string" },
+            "validation_query": { "type": "string" }
+          }
+        },
+        "freshness": {
+          "type": "object",
+          "properties": {
+            "method": { "type": "string" },
+            "url": { "type": "string", "format": "uri" }
+          }
+        }
+      }
+    }
+  }
+}
