@@ -19,3 +19,26 @@ query I
 SELECT length(open_data_duck_version()) > 0;
 ----
 true
+
+# The embedded registry is generated from registry/sources.yml at development time.
+query I
+SELECT open_data_duck_registry_source_count() > 0;
+----
+true
+
+require json
+
+query I
+SELECT json_valid(open_data_duck_registry_json());
+----
+true
+
+query I
+SELECT open_data_duck_registry_json()->>'$.schema_version';
+----
+1
+
+query I
+SELECT json_array_length(open_data_duck_registry_json(), '$.sources') = open_data_duck_registry_source_count();
+----
+true

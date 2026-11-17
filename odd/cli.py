@@ -4,6 +4,11 @@ import argparse
 import json
 from pathlib import Path
 
+from odd.extension_registry import (
+    DEFAULT_EXTENSION_REGISTRY_HEADER,
+    check_extension_registry_header,
+    write_extension_registry_header,
+)
 from odd.registry import (
     find_source,
     load_sources,
@@ -53,6 +58,18 @@ def main(argv: list[str] | None = None) -> int:
     docs_parser = subparsers.add_parser("generate-index", help="write generated docs/index.md from registry YAML")
     docs_parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     docs_parser.add_argument("--output-dir", type=Path, default=DEFAULT_DOCS_DIR)
+
+    ext_registry_parser = subparsers.add_parser(
+        "generate-extension-registry",
+        help="write the generated C++ registry header embedded in the DuckDB extension",
+    )
+    ext_registry_parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
+    ext_registry_parser.add_argument("--output", type=Path, default=DEFAULT_EXTENSION_REGISTRY_HEADER)
+    ext_registry_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="do not write; exit non-zero if the header drifted from the registry YAML",
+    )
 
     search_parser = subparsers.add_parser("search", help="search registry sources")
     search_parser.add_argument("query", nargs="*", help="search terms; all terms must match")
@@ -120,6 +137,8 @@ def main(argv: list[str] | None = None) -> int:
         return _show(args.registry, args.source_id, args.format, include_sql=args.include_sql)
     if args.command == "generate-index":
         return _generate_index(args.registry, args.output_dir)
+    if args.command == "generate-extension-registry":
+        return _generate_extension_registry(args.registry, args.output, check=args.check)
     if args.command == "search":
         return _search(args.registry, " ".join(args.query), args.source_type, args.status, args.limit)
     if args.command == "sql":
@@ -170,6 +189,21 @@ def _generate_index(registry_path: Path, output_dir: Path) -> int:
     paths = write_index_artifacts(registry_path, output_dir)
     for path in paths:
         print(path)
+    return 0
+
+
+def _generate_extension_registry(registry_path: Path, output_path: Path, *, check: bool) -> int:
+    if check:
+        problems = check_extension_registry_header(registry_path, output_path)
+        if problems:
+            print("Extension registry drift check failed:")
+            for problem in problems:
+                print(f"- {problem}")
+            return 1
+        print(f"Extension registry header is current: {output_path}")
+        return 0
+
+    print(write_extension_registry_header(registry_path, output_path))
     return 0
 
 
