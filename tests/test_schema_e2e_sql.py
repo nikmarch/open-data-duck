@@ -5,7 +5,7 @@ from pathlib import Path
 import duckdb  # type: ignore[import-not-found]
 import pytest  # type: ignore[import-not-found]
 
-HELPERS_SQL = Path("duckdb/open_data_duck.sql")
+HELPERS_SQL = Path("sql/open_data_duck.sql")
 E2E_DIR = Path("tests/e2e")
 
 EXPECTED_ROWS = {

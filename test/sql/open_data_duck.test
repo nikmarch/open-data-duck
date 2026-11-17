@@ -1,0 +1,21 @@
+# name: test/sql/open_data_duck.test
+# description: smoke test the open_data_duck extension scaffold
+# group: [sql]
+
+# Before the extension is loaded, this should fail.
+statement error
+SELECT open_data_duck_ping();
+----
+Catalog Error: Scalar Function with name open_data_duck_ping does not exist!
+
+require open_data_duck
+
+query I
+SELECT open_data_duck_ping();
+----
+open_data_duck: pong
+
+query I
+SELECT length(open_data_duck_version()) > 0;
+----
+true

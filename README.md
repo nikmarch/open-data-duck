@@ -117,6 +117,23 @@ Validate the registry locally:
 uv run odd validate
 ```
 
+Build and smoke-test the native DuckDB extension scaffold:
+
+```bash
+git submodule update --init --recursive
+make
+make test
+```
+
+The first native surface is deliberately tiny while the registry and SQL helper
+contracts stay in Python/SQL:
+
+```sql
+LOAD open_data_duck;
+SELECT open_data_duck_ping();
+SELECT open_data_duck_version();
+```
+
 Search registered sources:
 
 ```bash
@@ -141,7 +158,7 @@ uv run odd schema refresh local.source_id
 uv run odd schema check local.source_id
 ```
 
-The DuckDB-side contract lives in `duckdb/open_data_duck.sql` and is tested by
+The DuckDB-side SQL helper contract lives in `sql/open_data_duck.sql` and is tested by
 pure SQL files under `tests/e2e/`. Those SQL cases call the same macros future
 DuckDB users/functions should call:
 
