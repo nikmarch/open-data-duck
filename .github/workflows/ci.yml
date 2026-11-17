@@ -30,3 +30,28 @@ jobs:
 
       - name: Validate registry
         run: uv run odd validate
+
+  duckdb-extension-e2e:
+    name: Real DuckDB extension E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Install DuckDB extensions and run real SQL
+        env:
+          ODD_DUCKDB_NETWORK_TESTS: "1"
+        run: uv run pytest tests/test_duckdb_execution.py -k real_duckdb_can_install_and_load_supported_extensions
