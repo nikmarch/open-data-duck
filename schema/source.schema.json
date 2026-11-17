@@ -17,7 +17,7 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
         "name": { "type": "string" },
-        "status": { "enum": ["candidate", "verified", "deprecated"] },
+        "status": { "enum": ["candidate", "connector-blocked", "verified", "deprecated"] },
         "source_type": { "enum": ["overture", "stac", "arcgis", "parquet", "ckan", "socrata", "iceberg", "ducklake", "other"] },
         "authority": { "type": "string" },
         "homepage": { "type": "string", "format": "uri" },

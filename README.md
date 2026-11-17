@@ -47,6 +47,7 @@ SET VARIABLE overture_release = '2026-03-18.0';
 
 ```text
 candidate -> verified -> deprecated
+connector-blocked -> candidate or verified once the engine path is usable
 ```
 
 A source can become `verified` only when it has:
@@ -57,6 +58,23 @@ A source can become `verified` only when it has:
 - DuckDB query recipe
 - validation query
 - freshness or release-check method
+
+Use `connector-blocked` when the source is authoritative, but the DuckDB path depends on an extension or connector that users cannot install reliably yet.
+
+## ArcGIS engine path
+
+ArcGIS FeatureServer / MapServer layers are useful Open Data Duck targets, but the current DuckDB engine path is blocked on packaging.
+
+The relevant extension is [`zbyte64/duckdb-arcgis`](https://github.com/zbyte64/duckdb-arcgis). Current limitations:
+
+- it is not in DuckDB's community extension repository;
+- installation is from a GitHub release artifact, not `INSTALL arcgis FROM community;`;
+- binaries are unsigned, so DuckDB must be opened with unsigned extensions allowed before install/load;
+- release binaries are tied to the exact DuckDB version and platform they were built for;
+- the current `v0.2.1` release is built for DuckDB `v1.5.6`, while this project tests with DuckDB `>=2.0.0`;
+- other DuckDB versions require building the extension from source with its submodules/toolchain.
+
+Open Data Duck should build a small wrapper/macro/REST pagination path first: discover layer metadata, count features, and page with `resultOffset` / `resultRecordCount` so truncated ArcGIS responses are not treated as complete data. After that path is proven, contribute tests and packaging improvements upstream or to DuckDB community extensions. Forking `duckdb-arcgis` should be a fallback only if the upstream release path stalls.
 
 ## Development
 
