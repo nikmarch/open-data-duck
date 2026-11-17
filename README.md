@@ -133,6 +133,32 @@ uv run odd show overture.maps.release
 uv run odd generate-index
 ```
 
+Discover and cache DuckDB-visible source schemas:
+
+```bash
+uv run odd schema inspect local.source_id
+uv run odd schema refresh local.source_id
+uv run odd schema check local.source_id
+```
+
+The DuckDB-side contract lives in `duckdb/open_data_duck.sql` and is tested by
+pure SQL files under `tests/e2e/`. Those SQL cases call the same macros future
+DuckDB users/functions should call:
+
+```sql
+SELECT * FROM open_data_schema('SELECT 1::INTEGER AS id');
+SELECT * FROM open_data_schema_diff(
+  'SELECT 1::INTEGER AS id',
+  'SELECT 1::INTEGER AS id, ''a''::VARCHAR AS name'
+);
+```
+
+`schema refresh` writes `schema/source-manifest.json` by default. DuckDB is the
+inspector; the JSON manifest is the cached product contract. Additive columns are
+reported as safe info, while missing cached columns, incompatible type changes,
+or source inspection failures make `schema check` exit non-zero before app paths
+try to use the source.
+
 `registry/sources.yml` is the only source of truth for source configuration.
 The checked-in `docs/index.md` file is generated from that YAML for human review.
 JSON is rendered on demand with `odd index --format json` so the repo does not
@@ -150,6 +176,7 @@ MCP tools exposed by the server:
 - `search_sources_tool` — search sources by text/type/status.
 - `get_source` — return one AI-friendly source record.
 - `get_source_sql` — return executable DuckDB SQL for a source.
+- `get_source_schema` — return the cached DuckDB-discovered schema manifest for a source.
 
 Print the DuckDB SQL recipe for a source:
 

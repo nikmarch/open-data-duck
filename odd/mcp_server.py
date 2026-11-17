@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from odd.registry import find_source, render_source_sql, search_sources
+from odd.schema_manifest import load_manifest
 
 try:
     from mcp.server.fastmcp import FastMCP  # type: ignore[import-not-found]
@@ -11,6 +12,7 @@ except ImportError:  # pragma: no cover - depends on optional extra
     FastMCP = None  # type: ignore[assignment]
 
 DEFAULT_REGISTRY = Path("registry/sources.yml")
+DEFAULT_SCHEMA_MANIFEST = Path("schema/source-manifest.json")
 
 
 def search_registry(
@@ -59,6 +61,18 @@ def get_registry_source_sql(
     return {"source_id": source.id, "sql": render_source_sql(source, validation=validation, include_install=include_install)}
 
 
+def get_cached_source_schema(
+    source_id: str,
+    *,
+    manifest_path: Path = DEFAULT_SCHEMA_MANIFEST,
+) -> dict[str, Any]:
+    manifest = load_manifest(manifest_path)
+    schema = manifest.sources.get(source_id)
+    if schema is None:
+        return {"error": f"Cached schema not found: {source_id}"}
+    return schema.to_dict()
+
+
 def create_server(registry_path: Path = DEFAULT_REGISTRY) -> Any:
     if FastMCP is None:
         raise RuntimeError("Install open-data-duck[mcp] to run the MCP server.")
@@ -84,6 +98,11 @@ def create_server(registry_path: Path = DEFAULT_REGISTRY) -> Any:
             validation=validation,
             include_install=include_install,
         )
+
+    @server.tool()
+    def get_source_schema(source_id: str) -> dict[str, Any]:
+        """Return the cached DuckDB-discovered schema manifest for one source."""
+        return get_cached_source_schema(source_id)
 
     return server
 
