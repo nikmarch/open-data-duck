@@ -68,6 +68,20 @@ Australian Government CKAN catalog package with a public CSV distribution of Wyn
 
 ## other
 
+### `census.cartographic.county-boundaries` — U.S. Census cartographic county boundary files
+
+Official generalized U.S. county boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.
+
+- Status: `candidate`
+- Authority: U.S. Census Bureau Geography Program
+- Homepage: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
+- License: https://www.census.gov/data/developers/about/terms-of-service.html
+- Tags: `census`, `boundaries`, `counties`, `shapefile`, `geospatial`
+- Topics: administrative boundaries, counties, thematic mapping, fips
+- Cadence: annual Census cartographic boundary file releases
+- AI use cases: map county-level indicators, join county FIPS codes to generalized boundaries, build thematic maps without TIGERweb paging
+- Caveats: generalized for thematic mapping rather than surveying, choose year and scale explicitly, zipped shapefile access requires DuckDB spatial/GDAL virtual paths
+
 ### `aws.noaa-ghcn-daily` — NOAA Global Historical Climatology Network Daily
 
 NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.

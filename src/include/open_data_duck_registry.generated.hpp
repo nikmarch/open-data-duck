@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 14;
+static constexpr int REGISTRY_SOURCE_COUNT = 15;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 14,
+  "source_count": 15,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -145,6 +145,32 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "census",
         "boundaries",
         "us"
+      ]
+    },
+    {
+      "attribution": "U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.",
+      "authority": "U.S. Census Bureau Geography Program",
+      "description": "Official generalized U.S. county boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.",
+      "duckdb": {
+        "example_query": "LOAD spatial;\n\nSELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')\nLIMIT 10;",
+        "extensions": [
+          "spatial"
+        ],
+        "install": "INSTALL spatial;",
+        "validation_query": "LOAD spatial;\n\nSELECT count(*) = 3222 AS ok\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp');"
+      },
+      "homepage": "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html",
+      "id": "census.cartographic.county-boundaries",
+      "license_url": "https://www.census.gov/data/developers/about/terms-of-service.html",
+      "name": "U.S. Census cartographic county boundary files",
+      "source_type": "other",
+      "status": "candidate",
+      "tags": [
+        "census",
+        "boundaries",
+        "counties",
+        "shapefile",
+        "geospatial"
       ]
     },
     {
