@@ -8,8 +8,10 @@ Open Data Duck does **not** mirror datasets. It stores source metadata, licenses
 
 - Index authoritative public datasets as queryable table entries.
 - Route each entry to the right engine: DuckDB extensions, SQL macros, `read_parquet`, STAC, ArcGIS FeatureServer, CKAN, Socrata, and similar sources.
-- Track missing engines/connectors as GitHub issues.
+- Track missing engines/connectors as GitHub `engine` issues.
 - Let autonomous AI workers propose sources and maintenance work through reviewable issues/PRs.
+
+See [Engine maintenance track](docs/engine-maintenance.md) for the umbrella tracker, current connector tracks, and smoke-test policy.
 
 ## Non-goals
 

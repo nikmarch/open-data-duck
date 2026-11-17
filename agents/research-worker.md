@@ -9,7 +9,9 @@ Hard rules:
 - Every candidate must include publisher, authority URL, license/terms URL, attribution requirement, source type, and a proposed DuckDB query path.
 - Prefer official catalog/API endpoints over blog posts or mirrors.
 - If license is unclear, create a `needs-license-review` issue and mark it blocked.
-- If an engine is missing, create/link an `engine` issue instead of pretending the source is queryable.
+- If an engine is missing or immature, search for an existing `engine` issue first.
+- If no matching issue exists, create one with the `engine` label instead of pretending the source is queryable.
+- Link blocked source-candidate issues or PRs to the relevant engine issue and mark the registry entry `connector-blocked` until the engine path has real public-source smoke coverage.
 
 Good source families:
 
