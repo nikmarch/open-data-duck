@@ -58,3 +58,50 @@ jobs:
         env:
           ODD_DUCKDB_NETWORK_TESTS: "1"
         run: uv run pytest tests/test_duckdb_execution.py -k real_duckdb_can_install_and_load_supported_extensions
+
+  duckdb-extension-sqllogictest:
+    name: DuckDB extension sqllogictest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build cache tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache ninja-build
+
+      - name: Capture extension build cache inputs
+        id: cache-inputs
+        run: |
+          echo "duckdb_sha=$(git -C duckdb rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "extension_ci_tools_sha=$(git -C extension-ci-tools rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache C/C++ compilation
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: >-
+            ${{ runner.os }}-open-data-duck-sqllogictest-ccache-${{ steps.cache-inputs.outputs.duckdb_sha }}-${{ steps.cache-inputs.outputs.extension_ci_tools_sha }}-${{ hashFiles('CMakeLists.txt', 'extension_config.cmake', 'src/**', 'test/sql/**') }}
+          restore-keys: |
+            ${{ runner.os }}-open-data-duck-sqllogictest-ccache-${{ steps.cache-inputs.outputs.duckdb_sha }}-${{ steps.cache-inputs.outputs.extension_ci_tools_sha }}-
+            ${{ runner.os }}-open-data-duck-sqllogictest-ccache-${{ steps.cache-inputs.outputs.duckdb_sha }}-
+            ${{ runner.os }}-open-data-duck-sqllogictest-ccache-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=750M
+          ccache --zero-stats
+
+      - name: Run extension sqllogictests
+        env:
+          EXT_FLAGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        run: make test-extension-sql GEN=ninja
+
+      - name: Print ccache stats
+        if: always()
+        run: ccache --show-stats

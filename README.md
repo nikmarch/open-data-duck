@@ -164,10 +164,11 @@ clauses instead of the CLI's `--type`/`--status` flags. `open_data_sql(id)` and
 clear error for unknown ids. `open_data_table(...)` is intentionally not
 implemented yet.
 
-Run only the extension SQL tests against the built unittest binary (after `make`):
+Run only the extension SQL tests through DuckDB's sqllogictest runner:
 
 ```bash
-LOCAL_EXTENSION_REPO=build/release/repository build/release/test/unittest --autoloading available test/sql/open_data_duck.test
+git submodule update --init --recursive
+make test-extension-sql
 ```
 
 ### Embedded registry contract
