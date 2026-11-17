@@ -1,8 +1,12 @@
 # Open Data Duck
 
+![Open Data Duck odd facing-camera logo](assets/brand/open-data-duck-facing-camera-logo.png)
+
 An open, DuckDB-friendly index of pluggable public data tables.
 
 Open Data Duck does **not** mirror datasets. It stores source metadata, licenses, attribution, and executable query recipes so DuckDB users and AI workers can discover and query authoritative open data safely.
+
+Brand assets live in [docs/brand-assets.md](docs/brand-assets.md).
 
 ## Goals
 
