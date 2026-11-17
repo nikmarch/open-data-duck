@@ -30,24 +30,18 @@ Open Data Duck does **not** mirror datasets. It stores source metadata, licenses
 ## Overture source family
 
 Open Data Duck is an **unofficial router/index**, not an Overture Maps mirror.
-It does not copy Overture data into this repo. The registry points DuckDB users to
-Overture's public release data through the DuckDB community `overture` extension.
+It does not copy Overture data into this repo.
 
-The Overture registry entry supports two release modes:
+The registry does not depend on an external `overture` DuckDB community extension.
+Current Overture recipes use DuckDB's `httpfs` extension to query public Overture
+release files directly from S3. The future `open_data_duck` extension should wrap
+that release/path logic behind stable table functions.
 
-- **latest release** — leave `overture_release` unset and follow the Overture release calendar.
-- **pinned release** — set DuckDB's `overture_release` variable, for example:
+Pinned release example:
 
 ```sql
 SET VARIABLE overture_release = '2026-03-18.0';
 ```
-
-The first-class Overture examples cover:
-
-- places: `read_overture_places(...)`
-- buildings: `read_overture_buildings(...)`
-- roads: `read_overture_roads(...)`
-- addresses: `geocode(...)` over Overture address data
 
 ## Registry entry lifecycle
 
@@ -73,6 +67,18 @@ uv sync --extra dev
 uv run pytest
 ```
 
+DuckDB is included in the `dev` extra. A quick real-engine smoke test:
+
+```bash
+uv run python -c "import duckdb; con = duckdb.connect(':memory:'); print(con.execute('select 42').fetchone())"
+```
+
+Network-backed DuckDB extension checks are opt-in so normal CI stays stable:
+
+```bash
+ODD_DUCKDB_NETWORK_TESTS=1 uv run pytest tests/test_duckdb_execution.py
+```
+
 Validate the registry locally:
 
 ```bash
@@ -95,10 +101,11 @@ uv run odd sql overture.maps.release --validation --no-install
 
 The same validation and test checks run in GitHub Actions on pushes and pull requests.
 
-## Example direction
+## Community extension release path
+
+Future install shape:
 
 ```sql
--- future shape
 INSTALL open_data_duck FROM community;
 LOAD open_data_duck;
 
@@ -106,4 +113,13 @@ SELECT * FROM open_data_search('buildings alaska');
 SELECT * FROM open_data_table('overture.places', bbox := [-150, 60, -149, 61]);
 ```
 
-For now the repo starts with the registry/schema and issues. Engine code comes next.
+Release checklist:
+
+1. Build the extension from DuckDB's C++ extension template.
+2. Add sqllogictest coverage for search and table functions.
+3. Publish a source commit that builds with DuckDB's extension CI toolchain.
+4. Open a PR to `duckdb/community-extensions` with an `open_data_duck` descriptor.
+5. After community CI signs/builds it, users install with `INSTALL open_data_duck FROM community;`.
+
+For now the repo contains the registry/schema/CLI plus real DuckDB validation tests.
+Engine code comes next.

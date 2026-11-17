@@ -20,63 +20,52 @@ sources:
         example: "2026-03-18.0"
     duckdb:
       extensions:
-        - spatial
         - httpfs
-        - overture
       install: |
-        INSTALL spatial;
         INSTALL httpfs;
-        INSTALL overture FROM community;
       example_query: |
-        LOAD spatial;
         LOAD httpfs;
-        LOAD overture;
         SET s3_region='us-west-2';
+        SET VARIABLE overture_release = '2026-03-18.0';
 
-        -- Latest release: omit the overture_release variable.
-        -- Pinned release: uncomment and set a known release tag.
-        -- SET VARIABLE overture_release = '2026-03-18.0';
-
-        SELECT 'places' AS dataset, count(*) AS rows
-        FROM read_overture_places(west := -150, east := -149, south := 60, north := 61)
-        UNION ALL
-        SELECT 'buildings' AS dataset, count(*) AS rows
-        FROM read_overture_buildings(west := -150, east := -149, south := 60, north := 61)
-        UNION ALL
-        SELECT 'roads' AS dataset, count(*) AS rows
-        FROM read_overture_roads(west := -150, east := -149, south := 60, north := 61)
-        UNION ALL
-        SELECT 'addresses' AS dataset, count(*) AS rows
-        FROM geocode('main', west := -150, east := -149, south := 60, north := 61);
+        -- Direct public S3 recipe. The future open_data_duck extension should wrap
+        -- this release/path logic instead of relying on a separate Overture plugin.
+        SELECT id, names.primary AS name, bbox
+        FROM read_parquet(
+          's3://overturemaps-us-west-2/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
+          hive_partitioning = true
+        )
+        WHERE bbox.xmin <= -149
+          AND bbox.xmax >= -150
+          AND bbox.ymin <= 61
+          AND bbox.ymax >= 60
+        LIMIT 10;
       validation_query: |
-        LOAD spatial;
         LOAD httpfs;
-        LOAD overture;
         SET s3_region='us-west-2';
-
-        SELECT count(*) = 4 AS required_overture_functions_available
-        FROM duckdb_functions()
-        WHERE function_name IN ('read_overture_places', 'read_overture_buildings', 'read_overture_roads', 'geocode');
+        SET VARIABLE overture_release = '2026-03-18.0';
 
         SELECT count(*) >= 0 AS small_bbox_query_ok
-        FROM read_overture_places(west := -150, east := -149, south := 60, north := 61)
+        FROM read_parquet(
+          's3://overturemaps-us-west-2/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
+          hive_partitioning = true
+        )
+        WHERE bbox.xmin <= -149
+          AND bbox.xmax >= -150
+          AND bbox.ymin <= 61
+          AND bbox.ymax >= 60
         LIMIT 1;
       examples:
-        places: |
+        places_direct_s3: |
+          LOAD httpfs;
+          SET s3_region='us-west-2';
+          SET VARIABLE overture_release = '2026-03-18.0';
+
           SELECT *
-          FROM read_overture_places(west := -150, east := -149, south := 60, north := 61)
-          LIMIT 10;
-        buildings: |
-          SELECT *
-          FROM read_overture_buildings(west := -150, east := -149, south := 60, north := 61)
-          LIMIT 10;
-        roads: |
-          SELECT *
-          FROM read_overture_roads(west := -150, east := -149, south := 60, north := 61)
-          LIMIT 10;
-        addresses: |
-          SELECT *
-          FROM geocode('main', west := -150, east := -149, south := 60, north := 61)
+          FROM read_parquet(
+            's3://overturemaps-us-west-2/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
+            hive_partitioning = true
+          )
           LIMIT 10;
     freshness:
       method: release-calendar
