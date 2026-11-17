@@ -2,6 +2,7 @@ from pathlib import Path
 
 
 WORKFLOW = Path(".github/workflows/MainDistributionPipeline.yml")
+RELEASE_WORKFLOW = Path(".github/workflows/precommunity-release.yml")
 README = Path("README.md")
 
 
@@ -30,11 +31,33 @@ def test_extension_distribution_workflow_smokes_downloaded_artifact() -> None:
     assert "SELECT open_data_sql('overture.maps.release') LIKE '%LOAD httpfs;%';" in workflow
 
 
+def test_precommunity_release_workflow_publishes_smoked_release_asset() -> None:
+    workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in workflow
+    assert "release_tag:" in workflow
+    assert "tags:" in workflow
+    assert "duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera" in workflow
+    assert "open_data_duck-v2.0.0-extension-linux_amd64" in workflow
+    assert "open_data_duck-v2.0.0-linux_amd64.duckdb_extension" in workflow
+    assert "./duckdb -unsigned -noheader -csv :memory:" in workflow
+    assert "gh release create" in workflow
+    assert "gh release upload" in workflow
+    assert "--prerelease" in workflow
+    assert "--draft" in workflow
+
+
 def test_readme_describes_unsigned_extension_artifacts() -> None:
     readme = README.read_text(encoding="utf-8")
 
     assert "Main Extension Distribution Pipeline" in readme
+    assert "Pre-community Extension Release workflow" in readme
     assert "open_data_duck-v2.0.0-extension-linux_amd64" in readme
+    assert "open_data_duck-v2.0.0-linux_amd64.duckdb_extension" in readme
     assert "temporary pre-community unsigned builds" in readme
     assert "not signed community" in readme
-    assert "extension releases" in readme
+    assert "GitHub prerelease asset" in readme
+    assert "DuckDB-version- and platform-specific" in readme
+    assert "duckdb -unsigned :memory:" in readme
+    assert "allow_unsigned_extensions" in readme
+    assert "INSTALL open_data_duck FROM community" in readme
