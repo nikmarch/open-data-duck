@@ -536,6 +536,49 @@ sources:
       method: socrata-metadata-api
       url: https://data.cityofnewyork.us/api/views/metadata/v1/erm2-nwe9
 
+  - id: socrata.cdc.places-county-2025
+    name: CDC PLACES county health estimates, 2025 release
+    description: CDC PLACES model-based county-level estimates for chronic disease outcomes, prevention measures, risk behaviors, disabilities, health status, and health-related social needs, published on the official CDC Socrata portal with bounded SODA export queries.
+    status: candidate
+    source_type: socrata
+    authority: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health
+    homepage: https://data.cdc.gov/d/swc5-untb
+    license_url: https://data.cdc.gov/api/views/metadata/v1/swc5-untb
+    attribution: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health. PLACES - Local Data for Better Health, County Data, 2025 release. Public domain.
+    tags: [socrata, cdc, health, counties, public-domain, csv]
+    topics: [public health, chronic disease, county estimates, health outcomes, social determinants]
+    coverage:
+      spatial: United States counties, keyed by county FIPS in locationid
+      temporal: 2025 release (estimates mostly for 2022-2023 data years)
+      grain: one row per county, measure, and data-value type (age-adjusted or crude prevalence)
+    cadence: annual PLACES release; each release is a separate Socrata dataset id
+    ai:
+      summary: Authoritative public-domain CDC county health-estimate table, a natural join target for county boundary layers via the locationid FIPS code.
+      use_cases: [compare health measures across counties in a state, join county health estimates to boundary data, inspect confidence limits for a single measure]
+      caveats: [model-based small-area estimates rather than direct survey counts, each measure appears twice per county so filter datavaluetypeid to AgeAdjPrv or CrdPrv, 229k rows require bounded SODA paging, the dataset id is release-specific]
+      prompt_hints: [Ask for state, measureid, and whether age-adjusted or crude prevalence is wanted before generating SQL.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT year, stateabbr, locationname, measureid, data_value, totalpopulation, locationid
+        FROM read_csv_auto('https://data.cdc.gov/resource/swc5-untb.csv?$select=year,stateabbr,locationname,measureid,data_value,totalpopulation,locationid&$where=stateabbr=%27AK%27%20AND%20measureid=%27OBESITY%27%20AND%20datavaluetypeid=%27AgeAdjPrv%27&$order=locationid&$limit=10');
+      validation_query: |
+        LOAD httpfs;
+        SELECT count(*) > 0 AS ok
+        FROM read_csv_auto('https://data.cdc.gov/resource/swc5-untb.csv?$select=locationid&$order=locationid&$limit=1');
+      examples:
+        state_measure_page: |
+          LOAD httpfs;
+          SELECT locationid, locationname, measureid, data_value, low_confidence_limit, high_confidence_limit
+          FROM read_csv_auto('https://data.cdc.gov/resource/swc5-untb.csv?$select=locationid,locationname,measureid,data_value,low_confidence_limit,high_confidence_limit&$where=stateabbr=%27TX%27%20AND%20datavaluetypeid=%27AgeAdjPrv%27&$order=locationid,measureid&$limit=1000&$offset=0');
+    freshness:
+      method: socrata-metadata-api
+      url: https://data.cdc.gov/api/views/metadata/v1/swc5-untb
+
   - id: sourcecoop.vida.google-microsoft-open-buildings
     name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
     description: VIDA's combined Google and Microsoft global building-footprint dataset, partitioned as public GeoParquet on Source Cooperative for direct DuckDB scans.

@@ -154,6 +154,20 @@ New York City 311 service-request records from 2020 to present, exposed through 
 - AI use cases: query recent 311 complaints by borough, inspect service-request categories, test Socrata pagination
 - Caveats: large table requires bounded SODA queries, dataset metadata has no explicit license field, use the NYC Open Data law citation for use-policy context
 
+### `socrata.cdc.places-county-2025` — CDC PLACES county health estimates, 2025 release
+
+CDC PLACES model-based county-level estimates for chronic disease outcomes, prevention measures, risk behaviors, disabilities, health status, and health-related social needs, published on the official CDC Socrata portal with bounded SODA export queries.
+
+- Status: `candidate`
+- Authority: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health
+- Homepage: https://data.cdc.gov/d/swc5-untb
+- License: https://data.cdc.gov/api/views/metadata/v1/swc5-untb
+- Tags: `socrata`, `cdc`, `health`, `counties`, `public-domain`, `csv`
+- Topics: public health, chronic disease, county estimates, health outcomes, social determinants
+- Cadence: annual PLACES release; each release is a separate Socrata dataset id
+- AI use cases: compare health measures across counties in a state, join county health estimates to boundary data, inspect confidence limits for a single measure
+- Caveats: model-based small-area estimates rather than direct survey counts, each measure appears twice per county so filter datavaluetypeid to AgeAdjPrv or CrdPrv, 229k rows require bounded SODA paging, the dataset id is release-specific
+
 ## stac
 
 ### `stac.earth-search.aws` — Earth Search STAC API
