@@ -12,6 +12,7 @@ class LinkAndAssetParser(HTMLParser):
         super().__init__()
         self.links: set[str] = set()
         self.assets: set[str] = set()
+        self.meta: dict[tuple[str, str], str] = {}
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
@@ -21,6 +22,11 @@ class LinkAndAssetParser(HTMLParser):
             ref = values.get("src") or values.get("href")
             if ref:
                 self.assets.add(ref)
+        if tag == "meta" and values.get("content"):
+            if values.get("property"):
+                self.meta[("property", values["property"] or "")] = values["content"] or ""
+            if values.get("name"):
+                self.meta[("name", values["name"] or "")] = values["content"] or ""
 
 
 def load_pages_builder():
@@ -52,6 +58,23 @@ def test_pages_builder_publishes_static_site_with_brand_assets(tmp_path: Path) -
     assert (output_dir / "assets" / "brand" / "odd-icon.svg").exists()
     assert "https://github.com/nikmarch/open-data-duck" in parser.links
     assert "https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md" in parser.links
+
+
+def test_pages_site_has_social_preview_metadata() -> None:
+    parser = LinkAndAssetParser()
+    parser.feed(Path("site/index.html").read_text(encoding="utf-8"))
+
+    preview_image = "https://nikmarch.github.io/open-data-duck/assets/brand/odd-wordmark.svg"
+    assert parser.meta[("property", "og:type")] == "website"
+    assert parser.meta[("property", "og:title")] == "Open Data Duck"
+    assert parser.meta[("property", "og:url")] == "https://nikmarch.github.io/open-data-duck/"
+    assert parser.meta[("property", "og:image")] == preview_image
+    assert parser.meta[("property", "og:image:type")] == "image/svg+xml"
+    assert parser.meta[("property", "og:image:alt")] == "Open Data Duck logo"
+    assert parser.meta[("name", "twitter:card")] == "summary_large_image"
+    assert parser.meta[("name", "twitter:image")] == preview_image
+    assert parser.meta[("name", "twitter:image:alt")] == "Open Data Duck logo"
+    assert Path("docs/assets/brand/odd-wordmark.svg").exists()
 
 
 def test_pages_workflow_uses_github_actions_pages_deploy() -> None:
