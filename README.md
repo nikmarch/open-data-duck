@@ -171,6 +171,17 @@ git submodule update --init --recursive
 make test-extension-sql
 ```
 
+### Pre-community extension artifacts
+
+Pull requests and `main` build a temporary Linux x64 artifact named
+`open_data_duck-linux_amd64-unsigned`. These are pre-community, unsigned DuckDB
+extension builds for validation only; they are not a stable installation channel
+or a replacement for DuckDB community-extension distribution.
+
+The artifact includes the built extension repository plus test support files. A
+separate smoke job downloads that artifact and runs `test/sql/open_data_duck.test`
+against the downloaded binary.
+
 ### Embedded registry contract
 
 The native extension must not depend on Python, PyYAML, or repo-relative files at

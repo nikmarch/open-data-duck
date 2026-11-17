@@ -1,0 +1,91 @@
+name: Extension Binaries
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}
+  cancel-in-progress: true
+
+env:
+  CI_EXTENSION_NAME: open_data_duck
+  CI_BUILD_TYPE: release
+  CI_PLATFORM: linux
+  DUCKDB_PLATFORM: linux_amd64
+  CI_UPLOAD_ALL_EXTENSIONS: "true"
+  CI_ARTIFACT_NAME: open_data_duck-linux_amd64-unsigned
+  GEN: ninja
+
+jobs:
+  build-linux:
+    name: Build Linux x64 artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache cmake ninja-build
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=750M
+          ccache --zero-stats
+
+      - name: Build extension
+        env:
+          EXT_FLAGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        run: make release
+
+      - name: Stage unsigned extension artifact
+        id: stage
+        run: python3 extension-ci-tools/scripts/ci_phase.py upload
+
+      - name: Upload unsigned extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.stage.outputs.artifact_name }}
+          path: ${{ steps.stage.outputs.artifact_path }}
+          if-no-files-found: error
+
+      - name: Print ccache stats
+        if: always()
+        run: ccache --show-stats
+
+  smoke-linux:
+    name: Smoke Linux x64 artifact
+    needs: build-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download unsigned extension artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: open_data_duck-linux_amd64-unsigned
+          path: ci-artifacts/open_data_duck-linux_amd64-unsigned
+
+      - name: Smoke-test downloaded artifact
+        env:
+          CI_EXTENSION_ARTIFACT_DIR: ${{ github.workspace }}/ci-artifacts/open_data_duck-linux_amd64-unsigned
+          CI_LINUX_NATIVE_CONTAINER: "true"
+          CI_EXTENSIONS_TEST_SELECTION: regular
+          T: test/sql/open_data_duck.test
+        run: python3 extension-ci-tools/scripts/ci_phase.py test
