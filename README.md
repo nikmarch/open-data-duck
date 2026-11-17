@@ -129,8 +129,9 @@ make
 make test
 ```
 
-The first native surface is deliberately tiny while the registry and SQL helper
-contracts stay in Python/SQL:
+The native surface is deliberately small while the registry and SQL helper
+contracts stay in Python/SQL. It only reads the embedded registry and returns SQL
+recipes; it does not execute sources or touch the network:
 
 ```sql
 LOAD open_data_duck;
@@ -138,6 +139,29 @@ SELECT open_data_duck_ping();
 SELECT open_data_duck_version();
 SELECT open_data_duck_registry_source_count();
 SELECT open_data_duck_registry_json();
+
+-- Core registry functions (mirror `odd search` / `odd sql`)
+SELECT * FROM open_data_sources();
+SELECT id, status FROM open_data_sources() WHERE source_type = 'socrata';
+SELECT id FROM open_data_search('stac sentinel');
+SELECT open_data_sql('overture.maps.release');
+SELECT open_data_validation_sql('overture.maps.release');
+```
+
+`open_data_sources()` returns one row per registry source with columns `id`,
+`name`, `source_type`, `status`, `description`, `authority`, `homepage`,
+`license_url`, `attribution`, `tags`, `extensions`, `install`, `example_query`,
+and `validation_query`. `open_data_search(query)` keeps the CLI rule: every
+whitespace-separated term must match case-insensitively; use plain `WHERE`
+clauses instead of the CLI's `--type`/`--status` flags. `open_data_sql(id)` and
+`open_data_validation_sql(id)` render the same text as `odd sql` and raise a
+clear error for unknown ids. `open_data_table(...)` is intentionally not
+implemented yet.
+
+Run only the extension SQL tests against the built unittest binary (after `make`):
+
+```bash
+LOCAL_EXTENSION_REPO=build/release/repository build/release/test/unittest --autoloading available test/sql/open_data_duck.test
 ```
 
 ### Embedded registry contract
