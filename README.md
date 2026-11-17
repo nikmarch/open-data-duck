@@ -105,6 +105,12 @@ ArcGIS public FeatureServer smoke tests are also opt-in. They exercise REST meta
 ODD_ARCGIS_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_arcgis_engine.py
 ```
 
+Socrata public SODA smoke tests are also opt-in. They count, plan `$limit`/`$offset` pages, and read one planned page through DuckDB `httpfs` against NYC Open Data:
+
+```bash
+ODD_SOCRATA_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_socrata_engine.py
+```
+
 Validate the registry locally:
 
 ```bash
