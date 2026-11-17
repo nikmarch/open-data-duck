@@ -106,6 +106,22 @@ Global open map data releases for places, buildings, transportation, divisions, 
 - AI use cases: find places in a bounding box, inspect global building footprints, compare map releases
 - Caveats: large files require tight spatial filters, attribution varies by contributing provider
 
+## parquet
+
+### `sourcecoop.vida.google-microsoft-open-buildings` — VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
+
+VIDA's combined Google and Microsoft global building-footprint dataset, partitioned as public GeoParquet on Source Cooperative for direct DuckDB scans.
+
+- Status: `candidate`
+- Authority: VIDA, combining Google Open Buildings V3 and Microsoft GlobalMLBuildingFootprints
+- Homepage: https://source.coop/repositories/vida/google-microsoft-open-buildings/description
+- License: https://data.source.coop/vida/google-microsoft-open-buildings/README.md
+- Tags: `source-cooperative`, `buildings`, `geospatial`, `geoparquet`, `footprints`
+- Topics: building footprints, open buildings, country partitions, S2 partitions
+- Cadence: source README changelog updates
+- AI use cases: query building footprints by country, filter footprints by bounding box, compare footprint source and confidence
+- Caveats: large countries are partitioned; use country and S2 paths to avoid huge scans
+
 ## stac
 
 ### `stac.earth-search.aws` — Earth Search STAC API

@@ -456,12 +456,25 @@ sources:
 
   - id: sourcecoop.vida.google-microsoft-open-buildings
     name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
+    description: VIDA's combined Google and Microsoft global building-footprint dataset, partitioned as public GeoParquet on Source Cooperative for direct DuckDB scans.
     status: candidate
     source_type: parquet
     authority: VIDA, combining Google Open Buildings V3 and Microsoft GlobalMLBuildingFootprints
     homepage: https://source.coop/repositories/vida/google-microsoft-open-buildings/description
     license_url: https://data.source.coop/vida/google-microsoft-open-buildings/README.md
     attribution: Google Open Buildings and Microsoft GlobalMLBuildingFootprints, combined by VIDA; licensed under ODbL v1.0.
+    tags: [source-cooperative, buildings, geospatial, geoparquet, footprints]
+    topics: [building footprints, open buildings, country partitions, S2 partitions]
+    coverage:
+      spatial: global where Google or Microsoft footprints are available
+      temporal: merged source release snapshot
+      grain: building-footprint polygon rows
+    cadence: source README changelog updates
+    ai:
+      summary: Best seed source for direct DuckDB building-footprint examples using public GeoParquet.
+      use_cases: [query building footprints by country, filter footprints by bounding box, compare footprint source and confidence]
+      caveats: [large countries are partitioned; use country and S2 paths to avoid huge scans]
+      prompt_hints: [Ask for ISO3 country code and bbox before generating SQL.]
     duckdb:
       extensions:
         - httpfs
