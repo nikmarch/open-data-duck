@@ -323,3 +323,49 @@ sources:
     freshness:
       method: aws-open-data-s3-object
       url: https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv
+
+  - id: sourcecoop.vida.google-microsoft-open-buildings
+    name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
+    status: candidate
+    source_type: parquet
+    authority: VIDA, combining Google Open Buildings V3 and Microsoft GlobalMLBuildingFootprints
+    homepage: https://source.coop/repositories/vida/google-microsoft-open-buildings/description
+    license_url: https://data.source.coop/vida/google-microsoft-open-buildings/README.md
+    attribution: Google Open Buildings and Microsoft GlobalMLBuildingFootprints, combined by VIDA; licensed under ODbL v1.0.
+    duckdb:
+      extensions:
+        - httpfs
+        - spatial
+      install: |
+        INSTALL httpfs;
+        INSTALL spatial;
+      example_query: |
+        LOAD httpfs;
+        LOAD spatial;
+
+        -- GeoParquet 1.1 partitioned by CGAZ ADM0 country ISO3 code.
+        -- Path pattern: geoparquet/by_country/country_iso={ISO3}/{ISO3}.parquet
+        -- The bbox struct allows pushdown filtering without loading the geometry.
+        SELECT bf_source, confidence, area_in_meters, bbox, ST_AsText(geometry) AS wkt
+        FROM read_parquet('https://data.source.coop/vida/google-microsoft-open-buildings/geoparquet/by_country/country_iso=AND/AND.parquet')
+        WHERE bbox.xmin <= 1.55
+          AND bbox.xmax >= 1.50
+          AND bbox.ymin <= 42.52
+          AND bbox.ymax >= 42.50
+        LIMIT 5;
+      validation_query: |
+        LOAD httpfs;
+
+        SELECT count(*) > 0 AS ok
+        FROM read_parquet('https://data.source.coop/vida/google-microsoft-open-buildings/geoparquet/by_country/country_iso=AND/AND.parquet');
+      examples:
+        by_country_s2: |
+          LOAD httpfs;
+
+          -- S2 sub-partitions cap each file at 20M footprints for large countries.
+          -- Path pattern: geoparquet/by_country_s2/country_iso={ISO3}/{S2_GRID_ID}.parquet
+          SELECT count(*) AS footprints
+          FROM read_parquet('https://data.source.coop/vida/google-microsoft-open-buildings/geoparquet/by_country/country_iso=AND/AND.parquet');
+    freshness:
+      method: readme-changelog
+      url: https://data.source.coop/vida/google-microsoft-open-buildings/README.md
