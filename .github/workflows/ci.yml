@@ -58,3 +58,17 @@ jobs:
         env:
           ODD_DUCKDB_NETWORK_TESTS: "1"
         run: uv run pytest tests/test_duckdb_execution.py -k real_duckdb_can_install_and_load_supported_extensions
+
+  duckdb-extension-sqllogictest:
+    name: DuckDB extension sqllogictest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Run extension sqllogictests
+        run: make test-extension-sql
