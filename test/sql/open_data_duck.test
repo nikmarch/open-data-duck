@@ -1,5 +1,5 @@
 # name: test/sql/open_data_duck.test
-# description: smoke test the open_data_duck extension scaffold
+# description: smoke test the open_data_duck extension scaffold and core registry functions
 # group: [sql]
 
 # Before the extension is loaded, this should fail.
@@ -42,3 +42,121 @@ query I
 SELECT json_array_length(open_data_duck_registry_json(), '$.sources') = open_data_duck_registry_source_count();
 ----
 true
+
+# --- Issue #32: core registry functions -------------------------------------
+# These never touch the network; they only read the embedded registry.
+
+# open_data_sources() exposes stable, SQL-filterable columns.
+query II
+SELECT column_name, column_type FROM (DESCRIBE SELECT * FROM open_data_sources());
+----
+id	VARCHAR
+name	VARCHAR
+source_type	VARCHAR
+status	VARCHAR
+description	VARCHAR
+authority	VARCHAR
+homepage	VARCHAR
+license_url	VARCHAR
+attribution	VARCHAR
+tags	VARCHAR[]
+extensions	VARCHAR[]
+install	VARCHAR
+example_query	VARCHAR
+validation_query	VARCHAR
+
+query I
+SELECT count(*) = open_data_duck_registry_source_count() FROM open_data_sources();
+----
+true
+
+query I
+SELECT count(*) FROM open_data_sources() WHERE id = 'overture.maps.release';
+----
+1
+
+# Ids are unique and never empty.
+query I
+SELECT count(DISTINCT id) = count(*) AND bool_and(length(id) > 0) FROM open_data_sources();
+----
+true
+
+# Plain SQL filtering replaces the CLI's --type / --status flags.
+query I
+SELECT bool_and(source_type = 'overture') FROM open_data_sources() WHERE source_type = 'overture';
+----
+true
+
+# open_data_search() matches every whitespace-separated term, case-insensitively,
+# the same way `odd search` does.
+query I
+SELECT id FROM open_data_search('overture');
+----
+overture.maps.release
+
+query I
+SELECT count(*) > 0 FROM open_data_search('OVERTURE');
+----
+true
+
+query I
+SELECT count(*) FROM open_data_search('this-term-matches-nothing');
+----
+0
+
+# An empty query matches everything, like `odd search ""`.
+query I
+SELECT count(*) = open_data_duck_registry_source_count() FROM open_data_search('');
+----
+true
+
+# Multi-term search narrows results (AND semantics).
+query I
+SELECT count(*) <= (SELECT count(*) FROM open_data_search('stac')) FROM open_data_search('stac sentinel');
+----
+true
+
+statement error
+SELECT * FROM open_data_search(NULL);
+----
+Binder Error: open_data_search(query) requires a non-NULL search string
+
+# open_data_sql() returns install statements, a blank line, then the example query.
+query I
+SELECT open_data_sql('overture.maps.release') LIKE 'INSTALL httpfs;' || chr(10) || chr(10) || 'LOAD httpfs;%';
+----
+true
+
+query I
+SELECT open_data_sql('overture.maps.release') LIKE '%LIMIT 10;' || chr(10);
+----
+true
+
+query I
+SELECT open_data_validation_sql('overture.maps.release') LIKE '%small_bbox_query_ok%';
+----
+true
+
+# The recipe text matches what the embedded registry carries for that source.
+query I
+SELECT open_data_sql(id) = install || chr(10) || chr(10) || example_query || chr(10)
+FROM open_data_sources() WHERE id = 'overture.maps.release';
+----
+true
+
+# NULL in, NULL out.
+query I
+SELECT open_data_sql(NULL) IS NULL;
+----
+true
+
+# Missing source ids return clear errors.
+statement error
+SELECT open_data_sql('nope.missing');
+----
+open_data_duck: unknown source id 'nope.missing'
+
+statement error
+SELECT open_data_validation_sql('nope.missing');
+----
+open_data_duck: unknown source id 'nope.missing'
