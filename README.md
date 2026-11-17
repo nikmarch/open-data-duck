@@ -17,6 +17,12 @@ Open Data Duck does **not** mirror datasets. It stores source metadata, licenses
 
 See [Engine maintenance track](docs/engine-maintenance.md) for the umbrella tracker, current connector tracks, and smoke-test policy.
 
+## GitHub Pages
+
+The project site is published from a dedicated GitHub Actions workflow to the default Pages URL: https://nikmarch.github.io/open-data-duck/.
+
+The workflow builds the static landing page in `site/`, copies the checked-in brand assets from `docs/assets/brand/`, and deploys the generated `_site/` artifact. No custom domain is configured yet.
+
 ## Non-goals
 
 - No copied public datasets in this repo.
