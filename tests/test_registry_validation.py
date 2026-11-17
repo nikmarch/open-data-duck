@@ -133,6 +133,25 @@ def test_project_registry_meets_seed_source_targets() -> None:
     assert sum(source_id.startswith("aws.") for source_id in source_ids) >= 3
 
 
+def test_overture_source_family_has_release_modes_and_core_examples() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "overture.maps.release")
+
+    assert source["release"]["latest"]["url"] == "https://docs.overturemaps.org/release-calendar/"
+    assert source["release"]["pinned"]["duckdb_setting"] == "overture_release"
+    assert source["release"]["pinned"]["example"]
+
+    examples = source["duckdb"]["examples"]
+    assert "read_overture_places" in examples["places"]
+    assert "read_overture_buildings" in examples["buildings"]
+    assert "read_overture_roads" in examples["roads"]
+    assert "geocode" in examples["addresses"]
+
+    validation_query = source["duckdb"]["validation_query"]
+    assert "duckdb_functions()" in validation_query
+    assert "read_overture_places" in validation_query
+
+
 def test_seed_sources_include_required_query_metadata() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
 
