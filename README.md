@@ -57,7 +57,21 @@ Validate the registry locally:
 uv run odd validate
 ```
 
-The same checks run in GitHub Actions on pushes and pull requests.
+Search registered sources:
+
+```bash
+uv run odd search overture
+uv run odd search "stac sentinel" --type stac
+```
+
+Print the DuckDB SQL recipe for a source:
+
+```bash
+uv run odd sql overture.maps.release
+uv run odd sql overture.maps.release --validation --no-install
+```
+
+The same validation and test checks run in GitHub Actions on pushes and pull requests.
 
 ## Example direction
 
