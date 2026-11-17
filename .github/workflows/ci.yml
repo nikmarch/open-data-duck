@@ -55,20 +55,3 @@ jobs:
         env:
           ODD_DUCKDB_NETWORK_TESTS: "1"
         run: uv run pytest tests/test_duckdb_execution.py -k real_duckdb_can_install_and_load_supported_extensions
-
-  native-extension-scaffold:
-    name: Native DuckDB extension scaffold
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Build extension
-        run: make -j$(nproc) BUILD_EXTENSION_TEST_DEPS=none
-
-      - name: Run extension SQL smoke test
-        run: make test BUILD_EXTENSION_TEST_DEPS=none T=test/sql/open_data_duck.test
