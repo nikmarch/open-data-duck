@@ -96,7 +96,13 @@ uv run python -c "import duckdb; con = duckdb.connect(':memory:'); print(con.exe
 Network-backed DuckDB extension checks are opt-in so normal CI stays stable:
 
 ```bash
-ODD_DUCKDB_NETWORK_TESTS=1 uv run pytest tests/test_duckdb_execution.py
+ODD_DUCKDB_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_duckdb_execution.py
+```
+
+ArcGIS public FeatureServer smoke tests are also opt-in. They exercise REST metadata, count, and paginated query planning without unsigned DuckDB extensions:
+
+```bash
+ODD_ARCGIS_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_arcgis_engine.py
 ```
 
 Validate the registry locally:
