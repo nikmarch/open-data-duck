@@ -172,7 +172,34 @@ def test_project_registry_meets_seed_source_targets() -> None:
     assert source_types.count("stac") >= 3
     assert source_types.count("arcgis") >= 3
     assert source_types.count("ckan") >= 1
+    assert source_types.count("socrata") >= 1
     assert sum(source_id.startswith("aws.") for source_id in source_ids) >= 3
+
+
+def test_project_socrata_sources_use_bounded_soda_exports() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    socrata_sources = [source for source in registry["sources"] if source["source_type"] == "socrata"]
+
+    assert len(socrata_sources) >= 1
+    for source in socrata_sources:
+        assert source["status"] == "candidate", source["id"]
+        assert source["license_url"].startswith("https://"), source["id"]
+        rendered_sql = "\n".join(
+            (
+                source["duckdb"].get("install", ""),
+                source["duckdb"]["example_query"],
+                source["duckdb"]["validation_query"],
+                "\n".join(source["duckdb"].get("examples", {}).values()),
+            )
+        ).casefold()
+        assert "load httpfs" in rendered_sql
+        assert "read_csv_auto" in rendered_sql or "read_json_auto" in rendered_sql
+        assert "$select=" in rendered_sql
+        assert "$order=" in rendered_sql
+        assert "$limit=" in rendered_sql
+        assert "load socrata" not in rendered_sql
+        assert "install socrata" not in rendered_sql
+        assert "read_csv_auto('https://data.cityofnewyork.us/resource/erm2-nwe9.csv')" not in rendered_sql
 
 
 def test_project_ckan_sources_use_direct_resources_until_table_function_is_proven() -> None:

@@ -138,6 +138,22 @@ VIDA's combined Google and Microsoft global building-footprint dataset, partitio
 - AI use cases: query building footprints by country, filter footprints by bounding box, compare footprint source and confidence
 - Caveats: large countries are partitioned; use country and S2 paths to avoid huge scans
 
+## socrata
+
+### `socrata.nyc.311-service-requests` — NYC Open Data 311 Service Requests
+
+New York City 311 service-request records from 2020 to present, exposed through the official NYC Open Data Socrata portal with bounded SODA export queries.
+
+- Status: `candidate`
+- Authority: City of New York Office of Technology and Innovation via NYC Open Data
+- Homepage: https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2020-to-Present/erm2-nwe9
+- License: https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-216807
+- Tags: `socrata`, `nyc`, `311`, `service-requests`, `csv`
+- Topics: municipal services, civic requests, complaints, open data
+- Cadence: daily automated updates
+- AI use cases: query recent 311 complaints by borough, inspect service-request categories, test Socrata pagination
+- Caveats: large table requires bounded SODA queries, dataset metadata has no explicit license field, use the NYC Open Data law citation for use-policy context
+
 ## stac
 
 ### `stac.earth-search.aws` — Earth Search STAC API
