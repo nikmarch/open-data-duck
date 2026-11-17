@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/odd-wordmark.svg" alt="Open Data Duck" width="360">
+</p>
+
 # Open Data Duck source index
 
 AI-friendly catalog of public data sources with DuckDB recipes, licenses, and usage hints.

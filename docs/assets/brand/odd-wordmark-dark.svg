@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 30 310 140" role="img" aria-label="Open Data Duck"><title>Open Data Duck</title>
+<circle cx="90" cy="120" r="44" fill="#FFC533"/>
+<path d="M88 80C83 69 88 61 98 60C94 65 95 72 98 79Z" fill="#FFC533"/>
+<circle cx="68" cy="116" r="8" fill="#0F1B2D"/>
+<circle cx="112" cy="116" r="8" fill="#0F1B2D"/>
+<circle cx="70.5" cy="113" r="2.8" fill="#FFFFFF"/>
+<circle cx="114.5" cy="113" r="2.8" fill="#FFFFFF"/>
+<circle cx="57" cy="133" r="6" fill="#FF9F6E"/>
+<circle cx="123" cy="133" r="6" fill="#FF9F6E"/>
+<path d="M75 132C75 126 82 124 90 124C98 124 105 126 105 132C106 139 99 143 90 143C81 143 74 139 75 132Z" fill="#F2672A"/>
+<circle cx="190" cy="120" r="33" fill="none" stroke="#F6F4EE" stroke-width="22"/>
+<path d="M223 36L223 164" fill="none" stroke="#F6F4EE" stroke-width="22"/>
+<circle cx="300" cy="120" r="33" fill="none" stroke="#F6F4EE" stroke-width="22"/>
+<path d="M333 36L333 164" fill="none" stroke="#F6F4EE" stroke-width="22"/>
+</svg>
