@@ -1,0 +1,61 @@
+name: Main Extension Distribution Pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' && github.sha || '' }}
+  cancel-in-progress: true
+
+jobs:
+  duckdb-stable-build:
+    name: Build extension binaries
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera
+    with:
+      duckdb_version: v2.0.0
+      ci_tools_version: v2.0-cyanoptera
+      extension_name: open_data_duck
+      use_merged_vcpkg_manifest: "1"
+      exclude_archs: linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;osx_arm64;windows_amd64;windows_arm64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads
+
+  artifact-smoke:
+    name: Smoke-test Linux x64 artifact
+    runs-on: ubuntu-latest
+    needs: duckdb-stable-build
+    timeout-minutes: 10
+
+    steps:
+      - name: Download Linux x64 extension artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: open_data_duck-v2.0.0-extension-linux_amd64
+          path: extension-artifact
+
+      - name: Install DuckDB CLI
+        run: |
+          curl --fail --location --show-error \
+            --output duckdb-cli-linux-amd64.tar.gz \
+            https://github.com/duckdb/duckdb/releases/download/v2.0.0/duckdb-cli-linux-amd64.tar.gz
+          tar -xzf duckdb-cli-linux-amd64.tar.gz
+          chmod +x duckdb
+
+      - name: Load artifact and run core functions
+        run: |
+          test -f extension-artifact/open_data_duck.duckdb_extension
+          ./duckdb -unsigned -noheader -csv :memory: > smoke.out <<'SQL'
+          LOAD './extension-artifact/open_data_duck.duckdb_extension';
+          SELECT open_data_duck_ping();
+          SELECT length(open_data_duck_version()) > 0;
+          SELECT open_data_duck_registry_source_count() > 0;
+          SELECT count(*) > 0 FROM open_data_sources();
+          SELECT open_data_sql('overture.maps.release') LIKE '%LOAD httpfs;%';
+          SQL
+          cat smoke.out
+          grep -Fx 'open_data_duck: pong' smoke.out
+          test "$(grep -c '^true$' smoke.out)" -eq 4

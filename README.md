@@ -135,6 +135,13 @@ make
 make test
 ```
 
+Pull requests and `main` also run the Main Extension Distribution Pipeline. It
+uses DuckDB's extension CI tooling to publish a Linux x64
+`open_data_duck-v2.0.0-extension-linux_amd64` GitHub Actions artifact, then
+smoke-tests that artifact with DuckDB's unsigned-extension mode. These artifacts
+are temporary pre-community unsigned builds for validation, not signed community
+extension releases.
+
 The native surface is deliberately small while the registry and SQL helper
 contracts stay in Python/SQL. It only reads the embedded registry and returns SQL
 recipes; it does not execute sources or touch the network:
