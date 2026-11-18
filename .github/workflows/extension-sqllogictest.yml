@@ -37,6 +37,7 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           submodules: recursive
 
       - name: Install build cache tools
