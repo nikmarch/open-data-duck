@@ -447,16 +447,30 @@ static void OpenDataFacadesScan(ClientContext &context, TableFunctionInput &data
 	}
 }
 
+static unique_ptr<TableFunctionRef> TableFunctionReplacement(const string &function_name, const string &alias) {
+	auto table_function = make_uniq<TableFunctionRef>();
+	vector<unique_ptr<ParsedExpression>> children;
+	table_function->function = make_uniq<FunctionExpression>(Identifier(function_name), std::move(children));
+	table_function->alias = Identifier(alias);
+	return table_function;
+}
+
 static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, ReplacementScanInput &input,
                                                         optional_ptr<ReplacementScanData> data) {
 	auto table_name = ReplacementScan::GetFullPath(input);
+	auto lower_table_name = StringUtil::Lower(table_name);
+	if (lower_table_name == "odd.index") {
+		return TableFunctionReplacement("open_data_sources", "index");
+	}
+	if (lower_table_name == "odd.tables") {
+		return TableFunctionReplacement("open_data_facades", "tables");
+	}
+
 	auto facade = FindFacadeByReference(table_name);
 	if (!facade) {
 		return nullptr;
 	}
 
-	// Bind the table-like ODD reference to DuckDB's native Parquet reader. Users keep the
-	// normal SELECT/WHERE shape while DuckDB owns predicate pushdown into Parquet metadata.
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<FunctionArgument> children;
 	children.emplace_back(ConstantExpression::String(facade->path_glob));
