@@ -46,11 +46,31 @@ def test_embedded_registry_round_trips_every_source_with_required_fields() -> No
     assert f"REGISTRY_SOURCE_COUNT = {len(sources)};" in header
 
     for record in embedded["sources"]:
-        for field in ("id", "name", "source_type", "status", "description", "tags", "attribution", "duckdb"):
+        for field in (
+            "id",
+            "name",
+            "source_type",
+            "status",
+            "description",
+            "tags",
+            "attribution",
+            "duckdb",
+            "release",
+        ):
             assert field in record, f"{record['id']} missing {field}"
         assert record["duckdb"]["example_query"].strip()
         assert record["duckdb"]["validation_query"].strip()
         assert isinstance(record["duckdb"]["extensions"], list)
+        assert isinstance(record["duckdb"]["examples"], dict)
+
+    overture = next(record for record in embedded["sources"] if record["id"] == "overture.maps.release")
+    assert overture["release"]["pinned"]["duckdb_setting"] == "overture_release"
+    assert set(overture["duckdb"]["examples"]) >= {
+        "places_bbox_direct_s3",
+        "buildings_bbox_direct_s3",
+        "road_segments_bbox_direct_s3",
+        "addresses_bbox_direct_s3",
+    }
 
 
 def test_header_is_pure_generated_cpp_without_python_runtime_dependency() -> None:

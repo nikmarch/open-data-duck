@@ -46,8 +46,10 @@ It does not copy Overture data into this repo.
 
 The registry does not depend on an external `overture` DuckDB community extension.
 Current Overture recipes use DuckDB's `httpfs` extension to query public Overture
-release files directly from S3. The future `open_data_duck` extension should wrap
-that release/path logic behind stable table functions.
+release files directly from S3. The registry includes named recipes for places,
+buildings, road segments, and addresses using pinned release paths and tight bbox
+filters. The future `open_data_duck` extension should wrap that release/path logic
+behind stable table functions.
 
 Pinned release example:
 
@@ -239,10 +241,10 @@ uv run odd generate-extension-registry --check  # exit non-zero on drift (also r
 
 The embedded JSON has `schema_version`, `source_count`, and a `sources` array. Each
 source carries `id`, `name`, `source_type`, `status`, `description`, `authority`,
-`homepage`, `license_url`, `attribution`, `tags`, and a `duckdb` object with
-`extensions`, `install`, `example_query`, and `validation_query`. Bump
-`schema_version` in `odd/extension_registry.py` when the shape changes in a
-non-additive way.
+`homepage`, `license_url`, `attribution`, `tags`, optional `release` metadata,
+and a `duckdb` object with `extensions`, `install`, `example_query`,
+`validation_query`, and named `examples`. Bump `schema_version` in
+`odd/extension_registry.py` when the shape changes in a non-additive way.
 
 Search registered sources:
 
