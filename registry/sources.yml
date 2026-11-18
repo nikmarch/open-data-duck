@@ -4,15 +4,15 @@
 sources:
   - id: overture.maps.release
     name: Overture Maps source family
-    description: Global open map data releases for places, buildings, transportation, divisions, and base layers queryable from public S3 with DuckDB httpfs.
+    description: Global open map data releases for places, buildings, transportation, addresses, divisions, and base layers queryable from public S3 with DuckDB httpfs.
     status: candidate
     source_type: overture
     authority: Overture Maps Foundation
     homepage: https://docs.overturemaps.org/getting-data/
     license_url: https://docs.overturemaps.org/attribution/
     attribution: Overture Maps Foundation and contributing data providers.
-    tags: [maps, geospatial, places, buildings, transportation]
-    topics: [basemaps, points of interest, administrative boundaries, roads]
+    tags: [maps, geospatial, places, buildings, transportation, addresses]
+    topics: [basemaps, points of interest, buildings, addresses, roads, geocoding]
     coverage:
       spatial: global
       temporal: release snapshots
@@ -20,9 +20,9 @@ sources:
     cadence: monthly releases
     ai:
       summary: Best default source for broad global map features when DuckDB can query public S3.
-      use_cases: [find places in a bounding box, inspect global building footprints, compare map releases]
-      caveats: [large files require tight spatial filters, attribution varies by contributing provider]
-      prompt_hints: [Ask for the Overture theme/type and a bounding box before generating SQL.]
+      use_cases: [find places in a bounding box, inspect global building footprints, sample road segments, query address points, compare map releases]
+      caveats: [large files require tight spatial filters, attribution varies by contributing provider, release paths should be pinned for reproducible workflows]
+      prompt_hints: [Ask for the Overture theme/type, release, and bounding box before generating SQL.]
     release:
       latest:
         method: release-calendar
@@ -30,7 +30,7 @@ sources:
       pinned:
         duckdb_setting: overture_release
         s3_base_setting: overture_s3_base
-        example: "2026-03-18.0"
+        example: "2026-10-21.0"
     duckdb:
       extensions:
         - httpfs
@@ -39,13 +39,14 @@ sources:
       example_query: |
         LOAD httpfs;
         SET s3_region='us-west-2';
-        SET VARIABLE overture_release = '2026-03-18.0';
+        SET VARIABLE overture_release = '2026-10-21.0';
+        SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
 
         -- Direct public S3 recipe. The future open_data_duck extension should wrap
         -- this release/path logic instead of relying on a separate Overture plugin.
-        SELECT id, names.primary AS name, bbox
+        SELECT *
         FROM read_parquet(
-          's3://overturemaps-us-west-2/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
+          getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
           hive_partitioning = true
         )
         WHERE bbox.xmin <= -149
@@ -56,11 +57,12 @@ sources:
       validation_query: |
         LOAD httpfs;
         SET s3_region='us-west-2';
-        SET VARIABLE overture_release = '2026-03-18.0';
+        SET VARIABLE overture_release = '2026-10-21.0';
+        SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
 
         SELECT count(*) >= 0 AS small_bbox_query_ok
         FROM read_parquet(
-          's3://overturemaps-us-west-2/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
+          getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
           hive_partitioning = true
         )
         WHERE bbox.xmin <= -149
@@ -69,16 +71,69 @@ sources:
           AND bbox.ymax >= 60
         LIMIT 1;
       examples:
-        places_direct_s3: |
+        places_bbox_direct_s3: |
           LOAD httpfs;
           SET s3_region='us-west-2';
-          SET VARIABLE overture_release = '2026-03-18.0';
+          SET VARIABLE overture_release = '2026-10-21.0';
+          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
 
           SELECT *
           FROM read_parquet(
-            's3://overturemaps-us-west-2/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
+            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
             hive_partitioning = true
           )
+          WHERE bbox.xmin <= -149
+            AND bbox.xmax >= -150
+            AND bbox.ymin <= 61
+            AND bbox.ymax >= 60
+          LIMIT 10;
+        buildings_bbox_direct_s3: |
+          LOAD httpfs;
+          SET s3_region='us-west-2';
+          SET VARIABLE overture_release = '2026-10-21.0';
+          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+          SELECT *
+          FROM read_parquet(
+            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*',
+            hive_partitioning = true
+          )
+          WHERE bbox.xmin <= -149
+            AND bbox.xmax >= -150
+            AND bbox.ymin <= 61
+            AND bbox.ymax >= 60
+          LIMIT 10;
+        road_segments_bbox_direct_s3: |
+          LOAD httpfs;
+          SET s3_region='us-west-2';
+          SET VARIABLE overture_release = '2026-10-21.0';
+          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+          SELECT *
+          FROM read_parquet(
+            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=transportation/type=segment/*',
+            hive_partitioning = true
+          )
+          WHERE bbox.xmin <= -149
+            AND bbox.xmax >= -150
+            AND bbox.ymin <= 61
+            AND bbox.ymax >= 60
+          LIMIT 10;
+        addresses_bbox_direct_s3: |
+          LOAD httpfs;
+          SET s3_region='us-west-2';
+          SET VARIABLE overture_release = '2026-10-21.0';
+          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+          SELECT *
+          FROM read_parquet(
+            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=addresses/type=address/*',
+            hive_partitioning = true
+          )
+          WHERE bbox.xmin <= -149
+            AND bbox.xmax >= -150
+            AND bbox.ymin <= 61
+            AND bbox.ymax >= 60
           LIMIT 10;
     freshness:
       method: release-calendar

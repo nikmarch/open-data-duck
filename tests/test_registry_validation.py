@@ -293,18 +293,56 @@ def test_overture_source_family_has_release_modes_and_core_examples() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
     source = next(source for source in registry["sources"] if source["id"] == "overture.maps.release")
 
-    assert source["release"]["latest"]["url"] == "https://docs.overturemaps.org/release-calendar/"
-    assert source["release"]["pinned"]["duckdb_setting"] == "overture_release"
-    assert source["release"]["pinned"]["example"]
+    assert source["status"] == "candidate"
+    assert source["release"]["latest"] == {
+        "method": "release-calendar",
+        "url": "https://docs.overturemaps.org/release-calendar/",
+    }
+    assert source["release"]["pinned"] == {
+        "duckdb_setting": "overture_release",
+        "s3_base_setting": "overture_s3_base",
+        "example": "2026-10-21.0",
+    }
+
+    install_and_queries = "\n".join(
+        [
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            *source["duckdb"]["examples"].values(),
+        ]
+    )
+    assert "INSTALL httpfs;" in source["duckdb"]["install"]
+    assert "LOAD httpfs;" in install_and_queries
+    assert "INSTALL overture" not in install_and_queries
+    assert "LOAD overture" not in install_and_queries
+    assert "read_overture_" not in install_and_queries
 
     examples = source["duckdb"]["examples"]
-    assert "read_parquet" in examples["places_direct_s3"]
-    assert "overturemaps-us-west-2" in examples["places_direct_s3"]
+    assert set(examples) >= {
+        "places_bbox_direct_s3",
+        "buildings_bbox_direct_s3",
+        "road_segments_bbox_direct_s3",
+        "addresses_bbox_direct_s3",
+    }
+    expected_paths = {
+        "places_bbox_direct_s3": "/theme=places/type=place/*",
+        "buildings_bbox_direct_s3": "/theme=buildings/type=building/*",
+        "road_segments_bbox_direct_s3": "/theme=transportation/type=segment/*",
+        "addresses_bbox_direct_s3": "/theme=addresses/type=address/*",
+    }
+    for example_name, expected_path in expected_paths.items():
+        example_sql = examples[example_name]
+        assert "read_parquet" in example_sql
+        assert "overture_s3_base" in example_sql
+        assert expected_path in example_sql
+        assert "hive_partitioning = true" in example_sql
+        assert "bbox.xmin" in example_sql
 
     validation_query = source["duckdb"]["validation_query"]
     assert "read_parquet" in validation_query
-    assert "overturemaps-us-west-2" in validation_query
-    assert "read_overture_places" not in validation_query
+    assert "overture_s3_base" in validation_query
+    assert "/theme=places/type=place/*" in validation_query
 
 
 def test_seed_sources_include_required_query_metadata() -> None:
