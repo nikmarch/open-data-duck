@@ -162,6 +162,30 @@ The binary is DuckDB-version- and platform-specific. Do not use
 `INSTALL open_data_duck FROM community;` yet; the extension is not in DuckDB's
 community repository and the release asset is unsigned.
 
+### Temporary custom extension repository
+
+The GitHub Pages deployment also publishes the same Linux x64 build in DuckDB's
+custom extension repository layout at:
+
+```text
+https://nikmarch.github.io/open-data-duck/extensions/v2.0.0/linux_amd64/open_data_duck.duckdb_extension.gz
+```
+
+Install from the repository prefix while unsigned extensions are explicitly
+enabled:
+
+```sql
+-- Start the CLI as: duckdb -unsigned :memory:
+FORCE INSTALL open_data_duck FROM 'https://nikmarch.github.io/open-data-duck/extensions';
+LOAD open_data_duck;
+SELECT open_data_duck_ping();
+```
+
+This is a temporary pre-community bridge. It uses the DuckDB repository path
+layout, but it is not the future signed community repository flow and it still
+requires unsigned-extension mode until Open Data Duck has signed community
+artifacts.
+
 CLI smoke test after downloading a release asset:
 
 ```bash

@@ -45,11 +45,19 @@ jobs:
           tar -xzf duckdb-cli-linux-amd64.tar.gz
           chmod +x duckdb
 
-      - name: Load artifact and run core functions
+      - name: Stage custom extension repository
         run: |
           test -f extension-artifact/open_data_duck.duckdb_extension
+          mkdir -p custom-extension-repository/v2.0.0/linux_amd64
+          gzip -c extension-artifact/open_data_duck.duckdb_extension \
+            > custom-extension-repository/v2.0.0/linux_amd64/open_data_duck.duckdb_extension.gz
+
+      - name: Install from custom repository and run core functions
+        run: |
+          test -f custom-extension-repository/v2.0.0/linux_amd64/open_data_duck.duckdb_extension.gz
           ./duckdb -unsigned -noheader -csv :memory: > smoke.out <<'SQL'
-          LOAD './extension-artifact/open_data_duck.duckdb_extension';
+          FORCE INSTALL open_data_duck FROM './custom-extension-repository';
+          LOAD open_data_duck;
           SELECT open_data_duck_ping();
           SELECT length(open_data_duck_version()) > 0;
           SELECT open_data_duck_registry_source_count() > 0;
