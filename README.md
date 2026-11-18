@@ -169,10 +169,23 @@ acceptance. The binaries are DuckDB-version- and platform-specific. Do not use
 `INSTALL open_data_duck FROM community;` yet; the extension is not in DuckDB's
 community repository and the release assets are unsigned.
 
+CLI smoke test after downloading a release asset:
+
+```bash
+curl --fail --location \
+  --output open_data_duck.duckdb_extension \
+  https://github.com/nikmarch/open-data-duck/releases/download/v0.1.0-pre.1/open_data_duck-v2.0.0-linux_amd64.duckdb_extension
+
+duckdb -unsigned :memory:
+LOAD './open_data_duck.duckdb_extension';
+SELECT open_data_duck_ping();
+SELECT count(*) > 0 FROM open_data_sources();
+```
+
 ### Temporary custom extension repository
 
-The GitHub Pages deployment also publishes the Linux x64 and macOS arm64 builds
-in DuckDB's custom extension repository layout at:
+The GitHub Pages deployment also mirrors the Linux x64 and macOS arm64 release
+builds in DuckDB's custom extension repository layout at:
 
 ```text
 https://nikmarch.github.io/open-data-duck/extensions/v2.0.0/linux_amd64/open_data_duck.duckdb_extension.gz
@@ -193,19 +206,6 @@ This is a temporary pre-community bridge. It uses the DuckDB repository path
 layout, but it is not the future signed community repository flow and it still
 requires unsigned-extension mode until Open Data Duck has signed community
 artifacts.
-
-CLI smoke test after downloading a release asset:
-
-```bash
-curl --fail --location \
-  --output open_data_duck.duckdb_extension \
-  https://github.com/nikmarch/open-data-duck/releases/download/v0.1.0-pre.1/open_data_duck-v2.0.0-linux_amd64.duckdb_extension
-
-duckdb -unsigned :memory:
-LOAD './open_data_duck.duckdb_extension';
-SELECT open_data_duck_ping();
-SELECT count(*) > 0 FROM open_data_sources();
-```
 
 Python smoke test with unsigned extensions enabled:
 
