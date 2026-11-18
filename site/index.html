@@ -44,16 +44,22 @@
       </div>
 
       <div class="api-card" aria-label="Open Data Duck plugin API example">
-        <pre><code>INSTALL odd;
-LOAD odd;
+        <pre><code>INSTALL open_data_duck;
+LOAD open_data_duck;
+
+ATTACH 'open_data_duck' AS odd;
 
 SELECT *
-FROM odd_index('alaska building');
+FROM open_data_search('building');
 
 DESCRIBE odd.overturemaps.latest.buildings;
 
 SELECT *
 FROM odd.overturemaps.latest.buildings
+WHERE bbox.xmin <= -149
+  AND bbox.xmax >= -150
+  AND bbox.ymin <= 61
+  AND bbox.ymax >= 60
 LIMIT 10;</code></pre>
         <table>
           <caption>Example index response</caption>
@@ -67,7 +73,7 @@ LIMIT 10;</code></pre>
           <tbody>
             <tr>
               <td>Overture buildings</td>
-              <td>Building footprints from Overture Maps for Alaska and other regions.</td>
+              <td>Global building footprints from Overture Maps releases.</td>
               <td><code>odd.overturemaps.latest.buildings</code></td>
             </tr>
             <tr>

@@ -4,8 +4,9 @@
   <img src="docs/assets/brand/odd-wordmark.svg" alt="Open Data Duck" width="360">
 </p>
 
-Open Data Duck is a DuckDB-friendly index of public data source recipes.
-It does not mirror datasets. It tells DuckDB where authoritative public data lives and gives executable SQL for reading it.
+Open Data Duck is a DuckDB-friendly index of public data tables.
+The goal is simple: install the plugin, search for a table, then query that table from DuckDB.
+It does not mirror datasets; it maps friendly table names to authoritative public data.
 
 ## Quick start: install the pre-community extension
 
@@ -54,7 +55,34 @@ Each GitHub prerelease asset is DuckDB-version- and platform-specific. These are
 
 The Main Extension Distribution Pipeline also builds the CI artifact `open_data_duck-v2.0.0-extension-linux_amd64`. Install commands and release names may change while the native extension is in active current development.
 
-## Read data: Overture Maps example
+## Intended plugin flow
+
+This is the product shape Open Data Duck is moving toward:
+
+```sql
+INSTALL open_data_duck;
+LOAD open_data_duck;
+
+-- Optional, if the final DuckDB shape needs an attached catalog/schema.
+ATTACH 'open_data_duck' AS odd;
+
+-- Search the index.
+SELECT *
+FROM open_data_search('building');
+
+-- Query the matched table through an ODD table facade.
+SELECT *
+FROM odd.overturemaps.latest.buildings
+WHERE bbox.xmin <= -149
+  AND bbox.xmax >= -150
+  AND bbox.ymin <= 61
+  AND bbox.ymax >= 60
+LIMIT 10;
+```
+
+The exact table facade may land as attached tables, table functions, or another DuckDB-native shape. The important contract is that search returns queryable table references such as `odd.overturemaps.latest.buildings`, not just documentation links.
+
+## Current pre-community behavior
 
 The extension currently returns SQL recipes. It does not yet execute the source for you.
 
@@ -63,7 +91,7 @@ LOAD './open_data_duck.duckdb_extension';
 SELECT open_data_sql('overture.maps.release');
 ```
 
-Copy the returned SQL and run it in DuckDB. For Overture places near Anchorage, it is this shape:
+Copy the returned SQL and run it in DuckDB. For Overture buildings in a small bbox, it is this shape:
 
 ```sql
 LOAD httpfs;
@@ -73,7 +101,7 @@ SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
 
 SELECT *
 FROM read_parquet(
-  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
+  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*',
   hive_partitioning = true
 )
 WHERE bbox.xmin <= -149
@@ -105,7 +133,7 @@ uv run odd sql overture.maps.release --validation --no-install
 LOAD './open_data_duck.duckdb_extension';
 
 SELECT id, name, status FROM open_data_sources();
-SELECT id, name FROM open_data_search('overture maps');
+SELECT id, name FROM open_data_search('building');
 SELECT open_data_sql('overture.maps.release');
 SELECT open_data_validation_sql('overture.maps.release');
 ```
