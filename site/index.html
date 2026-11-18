@@ -21,7 +21,6 @@
   <meta name="twitter:image:alt" content="Open Data Duck logo">
   <link rel="icon" href="assets/brand/odd-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
-  <script src="terminal.js" defer></script>
 </head>
 <body>
   <main>
@@ -31,71 +30,45 @@
       <h1 id="site-title">Find authoritative open data sources and query them safely with DuckDB.</h1>
       <p class="lede">Open Data Duck does not mirror datasets. It stores source metadata, licenses, attribution, and executable query recipes so people and AI workers can plug in public datasets quickly, without Googling, configuring, or remembering every source.</p>
       <div class="actions" aria-label="Primary links">
-        <a class="button primary" href="#try-it">Try the terminal</a>
-        <a class="button" href="#workflow">Watch the workflow</a>
+        <a class="button primary" href="#plugin-api">Plugin API direction</a>
         <a class="button" href="https://github.com/nikmarch/open-data-duck">View the repository</a>
         <a class="button" href="https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md">Browse the source index</a>
       </div>
     </section>
 
-    <section class="playback" id="workflow" aria-labelledby="workflow-title">
-      <div class="playback-copy">
-        <p class="eyebrow">Demo playback</p>
-        <h2 id="workflow-title">Install the plugin bridge, find the right source, then generate the DuckDB SQL.</h2>
-        <p>This is a static terminal playback, not a video or a live compute session. It shows the intended path with the current CLI and temporary unsigned extension repository.</p>
+    <section class="api-preview" id="plugin-api" aria-labelledby="plugin-api-title">
+      <div class="api-copy">
+        <p class="eyebrow">Plugin API direction</p>
+        <h2 id="plugin-api-title">Ask the index for a topic. Then query the table it points at.</h2>
+        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker.</p>
       </div>
 
-      <figure class="playback-terminal" aria-label="Open Data Duck workflow terminal playback">
-        <div class="terminal-bar" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <pre><code><span class="type-line" style="--delay: 0s; --chars: 24;">$ duckdb -unsigned :memory:</span>
-<span class="type-line response" style="--delay: 1.2s; --chars: 31;">D DuckDB shell ready for testing</span>
-<span class="type-line" style="--delay: 2.4s; --chars: 89;">D FORCE INSTALL open_data_duck FROM 'https://nikmarch.github.io/open-data-duck/extensions';</span>
-<span class="type-line" style="--delay: 5.6s; --chars: 19;">D LOAD open_data_duck;</span>
-<span class="type-line" style="--delay: 6.8s; --chars: 30;">D SELECT open_data_duck_ping();</span>
-<span class="type-line response" style="--delay: 8.1s; --chars: 18;">open_data_duck ok</span>
-<span class="type-line" style="--delay: 9.2s; --chars: 26;">$ odd search overture places</span>
-<span class="type-line response" style="--delay: 10.7s; --chars: 58;">overture.maps.release  candidate  public S3 / httpfs recipe</span>
-<span class="type-line" style="--delay: 12.8s; --chars: 31;">$ odd sql overture.maps.release</span>
-<span class="type-line sql" style="--delay: 14.6s; --chars: 53;">SELECT * FROM read_parquet('s3://.../theme=places/...')</span>
-<span class="type-line" style="--delay: 16.8s; --chars: 17;">$ odd search census</span>
-<span class="type-line response" style="--delay: 18s; --chars: 65;">census.cartographic.county-boundaries  candidate  spatial ZIP recipe</span>
-<span class="type-line" style="--delay: 20.3s; --chars: 44;">$ odd sql census.cartographic.county-boundaries</span>
-<span class="type-line sql" style="--delay: 22.7s; --chars: 61;">SELECT GEOID, NAME, STATE_NAME FROM ST_Read('/vsizip/vsicurl/...')</span></code></pre>
-      </figure>
-    </section>
+      <div class="api-card" aria-label="Open Data Duck plugin API example">
+        <pre><code>INSTALL odd;
+LOAD odd;
 
-    <section class="try-it" id="try-it" aria-labelledby="try-it-title">
-      <div class="try-it-copy">
-        <p class="eyebrow">Try it without installing</p>
-        <h2 id="try-it-title">A terminal-style Open Data Duck demo for allowlisted recipes.</h2>
-        <p data-architecture-note>Loading demo architecture...</p>
-      </div>
-
-      <div class="terminal" aria-label="Open Data Duck terminal demo">
-        <div class="terminal-bar" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div class="preset-row" aria-label="Preset Open Data Duck examples">
-          <button type="button" data-example="overture.maps.release">Overture places</button>
-          <button type="button" data-example="census.cartographic.county-boundaries">Census counties</button>
-          <button type="button" data-example="aws.noaa-ghcn-daily">NOAA climate</button>
-        </div>
-        <p class="terminal-command" data-terminal-command>$ odd sql &lt;allowlisted-source-id&gt;</p>
-        <pre class="terminal-output" data-terminal-output>Loading demo recipes...</pre>
-      </div>
-
-      <div class="result-panel" aria-live="polite">
-        <p class="status-line" data-status-line>Loading presets...</p>
+SELECT *
+FROM odd_index('alaska building');</code></pre>
         <table>
-          <caption>Selected recipe output summary</caption>
-          <tbody data-result-body>
-            <tr><td colspan="3">Loading source metadata...</td></tr>
+          <caption>Example index response</caption>
+          <thead>
+            <tr>
+              <th>match</th>
+              <th>description</th>
+              <th>table_reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Overture buildings</td>
+              <td>Building footprints from Overture Maps for Alaska and other regions.</td>
+              <td><code>odd.overturemaps.latest.buildings</code></td>
+            </tr>
+            <tr>
+              <td>Anchorage building permits</td>
+              <td>Local building permit records when an official open-data source is indexed.</td>
+              <td><code>odd.local.anchorage.building_permits</code></td>
+            </tr>
           </tbody>
         </table>
       </div>
