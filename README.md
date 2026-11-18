@@ -138,9 +138,51 @@ make test
 Pull requests and `main` also run the Main Extension Distribution Pipeline. It
 uses DuckDB's extension CI tooling to publish a Linux x64
 `open_data_duck-v2.0.0-extension-linux_amd64` GitHub Actions artifact, then
-smoke-tests that artifact with DuckDB's unsigned-extension mode. These artifacts
-are temporary pre-community unsigned builds for validation, not signed community
+smoke-tests that artifact with DuckDB's unsigned-extension mode. Actions
+artifacts are CI evidence only; the user-facing download path is a versioned
+GitHub prerelease asset from the Pre-community Extension Release workflow.
+
+### Pre-community extension releases
+
+The Pre-community Extension Release workflow runs manually or from version tags.
+It rebuilds the Linux x64 extension, smokes the downloaded artifact, then attaches
+`open_data_duck-v2.0.0-linux_amd64.duckdb_extension` to a draft release or public
+prerelease. These are temporary pre-community unsigned builds for validation, not signed community
 extension releases.
+
+Compatibility:
+
+| DuckDB version | OS/arch | Release asset |
+| --- | --- | --- |
+| v2.0.0 | Linux x64 (`linux_amd64`) | `open_data_duck-v2.0.0-linux_amd64.duckdb_extension` |
+
+The binary is DuckDB-version- and platform-specific. Do not use
+`INSTALL open_data_duck FROM community;` yet; the extension is not in DuckDB's
+community repository and the release asset is unsigned.
+
+CLI smoke test after downloading a release asset:
+
+```bash
+curl --fail --location \
+  --output open_data_duck.duckdb_extension \
+  https://github.com/nikmarch/open-data-duck/releases/download/v0.1.0-pre.1/open_data_duck-v2.0.0-linux_amd64.duckdb_extension
+
+duckdb -unsigned :memory:
+LOAD './open_data_duck.duckdb_extension';
+SELECT open_data_duck_ping();
+SELECT count(*) > 0 FROM open_data_sources();
+```
+
+Python smoke test with unsigned extensions enabled:
+
+```python
+import duckdb
+
+con = duckdb.connect(":memory:", config={"allow_unsigned_extensions": "true"})
+con.execute("LOAD './open_data_duck.duckdb_extension'")
+print(con.execute("SELECT open_data_duck_ping()").fetchone()[0])
+print(con.execute("SELECT count(*) > 0 FROM open_data_sources()").fetchone()[0])
+```
 
 The native surface is deliberately small while the registry and SQL helper
 contracts stay in Python/SQL. It only reads the embedded registry and returns SQL
