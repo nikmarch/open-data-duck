@@ -149,8 +149,10 @@ GitHub prerelease asset from the Pre-community Extension Release workflow.
 ### Pre-community extension releases
 
 The Pre-community Extension Release workflow runs manually or from version tags.
-It rebuilds the Linux x64 extension, smokes the downloaded artifact, then attaches
-`open_data_duck-v2.0.0-linux_amd64.duckdb_extension` to a draft release or public
+It rebuilds Linux x64 and macOS arm64 extension binaries, smokes the downloaded
+Linux artifact, then attaches versioned assets such as
+`open_data_duck-v2.0.0-linux_amd64.duckdb_extension` and
+`open_data_duck-v2.0.0-osx_arm64.duckdb_extension` to a draft release or public
 prerelease. These are temporary pre-community unsigned builds for validation, not signed community
 extension releases.
 
@@ -159,18 +161,22 @@ Compatibility:
 | DuckDB version | OS/arch | Release asset |
 | --- | --- | --- |
 | v2.0.0 | Linux x64 (`linux_amd64`) | `open_data_duck-v2.0.0-linux_amd64.duckdb_extension` |
+| v2.0.0 | macOS Apple Silicon (`osx_arm64`) | `open_data_duck-v2.0.0-osx_arm64.duckdb_extension` |
 
-The binary is DuckDB-version- and platform-specific. Do not use
+The native extension is in active current development. Install commands, release
+asset names, and supported platforms may change before DuckDB community extension
+acceptance. The binaries are DuckDB-version- and platform-specific. Do not use
 `INSTALL open_data_duck FROM community;` yet; the extension is not in DuckDB's
-community repository and the release asset is unsigned.
+community repository and the release assets are unsigned.
 
 ### Temporary custom extension repository
 
-The GitHub Pages deployment also publishes the same Linux x64 build in DuckDB's
-custom extension repository layout at:
+The GitHub Pages deployment also publishes the Linux x64 and macOS arm64 builds
+in DuckDB's custom extension repository layout at:
 
 ```text
 https://nikmarch.github.io/open-data-duck/extensions/v2.0.0/linux_amd64/open_data_duck.duckdb_extension.gz
+https://nikmarch.github.io/open-data-duck/extensions/v2.0.0/osx_arm64/open_data_duck.duckdb_extension.gz
 ```
 
 Install from the repository prefix while unsigned extensions are explicitly

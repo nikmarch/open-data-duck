@@ -13,8 +13,7 @@ permissions:
 env:
   DUCKDB_VERSION: v2.0.0
   EXTENSION_NAME: open_data_duck
-  EXTENSION_PLATFORM: linux_amd64
-  EXTENSION_ARTIFACT: open_data_duck-v2.0.0-extension-linux_amd64
+  EXTENSION_PLATFORMS: linux_amd64 osx_arm64
   CUSTOM_EXTENSION_REPO_PATH: extensions
 
 concurrency:
@@ -23,14 +22,14 @@ concurrency:
 
 jobs:
   duckdb-stable-build:
-    name: Build Linux x64 extension for Pages repository
+    name: Build Linux x64 and macOS arm64 extensions for Pages repository
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera
     with:
       duckdb_version: v2.0.0
       ci_tools_version: v2.0-cyanoptera
       extension_name: open_data_duck
       use_merged_vcpkg_manifest: "1"
-      exclude_archs: linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;osx_arm64;windows_amd64;windows_arm64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads
+      exclude_archs: linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;windows_amd64;windows_arm64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads
 
   build:
     name: Build Pages artifact
@@ -52,17 +51,22 @@ jobs:
       - name: Build static site
         run: python scripts/build_pages_site.py
 
-      - name: Download Linux x64 extension artifact
+      - name: Download extension artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.EXTENSION_ARTIFACT }}
-          path: extension-artifact
+          pattern: open_data_duck-v2.0.0-extension-*
+          path: extension-artifacts
+          merge-multiple: false
 
       - name: Stage custom extension repository
         run: |
-          repo_dir="_site/${CUSTOM_EXTENSION_REPO_PATH}/${DUCKDB_VERSION}/${EXTENSION_PLATFORM}"
-          mkdir -p "${repo_dir}"
-          gzip -c "extension-artifact/${EXTENSION_NAME}.duckdb_extension" > "${repo_dir}/${EXTENSION_NAME}.duckdb_extension.gz"
+          for platform in ${EXTENSION_PLATFORMS}; do
+            artifact="extension-artifacts/${EXTENSION_NAME}-${DUCKDB_VERSION}-extension-${platform}/${EXTENSION_NAME}.duckdb_extension"
+            repo_dir="_site/${CUSTOM_EXTENSION_REPO_PATH}/${DUCKDB_VERSION}/${platform}"
+            test -f "${artifact}"
+            mkdir -p "${repo_dir}"
+            gzip -c "${artifact}" > "${repo_dir}/${EXTENSION_NAME}.duckdb_extension.gz"
+          done
           cat > "_site/${CUSTOM_EXTENSION_REPO_PATH}/README.txt" <<'EOF'
           Open Data Duck temporary DuckDB extension repository.
 
