@@ -349,8 +349,17 @@ INSTALL open_data_duck FROM community;
 LOAD open_data_duck;
 
 SELECT * FROM open_data_search('buildings alaska');
-SELECT * FROM open_data_table('overture.places', bbox := [-150, 60, -149, 61]);
+SELECT open_data_sql('overture.maps.release');
 ```
+
+The community submission material is checked in under
+[`docs/community-extension-submission.md`](docs/community-extension-submission.md).
+The ready-to-copy descriptor lives at
+[`docs/community-extensions/open_data_duck/description.yml`](docs/community-extensions/open_data_duck/description.yml)
+and targets `duckdb/community-extensions/extensions/open_data_duck/description.yml`.
+It pins the current CI-proven source commit, uses real implemented
+`open_data_duck` functions in hello-world SQL, keeps normal tests offline, and
+excludes all platforms except Linux x64 until those builds are proven.
 
 Release checklist:
 
