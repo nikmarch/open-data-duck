@@ -82,6 +82,20 @@ Official generalized U.S. county boundary shapefiles from the Census Bureau Cart
 - AI use cases: map county-level indicators, join county FIPS codes to generalized boundaries, build thematic maps without TIGERweb paging
 - Caveats: generalized for thematic mapping rather than surveying, choose year and scale explicitly, zipped shapefile access requires DuckDB spatial/GDAL virtual paths
 
+### `census.cartographic.tract-boundaries` — U.S. Census cartographic tract boundary files
+
+Official generalized U.S. census tract boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.
+
+- Status: `candidate`
+- Authority: U.S. Census Bureau Geography Program
+- Homepage: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
+- License: https://www.census.gov/data/developers/about/terms-of-service.html
+- Tags: `census`, `boundaries`, `tracts`, `shapefile`, `geospatial`
+- Topics: census tracts, statistical geographies, thematic mapping, geoid, fips
+- Cadence: annual Census cartographic boundary file releases
+- AI use cases: map tract-level indicators, join tract GEOIDs to ACS estimates, build thematic maps without TIGERweb paging
+- Caveats: generalized for thematic mapping rather than surveying, choose year and scale explicitly, national tract files are larger than county files, zipped shapefile access requires DuckDB spatial/GDAL virtual paths
+
 ### `aws.noaa-ghcn-daily` — NOAA Global Historical Climatology Network Daily
 
 NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.

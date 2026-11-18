@@ -240,28 +240,53 @@ def test_project_arcgis_sources_are_connector_blocked_until_engine_path_is_stabl
         assert "install arcgis from community" not in rendered_sql
 
 
-def test_project_census_cartographic_counties_use_direct_spatial_file_recipe() -> None:
+def test_project_census_cartographic_boundaries_use_direct_spatial_file_recipes() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
-    source = next(source for source in registry["sources"] if source["id"] == "census.cartographic.county-boundaries")
-    rendered_sql = "\n".join(
+    county_source = next(
+        source for source in registry["sources"] if source["id"] == "census.cartographic.county-boundaries"
+    )
+    tract_source = next(
+        source for source in registry["sources"] if source["id"] == "census.cartographic.tract-boundaries"
+    )
+
+    for source in (county_source, tract_source):
+        rendered_sql = "\n".join(
+            (
+                source["duckdb"].get("install", ""),
+                source["duckdb"]["example_query"],
+                source["duckdb"]["validation_query"],
+                "\n".join(source["duckdb"].get("examples", {}).values()),
+            )
+        ).casefold()
+
+        assert source["status"] == "candidate"
+        assert source["source_type"] == "other"
+        assert source["authority"] == "U.S. Census Bureau Geography Program"
+        assert "spatial" in source["duckdb"]["extensions"]
+        assert "install spatial" in rendered_sql
+        assert "load spatial" in rendered_sql
+        assert "st_read" in rendered_sql
+        assert "arcgis_query" not in rendered_sql
+
+    county_sql = "\n".join(
         (
-            source["duckdb"].get("install", ""),
-            source["duckdb"]["example_query"],
-            source["duckdb"]["validation_query"],
-            "\n".join(source["duckdb"].get("examples", {}).values()),
+            county_source["duckdb"]["example_query"],
+            county_source["duckdb"]["validation_query"],
+        )
+    ).casefold()
+    tract_sql = "\n".join(
+        (
+            tract_source["duckdb"]["example_query"],
+            tract_source["duckdb"]["validation_query"],
+            "\n".join(tract_source["duckdb"].get("examples", {}).values()),
         )
     ).casefold()
 
-    assert source["status"] == "candidate"
-    assert source["source_type"] == "other"
-    assert source["authority"] == "U.S. Census Bureau Geography Program"
-    assert "spatial" in source["duckdb"]["extensions"]
-    assert "install spatial" in rendered_sql
-    assert "load spatial" in rendered_sql
-    assert "st_read" in rendered_sql
-    assert "/vsizip/vsicurl/https://www2.census.gov/geo/tiger/genz2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp" in rendered_sql
-    assert "count(*) = 3222" in rendered_sql
-    assert "arcgis_query" not in rendered_sql
+    assert "/vsizip/vsicurl/https://www2.census.gov/geo/tiger/genz2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp" in county_sql
+    assert "count(*) = 3222" in county_sql
+    assert "/vsizip/vsicurl/https://www2.census.gov/geo/tiger/genz2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp" in tract_sql
+    assert "count(*) = 85187" in tract_sql
+    assert "where statefp = '02'" in tract_sql
 
 
 def test_arcgis_feature_server_pagination_acceptance_uses_multiple_pages() -> None:

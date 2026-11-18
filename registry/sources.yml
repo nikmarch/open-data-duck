@@ -361,6 +361,57 @@ sources:
       method: census-cartographic-boundary-files-page
       url: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
 
+  - id: census.cartographic.tract-boundaries
+    name: U.S. Census cartographic tract boundary files
+    description: Official generalized U.S. census tract boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.
+    status: candidate
+    source_type: other
+    authority: U.S. Census Bureau Geography Program
+    homepage: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
+    license_url: https://www.census.gov/data/developers/about/terms-of-service.html
+    attribution: U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.
+    tags: [census, boundaries, tracts, shapefile, geospatial]
+    topics: [census tracts, statistical geographies, thematic mapping, geoid, fips]
+    coverage:
+      spatial: United States census tracts
+      temporal: annual cartographic boundary file vintages
+      grain: one generalized census tract polygon feature
+    cadence: annual Census cartographic boundary file releases
+    ai:
+      summary: Best direct-file Census tract boundary source for joining tract-level ACS or public-health data to generalized polygons in DuckDB.
+      use_cases: [map tract-level indicators, join tract GEOIDs to ACS estimates, build thematic maps without TIGERweb paging]
+      caveats: [generalized for thematic mapping rather than surveying, choose year and scale explicitly, national tract files are larger than county files, zipped shapefile access requires DuckDB spatial/GDAL virtual paths]
+      prompt_hints: [Ask for the boundary vintage, generalized scale, state filter, and tract-level GEOID join key before generating SQL.]
+    duckdb:
+      extensions:
+        - spatial
+      install: |
+        INSTALL spatial;
+      example_query: |
+        LOAD spatial;
+
+        SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
+        FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')
+        WHERE STATEFP = '02'
+        LIMIT 10;
+      validation_query: |
+        LOAD spatial;
+
+        SELECT count(*) = 85187 AS ok
+        FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp');
+      examples:
+        alaska_tracts_2025_5m: |
+          LOAD spatial;
+
+          SELECT GEOID, NAME, COUNTYFP, ST_AsText(ST_Centroid(geom)) AS centroid_wkt
+          FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')
+          WHERE STATEFP = '02'
+          ORDER BY GEOID
+          LIMIT 25;
+    freshness:
+      method: census-cartographic-boundary-files-page
+      url: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
+
   - id: arcgis.fema.nfhl.flood-hazard-zones
     name: FEMA National Flood Hazard Layer flood hazard zones
     description: FEMA NFHL ArcGIS layer for flood hazard zones, intended for risk and property-context queries after ArcGIS paging support is stable.
