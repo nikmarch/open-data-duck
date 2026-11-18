@@ -135,6 +135,55 @@ sources:
             AND bbox.ymin <= 61
             AND bbox.ymax >= 60
           LIMIT 10;
+      facades:
+        - table_reference: odd.overturemaps.latest.buildings
+          facade_function: open_data_overture_buildings
+          path_glob: s3://overturemaps-us-west-2/release/2026-10-21.0/theme=buildings/type=building/*
+          description: Global building footprints from Overture Maps releases.
+          example_sql: |
+            SELECT *
+            FROM odd.overturemaps.latest.buildings
+            WHERE bbox.xmin <= -149
+              AND bbox.xmax >= -150
+              AND bbox.ymin <= 61
+              AND bbox.ymax >= 60
+            LIMIT 10;
+        - table_reference: odd.overturemaps.latest.places
+          facade_function: open_data_overture_places
+          path_glob: s3://overturemaps-us-west-2/release/2026-10-21.0/theme=places/type=place/*
+          description: Global places and points of interest from Overture Maps releases.
+          example_sql: |
+            SELECT *
+            FROM odd.overturemaps.latest.places
+            WHERE bbox.xmin <= -149
+              AND bbox.xmax >= -150
+              AND bbox.ymin <= 61
+              AND bbox.ymax >= 60
+            LIMIT 10;
+        - table_reference: odd.overturemaps.latest.roads
+          facade_function: open_data_overture_roads
+          path_glob: s3://overturemaps-us-west-2/release/2026-10-21.0/theme=transportation/type=segment/*
+          description: Global road and transportation segments from Overture Maps releases.
+          example_sql: |
+            SELECT *
+            FROM odd.overturemaps.latest.roads
+            WHERE bbox.xmin <= -149
+              AND bbox.xmax >= -150
+              AND bbox.ymin <= 61
+              AND bbox.ymax >= 60
+            LIMIT 10;
+        - table_reference: odd.overturemaps.latest.addresses
+          facade_function: open_data_overture_addresses
+          path_glob: s3://overturemaps-us-west-2/release/2026-10-21.0/theme=addresses/type=address/*
+          description: Global address points from Overture Maps releases.
+          example_sql: |
+            SELECT *
+            FROM odd.overturemaps.latest.addresses
+            WHERE bbox.xmin <= -149
+              AND bbox.xmax >= -150
+              AND bbox.ymin <= 61
+              AND bbox.ymax >= 60
+            LIMIT 10;
     freshness:
       method: release-calendar
       url: https://docs.overturemaps.org/release-calendar/

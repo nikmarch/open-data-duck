@@ -39,8 +39,8 @@
     <section class="api-preview" id="plugin-api" aria-labelledby="plugin-api-title">
       <div class="api-copy">
         <p class="eyebrow">Plugin API direction</p>
-        <h2 id="plugin-api-title">Ask the index for a topic. Inspect the table. Then query it.</h2>
-        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker.</p>
+        <h2 id="plugin-api-title">Ask the index for a topic. Then query the table facade.</h2>
+        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker. The native extension resolves ODD table references with a replacement scan.</p>
       </div>
 
       <div class="api-card" aria-label="Open Data Duck plugin API example">
@@ -52,7 +52,9 @@ ATTACH 'open_data_duck' AS odd;
 SELECT *
 FROM open_data_search('building');
 
-DESCRIBE odd.overturemaps.latest.buildings;
+SELECT table_reference, path_glob
+FROM open_data_facades()
+WHERE table_reference = 'odd.overturemaps.latest.buildings';
 
 SELECT *
 FROM odd.overturemaps.latest.buildings

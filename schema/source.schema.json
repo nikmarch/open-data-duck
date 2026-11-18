@@ -57,6 +57,20 @@
             "examples": {
               "type": "object",
               "additionalProperties": { "type": "string" }
+            },
+            "facades": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["table_reference", "facade_function", "path_glob", "example_sql"],
+                "properties": {
+                  "table_reference": { "type": "string" },
+                  "facade_function": { "type": "string" },
+                  "path_glob": { "type": "string" },
+                  "example_sql": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
             }
           }
         },
