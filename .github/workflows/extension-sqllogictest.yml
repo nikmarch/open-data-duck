@@ -24,6 +24,9 @@ on:
       - test/sql/**
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   duckdb-extension-sqllogictest:
     name: DuckDB extension sqllogictest
