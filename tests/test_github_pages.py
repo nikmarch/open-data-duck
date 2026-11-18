@@ -69,8 +69,27 @@ def test_pages_builder_publishes_static_site_with_brand_assets(tmp_path: Path) -
     assert (output_dir / "assets" / "brand" / "odd-icon.svg").exists()
     assert "terminal.js" in parser.scripts
     assert "#try-it" in parser.links
+    assert "#workflow" in parser.links
     assert "https://github.com/nikmarch/open-data-duck" in parser.links
     assert "https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md" in parser.links
+
+
+def test_pages_workflow_playback_is_static_and_js_light() -> None:
+    index = Path("site/index.html").read_text(encoding="utf-8")
+    styles = Path("site/styles.css").read_text(encoding="utf-8")
+
+    assert "id=\"workflow\"" in index
+    assert "Demo playback" in index
+    assert "duckdb -unsigned :memory:" in index
+    assert "FORCE INSTALL open_data_duck FROM" in index
+    assert "odd search overture places" in index
+    assert "odd sql census.cartographic.county-boundaries" in index
+    assert "not a video or a live compute session" in index
+    assert "<video" not in index
+    assert "<iframe" not in index
+    assert "<canvas" not in index
+    assert "@keyframes terminal-type" in styles
+    assert "prefers-reduced-motion" in styles
 
 
 def test_pages_try_it_demo_is_allowlisted_and_static() -> None:
