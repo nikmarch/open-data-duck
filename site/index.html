@@ -32,9 +32,40 @@
       <p class="lede">Open Data Duck does not mirror datasets. It stores source metadata, licenses, attribution, and executable query recipes so people and AI workers can plug in public datasets quickly, without Googling, configuring, or remembering every source.</p>
       <div class="actions" aria-label="Primary links">
         <a class="button primary" href="#try-it">Try the terminal</a>
+        <a class="button" href="#workflow">Watch the workflow</a>
         <a class="button" href="https://github.com/nikmarch/open-data-duck">View the repository</a>
         <a class="button" href="https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md">Browse the source index</a>
       </div>
+    </section>
+
+    <section class="playback" id="workflow" aria-labelledby="workflow-title">
+      <div class="playback-copy">
+        <p class="eyebrow">Demo playback</p>
+        <h2 id="workflow-title">Install the plugin bridge, find the right source, then generate the DuckDB SQL.</h2>
+        <p>This is a static terminal playback, not a video or a live compute session. It shows the intended path with the current CLI and temporary unsigned extension repository.</p>
+      </div>
+
+      <figure class="playback-terminal" aria-label="Open Data Duck workflow terminal playback">
+        <div class="terminal-bar" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <pre><code><span class="type-line" style="--delay: 0s; --chars: 24;">$ duckdb -unsigned :memory:</span>
+<span class="type-line response" style="--delay: 1.2s; --chars: 31;">D DuckDB shell ready for testing</span>
+<span class="type-line" style="--delay: 2.4s; --chars: 89;">D FORCE INSTALL open_data_duck FROM 'https://nikmarch.github.io/open-data-duck/extensions';</span>
+<span class="type-line" style="--delay: 5.6s; --chars: 19;">D LOAD open_data_duck;</span>
+<span class="type-line" style="--delay: 6.8s; --chars: 30;">D SELECT open_data_duck_ping();</span>
+<span class="type-line response" style="--delay: 8.1s; --chars: 18;">open_data_duck ok</span>
+<span class="type-line" style="--delay: 9.2s; --chars: 26;">$ odd search overture places</span>
+<span class="type-line response" style="--delay: 10.7s; --chars: 58;">overture.maps.release  candidate  public S3 / httpfs recipe</span>
+<span class="type-line" style="--delay: 12.8s; --chars: 31;">$ odd sql overture.maps.release</span>
+<span class="type-line sql" style="--delay: 14.6s; --chars: 53;">SELECT * FROM read_parquet('s3://.../theme=places/...')</span>
+<span class="type-line" style="--delay: 16.8s; --chars: 17;">$ odd search census</span>
+<span class="type-line response" style="--delay: 18s; --chars: 65;">census.cartographic.county-boundaries  candidate  spatial ZIP recipe</span>
+<span class="type-line" style="--delay: 20.3s; --chars: 44;">$ odd sql census.cartographic.county-boundaries</span>
+<span class="type-line sql" style="--delay: 22.7s; --chars: 61;">SELECT GEOID, NAME, STATE_NAME FROM ST_Read('/vsizip/vsicurl/...')</span></code></pre>
+      </figure>
     </section>
 
     <section class="try-it" id="try-it" aria-labelledby="try-it-title">
