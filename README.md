@@ -48,8 +48,10 @@ It does not copy Overture data into this repo.
 
 The registry does not depend on an external `overture` DuckDB community extension.
 Current Overture recipes use DuckDB's `httpfs` extension to query public Overture
-release files directly from S3. The future `open_data_duck` extension should wrap
-that release/path logic behind stable table functions.
+release files directly from S3. The registry includes named recipes for places,
+buildings, road segments, and addresses using pinned release paths and tight bbox
+filters. The future `open_data_duck` extension should wrap that release/path logic
+behind stable table functions.
 
 Pinned release example:
 
@@ -140,9 +142,75 @@ make test
 Pull requests and `main` also run the Main Extension Distribution Pipeline. It
 uses DuckDB's extension CI tooling to publish a Linux x64
 `open_data_duck-v2.0.0-extension-linux_amd64` GitHub Actions artifact, then
-smoke-tests that artifact with DuckDB's unsigned-extension mode. These artifacts
-are temporary pre-community unsigned builds for validation, not signed community
+smoke-tests that artifact with DuckDB's unsigned-extension mode. Actions
+artifacts are CI evidence only; the user-facing download path is a versioned
+GitHub prerelease asset from the Pre-community Extension Release workflow.
+
+### Pre-community extension releases
+
+The Pre-community Extension Release workflow runs manually or from version tags.
+It rebuilds the Linux x64 extension, smokes the downloaded artifact, then attaches
+`open_data_duck-v2.0.0-linux_amd64.duckdb_extension` to a draft release or public
+prerelease. These are temporary pre-community unsigned builds for validation, not signed community
 extension releases.
+
+Compatibility:
+
+| DuckDB version | OS/arch | Release asset |
+| --- | --- | --- |
+| v2.0.0 | Linux x64 (`linux_amd64`) | `open_data_duck-v2.0.0-linux_amd64.duckdb_extension` |
+
+The binary is DuckDB-version- and platform-specific. Do not use
+`INSTALL open_data_duck FROM community;` yet; the extension is not in DuckDB's
+community repository and the release asset is unsigned.
+
+### Temporary custom extension repository
+
+The GitHub Pages deployment also publishes the same Linux x64 build in DuckDB's
+custom extension repository layout at:
+
+```text
+https://nikmarch.github.io/open-data-duck/extensions/v2.0.0/linux_amd64/open_data_duck.duckdb_extension.gz
+```
+
+Install from the repository prefix while unsigned extensions are explicitly
+enabled:
+
+```sql
+-- Start the CLI as: duckdb -unsigned :memory:
+FORCE INSTALL open_data_duck FROM 'https://nikmarch.github.io/open-data-duck/extensions';
+LOAD open_data_duck;
+SELECT open_data_duck_ping();
+```
+
+This is a temporary pre-community bridge. It uses the DuckDB repository path
+layout, but it is not the future signed community repository flow and it still
+requires unsigned-extension mode until Open Data Duck has signed community
+artifacts.
+
+CLI smoke test after downloading a release asset:
+
+```bash
+curl --fail --location \
+  --output open_data_duck.duckdb_extension \
+  https://github.com/nikmarch/open-data-duck/releases/download/v0.1.0-pre.1/open_data_duck-v2.0.0-linux_amd64.duckdb_extension
+
+duckdb -unsigned :memory:
+LOAD './open_data_duck.duckdb_extension';
+SELECT open_data_duck_ping();
+SELECT count(*) > 0 FROM open_data_sources();
+```
+
+Python smoke test with unsigned extensions enabled:
+
+```python
+import duckdb
+
+con = duckdb.connect(":memory:", config={"allow_unsigned_extensions": "true"})
+con.execute("LOAD './open_data_duck.duckdb_extension'")
+print(con.execute("SELECT open_data_duck_ping()").fetchone()[0])
+print(con.execute("SELECT count(*) > 0 FROM open_data_sources()").fetchone()[0])
+```
 
 The native surface is deliberately small while the registry and SQL helper
 contracts stay in Python/SQL. It only reads the embedded registry and returns SQL
@@ -199,10 +267,10 @@ uv run odd generate-extension-registry --check  # exit non-zero on drift (also r
 
 The embedded JSON has `schema_version`, `source_count`, and a `sources` array. Each
 source carries `id`, `name`, `source_type`, `status`, `description`, `authority`,
-`homepage`, `license_url`, `attribution`, `tags`, and a `duckdb` object with
-`extensions`, `install`, `example_query`, and `validation_query`. Bump
-`schema_version` in `odd/extension_registry.py` when the shape changes in a
-non-additive way.
+`homepage`, `license_url`, `attribution`, `tags`, optional `release` metadata,
+and a `duckdb` object with `extensions`, `install`, `example_query`,
+`validation_query`, and named `examples`. Bump `schema_version` in
+`odd/extension_registry.py` when the shape changes in a non-additive way.
 
 Search registered sources:
 

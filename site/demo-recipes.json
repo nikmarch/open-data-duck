@@ -14,7 +14,7 @@
       "description": "Generate the direct DuckDB httpfs recipe for Overture Maps public S3 release files with a small bounding-box filter.",
       "result_note": "Generated SQL output only. It is not executed in the browser because public S3 reads still depend on browser CORS and memory limits.",
       "fields": ["id", "name", "bbox"],
-      "sql": "INSTALL httpfs;\n\nLOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-03-18.0';\n\n-- Direct public S3 recipe. The future open_data_duck extension should wrap\n-- this release/path logic instead of relying on a separate Overture plugin.\nSELECT id, names.primary AS name, bbox\nFROM read_parquet(\n  's3://overturemaps-us-west-2/release/' || getvariable('overture_release') || '/theme=places/type=place/*',\n  hive_partitioning = true\n)\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;\n"
+      "sql": "INSTALL httpfs;\n\nLOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\n-- Direct public S3 recipe. The future open_data_duck extension should wrap\n-- this release/path logic instead of relying on a separate Overture plugin.\nSELECT *\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',\n  hive_partitioning = true\n)\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;\n"
     },
     {
       "id": "census.cartographic.county-boundaries",

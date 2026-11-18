@@ -20,8 +20,8 @@ DEFAULT_EXTENSION_REGISTRY_HEADER = Path("src/include/open_data_duck_registry.ge
 # produced by json.dumps (which escapes quotes, so `)odd_registry"` is impossible).
 _RAW_DELIMITER = "odd_registry"
 
-# Minimal field set the first extension functions need (issue #31):
-# id, name, type, status, description, tags, attribution, and DuckDB recipe fields.
+# Field set embedded in the native extension: human identity fields plus enough
+# release and DuckDB recipe metadata for extension-side search/help functions.
 _SOURCE_FIELDS = (
     "id",
     "name",
@@ -33,8 +33,9 @@ _SOURCE_FIELDS = (
     "license_url",
     "attribution",
     "tags",
+    "release",
 )
-_DUCKDB_FIELDS = ("extensions", "install", "example_query", "validation_query")
+_DUCKDB_FIELDS = ("extensions", "install", "example_query", "validation_query", "examples")
 
 
 def source_to_extension_dict(source: Source) -> dict[str, Any]:
@@ -44,6 +45,12 @@ def source_to_extension_dict(source: Source) -> dict[str, Any]:
         value = source.duckdb.get(key)
         if key == "extensions":
             duckdb[key] = [str(item) for item in (value or [])]
+        elif key == "examples":
+            duckdb[key] = {
+                str(name): str(sql).strip()
+                for name, sql in (value or {}).items()
+                if isinstance(sql, str) and sql.strip()
+            }
         else:
             duckdb[key] = str(value).strip() if isinstance(value, str) and value.strip() else ""
     record["duckdb"] = duckdb

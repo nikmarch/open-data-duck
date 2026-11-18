@@ -128,17 +128,17 @@ NOAA ISD station-history lookup table with station identifiers, names, country/s
 
 ### `overture.maps.release` — Overture Maps source family
 
-Global open map data releases for places, buildings, transportation, divisions, and base layers queryable from public S3 with DuckDB httpfs.
+Global open map data releases for places, buildings, transportation, addresses, divisions, and base layers queryable from public S3 with DuckDB httpfs.
 
 - Status: `candidate`
 - Authority: Overture Maps Foundation
 - Homepage: https://docs.overturemaps.org/getting-data/
 - License: https://docs.overturemaps.org/attribution/
-- Tags: `maps`, `geospatial`, `places`, `buildings`, `transportation`
-- Topics: basemaps, points of interest, administrative boundaries, roads
+- Tags: `maps`, `geospatial`, `places`, `buildings`, `transportation`, `addresses`
+- Topics: basemaps, points of interest, buildings, addresses, roads, geocoding
 - Cadence: monthly releases
-- AI use cases: find places in a bounding box, inspect global building footprints, compare map releases
-- Caveats: large files require tight spatial filters, attribution varies by contributing provider
+- AI use cases: find places in a bounding box, inspect global building footprints, sample road segments, query address points, compare map releases
+- Caveats: large files require tight spatial filters, attribution varies by contributing provider, release paths should be pinned for reproducible workflows
 
 ## parquet
 
