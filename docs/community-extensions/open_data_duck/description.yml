@@ -1,0 +1,52 @@
+extension:
+  name: open_data_duck
+  description: DuckDB extension exposing an embedded, queryable index of authoritative open-data source recipes.
+  version: '0.1.0'
+  language: C++
+  build: cmake
+  excluded_platforms: linux_arm64;linux_amd64_musl;linux_arm64_musl;osx_amd64;osx_arm64;windows_amd64;windows_arm64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads
+  license: MIT
+  maintainers:
+    - nikmarch
+
+repo:
+  github: nikmarch/open-data-duck
+  ref: 677b5418ab6b6f1c739a6083347dad2db16c1399
+
+docs:
+  hello_world: |
+    LOAD open_data_duck;
+
+    SELECT open_data_duck_ping();
+    -- open_data_duck: pong
+
+    SELECT id, source_type, status
+    FROM open_data_search('overture maps')
+    ORDER BY id
+    LIMIT 5;
+
+    SELECT open_data_sql('overture.maps.release');
+  extended_description: |
+    Open Data Duck is an index of open, DuckDB-friendly public data sources. The
+    extension embeds the checked-in registry at build time and exposes SQL helper
+    functions for discovery and recipe generation:
+
+    - `open_data_sources()` lists all embedded registry entries.
+    - `open_data_search(query)` returns entries whose metadata matches every
+      whitespace-separated search term.
+    - `open_data_sql(id)` returns the DuckDB install/load/query recipe for a
+      source.
+    - `open_data_validation_sql(id)` returns the lightweight validation SQL for a
+      source.
+    - `open_data_duck_ping()`, `open_data_duck_version()`,
+      `open_data_duck_registry_source_count()`, and
+      `open_data_duck_registry_json()` expose smoke-test and registry metadata.
+
+    The extension itself does not fetch network resources during load or search.
+    Network access only happens when a user chooses to execute a returned source
+    recipe such as an `httpfs`, STAC, CKAN, Socrata, ArcGIS, or public object
+    storage query.
+
+    Initial community submission scope is Linux x64 only, matching the current
+    CI-proven artifact path. Other platforms are excluded until their DuckDB
+    extension builds and smoke tests are added.
