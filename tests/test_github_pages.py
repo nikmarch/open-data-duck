@@ -83,6 +83,8 @@ def test_pages_plugin_api_direction_is_static() -> None:
     assert "INSTALL odd;" in index
     assert "LOAD odd;" in index
     assert "FROM odd_index('alaska building')" in index
+    assert "DESCRIBE odd.overturemaps.latest.buildings;" in index
+    assert "FROM odd.overturemaps.latest.buildings" in index
     assert "odd.overturemaps.latest.buildings" in index
     assert "No fake terminal" in index
     assert parser.scripts == set()

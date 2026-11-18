@@ -39,7 +39,7 @@
     <section class="api-preview" id="plugin-api" aria-labelledby="plugin-api-title">
       <div class="api-copy">
         <p class="eyebrow">Plugin API direction</p>
-        <h2 id="plugin-api-title">Ask the index for a topic. Then query the table it points at.</h2>
+        <h2 id="plugin-api-title">Ask the index for a topic. Inspect the table. Then query it.</h2>
         <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker.</p>
       </div>
 
@@ -48,7 +48,13 @@
 LOAD odd;
 
 SELECT *
-FROM odd_index('alaska building');</code></pre>
+FROM odd_index('alaska building');
+
+DESCRIBE odd.overturemaps.latest.buildings;
+
+SELECT *
+FROM odd.overturemaps.latest.buildings
+LIMIT 10;</code></pre>
         <table>
           <caption>Example index response</caption>
           <thead>
