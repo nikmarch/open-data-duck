@@ -118,13 +118,35 @@ jobs:
 
           The native extension is in active current development. Install commands, release asset names, and supported platforms may change before community extension acceptance.
 
-          Smoke test after download:
+          Smoke test after download. Save the versioned release asset as
+          `open_data_duck.duckdb_extension` before loading; DuckDB derives the
+          expected entrypoint from the local filename.
 
           ```
-          duckdb -unsigned :memory:
-          LOAD './open_data_duck-v2.0.0-<platform>.duckdb_extension';
+          set -euo pipefail
+
+          release_tag="v0.1.0-pre.1"
+          duckdb_version="v2.0.0"
+          case "$(uname -s)-$(uname -m)" in
+            Darwin-arm64) platform="osx_arm64" ;;
+            Linux-x86_64) platform="linux_amd64" ;;
+            *) echo "unsupported platform: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
+          esac
+
+          rm -f open_data_duck.duckdb_extension
+
+          curl --fail --location \
+            --output open_data_duck.duckdb_extension \
+            "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}/open_data_duck-${duckdb_version}-${platform}.duckdb_extension"
+
+          xattr -dr com.apple.quarantine open_data_duck.duckdb_extension 2>/dev/null || true
+          codesign --force --deep --sign - open_data_duck.duckdb_extension 2>/dev/null || true
+
+          duckdb -unsigned :memory: <<'SQL'
+          LOAD './open_data_duck.duckdb_extension';
           SELECT open_data_duck_ping();
           SELECT count(*) > 0 FROM open_data_sources();
+          SQL
           ```
           EOF
 
