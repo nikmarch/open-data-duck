@@ -21,6 +21,7 @@
   <meta name="twitter:image:alt" content="Open Data Duck logo">
   <link rel="icon" href="assets/brand/odd-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <script src="terminal.js" defer></script>
 </head>
 <body>
   <main>
@@ -30,8 +31,42 @@
       <h1 id="site-title">Find authoritative open data sources and query them safely with DuckDB.</h1>
       <p class="lede">Open Data Duck does not mirror datasets. It stores source metadata, licenses, attribution, and executable query recipes so people and AI workers can plug in public datasets quickly, without Googling, configuring, or remembering every source.</p>
       <div class="actions" aria-label="Primary links">
-        <a class="button primary" href="https://github.com/nikmarch/open-data-duck">View the repository</a>
+        <a class="button primary" href="#try-it">Try the terminal</a>
+        <a class="button" href="https://github.com/nikmarch/open-data-duck">View the repository</a>
         <a class="button" href="https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md">Browse the source index</a>
+      </div>
+    </section>
+
+    <section class="try-it" id="try-it" aria-labelledby="try-it-title">
+      <div class="try-it-copy">
+        <p class="eyebrow">Try it without installing</p>
+        <h2 id="try-it-title">A terminal-style Open Data Duck demo for allowlisted recipes.</h2>
+        <p data-architecture-note>Loading demo architecture...</p>
+      </div>
+
+      <div class="terminal" aria-label="Open Data Duck terminal demo">
+        <div class="terminal-bar" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="preset-row" aria-label="Preset Open Data Duck examples">
+          <button type="button" data-example="overture.maps.release">Overture places</button>
+          <button type="button" data-example="census.cartographic.county-boundaries">Census counties</button>
+          <button type="button" data-example="aws.noaa-ghcn-daily">NOAA climate</button>
+        </div>
+        <p class="terminal-command" data-terminal-command>$ odd sql &lt;allowlisted-source-id&gt;</p>
+        <pre class="terminal-output" data-terminal-output>Loading demo recipes...</pre>
+      </div>
+
+      <div class="result-panel" aria-live="polite">
+        <p class="status-line" data-status-line>Loading presets...</p>
+        <table>
+          <caption>Selected recipe output summary</caption>
+          <tbody data-result-body>
+            <tr><td colspan="3">Loading source metadata...</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 

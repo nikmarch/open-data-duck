@@ -1,0 +1,42 @@
+{
+  "architecture": {
+    "mode": "static-allowlisted-sql",
+    "label": "Static allowlisted SQL generator",
+    "copy": "This Pages demo does not execute arbitrary SQL. It renders checked-in Open Data Duck recipes generated from the registry so visitors can try the workflow without turning GitHub Pages into an open compute proxy. Browser-side DuckDB-Wasm is the next execution path for CORS-friendly recipes; Worker execution is deferred until DuckDB packaging, CPU, memory, and sandboxing limits are proven."
+  },
+  "examples": [
+    {
+      "id": "overture.maps.release",
+      "title": "Overture places near Alaska",
+      "source_type": "overture",
+      "status": "candidate",
+      "command": "odd sql overture.maps.release",
+      "description": "Generate the direct DuckDB httpfs recipe for Overture Maps public S3 release files with a small bounding-box filter.",
+      "result_note": "Generated SQL output only. It is not executed in the browser because public S3 reads still depend on browser CORS and memory limits.",
+      "fields": ["id", "name", "bbox"],
+      "sql": "INSTALL httpfs;\n\nLOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\n-- Direct public S3 recipe. The future open_data_duck extension should wrap\n-- this release/path logic instead of relying on a separate Overture plugin.\nSELECT *\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',\n  hive_partitioning = true\n)\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;\n"
+    },
+    {
+      "id": "census.cartographic.county-boundaries",
+      "title": "Census county boundary files",
+      "source_type": "other",
+      "status": "candidate",
+      "command": "odd sql census.cartographic.county-boundaries",
+      "description": "Generate the DuckDB spatial recipe for official Census cartographic county shapefiles over HTTPS.",
+      "result_note": "Generated SQL output only. The spatial extension and GDAL virtual file path run in DuckDB, not on this static page.",
+      "fields": ["GEOID", "NAME", "STATE_NAME", "geom_type"],
+      "sql": "INSTALL spatial;\n\nLOAD spatial;\n\nSELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')\nLIMIT 10;\n"
+    },
+    {
+      "id": "aws.noaa-ghcn-daily",
+      "title": "NOAA daily climate CSV",
+      "source_type": "other",
+      "status": "candidate",
+      "command": "odd sql aws.noaa-ghcn-daily",
+      "description": "Generate a DuckDB httpfs recipe for NOAA GHCN Daily observations stored as public S3 CSV files.",
+      "result_note": "Generated SQL output only. This keeps the public demo bounded while still showing real Open Data Duck output.",
+      "fields": ["id", "date", "element", "data_value"],
+      "sql": "INSTALL httpfs;\n\nLOAD httpfs;\nSELECT id, date, element, data_value\nFROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')\nLIMIT 10;\n"
+    }
+  ]
+}
