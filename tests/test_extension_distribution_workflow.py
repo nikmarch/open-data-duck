@@ -48,6 +48,7 @@ def test_precommunity_release_workflow_publishes_smoked_release_assets() -> None
     assert "open_data_duck-v2.0.0-linux_amd64.duckdb_extension" in workflow
     assert "open_data_duck-v2.0.0-osx_arm64.duckdb_extension" in workflow
     assert "SHA256SUMS.txt" in workflow
+    assert "actions/checkout@v4" in workflow
     assert "./duckdb -unsigned -noheader -csv :memory:" in workflow
     assert "gh release edit" in workflow
     assert "gh release create" in workflow
