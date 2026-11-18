@@ -9,7 +9,13 @@
 #include "duckdb/common/vector_operations/unary_executor.hpp"
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/function/table_function.hpp"
+#include "duckdb/function/replacement_scan.hpp"
+#include "duckdb/main/config.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
+#include "duckdb/parser/expression/constant_expression.hpp"
+#include "duckdb/parser/expression/function_expression.hpp"
+#include "duckdb/parser/tableref.hpp"
+#include "duckdb/parser/tableref/table_function_ref.hpp"
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
 namespace duckdb {
@@ -17,6 +23,14 @@ namespace duckdb {
 //===--------------------------------------------------------------------===//
 // Embedded registry (issue #31 contract, parsed once per process)
 //===--------------------------------------------------------------------===//
+
+struct OpenDataFacade {
+	string table_reference;
+	string facade_function;
+	string path_glob;
+	string example_sql;
+	string description;
+};
 
 struct OpenDataSource {
 	string id;
@@ -30,6 +44,7 @@ struct OpenDataSource {
 	string attribution;
 	vector<string> tags;
 	vector<string> extensions;
+	vector<OpenDataFacade> facades;
 	string install;
 	string example_query;
 	string validation_query;
@@ -59,6 +74,29 @@ static vector<string> JsonStringArray(const JSONValue &object, const string &key
 	return result;
 }
 
+static vector<OpenDataFacade> JsonFacades(const JSONValue &duckdb_value) {
+	vector<OpenDataFacade> result;
+	auto facades_value = duckdb_value.GetMember("facades");
+	if (!facades_value.IsValid() || !facades_value.IsArray()) {
+		return result;
+	}
+	facades_value.IterateArray([&](JSONValue item) {
+		if (!item.IsObject()) {
+			return;
+		}
+		OpenDataFacade facade;
+		facade.table_reference = JsonString(item, "table_reference");
+		facade.facade_function = JsonString(item, "facade_function");
+		facade.path_glob = JsonString(item, "path_glob");
+		facade.example_sql = JsonString(item, "example_sql");
+		facade.description = JsonString(item, "description");
+		if (!facade.table_reference.empty() && !facade.path_glob.empty()) {
+			result.push_back(std::move(facade));
+		}
+	});
+	return result;
+}
+
 static string BuildSearchText(const OpenDataSource &source) {
 	vector<string> parts {source.id,       source.name,        source.description, source.status,
 	                      source.source_type, source.authority, source.homepage,    source.license_url,
@@ -68,6 +106,11 @@ static string BuildSearchText(const OpenDataSource &source) {
 	}
 	for (auto &extension : source.extensions) {
 		parts.push_back(extension);
+	}
+	for (auto &facade : source.facades) {
+		parts.push_back(facade.table_reference);
+		parts.push_back(facade.facade_function);
+		parts.push_back(facade.description);
 	}
 	parts.push_back(source.example_query);
 	return StringUtil::Lower(StringUtil::Join(parts, " "));
@@ -99,6 +142,7 @@ static vector<OpenDataSource> ParseEmbeddedRegistry() {
 		auto duckdb_value = item.GetMember("duckdb");
 		if (duckdb_value.IsValid() && duckdb_value.IsObject()) {
 			source.extensions = JsonStringArray(duckdb_value, "extensions");
+			source.facades = JsonFacades(duckdb_value);
 			source.install = JsonString(duckdb_value, "install");
 			source.example_query = JsonString(duckdb_value, "example_query");
 			source.validation_query = JsonString(duckdb_value, "validation_query");
@@ -117,6 +161,17 @@ static vector<OpenDataSource> ParseEmbeddedRegistry() {
 static const vector<OpenDataSource> &GetEmbeddedRegistry() {
 	static const vector<OpenDataSource> registry = ParseEmbeddedRegistry();
 	return registry;
+}
+
+static const OpenDataFacade *FindFacadeByReference(const string &table_reference) {
+	for (auto &source : GetEmbeddedRegistry()) {
+		for (auto &facade : source.facades) {
+			if (StringUtil::Lower(facade.table_reference) == StringUtil::Lower(table_reference)) {
+				return &facade;
+			}
+		}
+	}
+	return nullptr;
 }
 
 static const OpenDataSource *FindSource(const string &source_id) {
@@ -236,6 +291,10 @@ static void DefineSourceColumns(vector<LogicalType> &return_types, vector<Identi
 	return_types.emplace_back(LogicalType::VARCHAR);
 	names.emplace_back("validation_query");
 	return_types.emplace_back(LogicalType::VARCHAR);
+	names.emplace_back("table_reference");
+	return_types.emplace_back(LogicalType::VARCHAR);
+	names.emplace_back("facade_function");
+	return_types.emplace_back(LogicalType::VARCHAR);
 }
 
 static unique_ptr<FunctionData> OpenDataSourcesBind(ClientContext &context, TableFunctionBindInput &input,
@@ -290,6 +349,10 @@ static unique_ptr<GlobalTableFunctionState> OpenDataSourcesInit(ClientContext &c
 	return make_uniq<OpenDataSourcesGlobalState>();
 }
 
+static const OpenDataFacade *PrimaryFacadeForSource(const OpenDataSource &source) {
+	return source.facades.empty() ? nullptr : &source.facades[0];
+}
+
 static Value StringListValue(const vector<string> &items) {
 	vector<Value> values;
 	values.reserve(items.size());
@@ -323,8 +386,84 @@ static void OpenDataSourcesScan(ClientContext &context, TableFunctionInput &data
 		output.data[col++].Append(Value(source.install));
 		output.data[col++].Append(Value(source.example_query));
 		output.data[col++].Append(Value(source.validation_query));
+		auto facade = PrimaryFacadeForSource(source);
+		output.data[col++].Append(Value(facade ? facade->table_reference : string()));
+		output.data[col++].Append(Value(facade ? facade->facade_function : string()));
 		count++;
 	}
+}
+
+
+//===--------------------------------------------------------------------===//
+// Table facades and replacement scan
+//===--------------------------------------------------------------------===//
+
+struct OpenDataFacadesGlobalState : public GlobalTableFunctionState {
+	idx_t source_offset = 0;
+	idx_t facade_offset = 0;
+
+	idx_t MaxThreads() const override {
+		return 1;
+	}
+};
+
+static unique_ptr<FunctionData> OpenDataFacadesBind(ClientContext &context, TableFunctionBindInput &input,
+                                                    vector<LogicalType> &return_types, vector<Identifier> &names) {
+	const char *varchar_columns[] = {"source_id", "table_reference", "facade_function", "path_glob", "example_sql",
+	                                 "description"};
+	for (auto column : varchar_columns) {
+		names.emplace_back(column);
+		return_types.emplace_back(LogicalType::VARCHAR);
+	}
+	return nullptr;
+}
+
+static unique_ptr<GlobalTableFunctionState> OpenDataFacadesInit(ClientContext &context, TableFunctionInitInput &input) {
+	return make_uniq<OpenDataFacadesGlobalState>();
+}
+
+static void OpenDataFacadesScan(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+	auto &state = data_p.global_state->Cast<OpenDataFacadesGlobalState>();
+	auto &registry = GetEmbeddedRegistry();
+
+	idx_t count = 0;
+	while (state.source_offset < registry.size() && count < STANDARD_VECTOR_SIZE) {
+		auto &source = registry[state.source_offset];
+		if (state.facade_offset >= source.facades.size()) {
+			state.source_offset++;
+			state.facade_offset = 0;
+			continue;
+		}
+
+		auto &facade = source.facades[state.facade_offset++];
+		idx_t col = 0;
+		output.data[col++].Append(Value(source.id));
+		output.data[col++].Append(Value(facade.table_reference));
+		output.data[col++].Append(Value(facade.facade_function));
+		output.data[col++].Append(Value(facade.path_glob));
+		output.data[col++].Append(Value(facade.example_sql));
+		output.data[col++].Append(Value(facade.description));
+		count++;
+	}
+}
+
+static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, ReplacementScanInput &input,
+                                                        optional_ptr<ReplacementScanData> data) {
+	auto table_name = ReplacementScan::GetFullPath(input);
+	auto facade = FindFacadeByReference(table_name);
+	if (!facade) {
+		return nullptr;
+	}
+
+	// Bind the table-like ODD reference to DuckDB's native Parquet reader. Users keep the
+	// normal SELECT/WHERE shape while DuckDB owns predicate pushdown into Parquet metadata.
+	auto table_function = make_uniq<TableFunctionRef>();
+	vector<FunctionArgument> children;
+	children.emplace_back(ConstantExpression::String(facade->path_glob));
+	children.emplace_back(Identifier("hive_partitioning"), ConstantExpression::Boolean(true));
+	table_function->function = make_uniq<FunctionExpression>(Identifier("read_parquet"), std::move(children));
+	table_function->alias = Identifier(facade->facade_function.empty() ? table_name : facade->facade_function);
+	return std::move(table_function);
 }
 
 //===--------------------------------------------------------------------===//
@@ -357,6 +496,11 @@ static void LoadInternal(ExtensionLoader &loader) {
 	TableFunction search("open_data_search", {LogicalType::VARCHAR}, OpenDataSourcesScan, OpenDataSearchBind,
 	                     OpenDataSourcesInit);
 	loader.RegisterFunction(search);
+
+	TableFunction facades("open_data_facades", {}, OpenDataFacadesScan, OpenDataFacadesBind, OpenDataFacadesInit);
+	loader.RegisterFunction(facades);
+
+	DBConfig::GetConfig(loader.GetDatabaseInstance()).replacement_scans.emplace_back(OpenDataDuckReplacementScan);
 }
 
 void OpenDataDuckExtension::Load(ExtensionLoader &loader) {

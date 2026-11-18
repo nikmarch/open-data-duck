@@ -79,6 +79,7 @@ class Source:
                 _flatten_text(self.coverage),
                 _flatten_text(self.ai),
                 _flatten_text(self.duckdb.get("extensions", [])),
+                _flatten_text(self.duckdb.get("facades", [])),
                 self.duckdb.get("example_query", ""),
             )
         ).casefold()

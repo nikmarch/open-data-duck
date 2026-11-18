@@ -63,7 +63,7 @@ This is the product shape Open Data Duck is moving toward:
 INSTALL open_data_duck;
 LOAD open_data_duck;
 
--- Optional, if the final DuckDB shape needs an attached catalog/schema.
+-- The extension resolves ODD table references with a replacement scan.
 ATTACH 'open_data_duck' AS odd;
 
 -- Search the index.
@@ -80,11 +80,11 @@ WHERE bbox.xmin <= -149
 LIMIT 10;
 ```
 
-The exact table facade may land as attached tables, table functions, or another DuckDB-native shape. The important contract is that search returns queryable table references such as `odd.overturemaps.latest.buildings`, not just documentation links.
+`open_data_search('building')` returns the queryable reference `odd.overturemaps.latest.buildings`. The native extension resolves that reference with a replacement scan into DuckDB's `read_parquet` reader for Overture's public S3 release files. Keep bbox filters tight; Overture tables are large.
 
 ## Current pre-community behavior
 
-The extension currently returns SQL recipes. It does not yet execute the source for you.
+The extension also returns SQL recipes and facade metadata for inspection.
 
 ```sql
 LOAD './open_data_duck.duckdb_extension';
@@ -133,7 +133,8 @@ uv run odd sql overture.maps.release --validation --no-install
 LOAD './open_data_duck.duckdb_extension';
 
 SELECT id, name, status FROM open_data_sources();
-SELECT id, name FROM open_data_search('building');
+SELECT id, name, table_reference FROM open_data_search('building');
+SELECT table_reference, path_glob FROM open_data_facades();
 SELECT open_data_sql('overture.maps.release');
 SELECT open_data_validation_sql('overture.maps.release');
 ```
@@ -146,10 +147,11 @@ Implemented native functions:
 - `open_data_duck_registry_json()`
 - `open_data_sources()`
 - `open_data_search(query)`
+- `open_data_facades()`
 - `open_data_sql(id)`
 - `open_data_validation_sql(id)`
 
-`open_data_table(...)` is not implemented yet.
+The first table-like facade is an Overture replacement scan for `odd.overturemaps.latest.buildings`, with the same pattern exposed for places, roads, and addresses.
 
 ## Temporary custom extension repository
 

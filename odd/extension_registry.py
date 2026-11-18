@@ -35,7 +35,7 @@ _SOURCE_FIELDS = (
     "tags",
     "release",
 )
-_DUCKDB_FIELDS = ("extensions", "install", "example_query", "validation_query", "examples")
+_DUCKDB_FIELDS = ("extensions", "install", "example_query", "validation_query", "examples", "facades")
 
 
 def source_to_extension_dict(source: Source) -> dict[str, Any]:
@@ -51,6 +51,20 @@ def source_to_extension_dict(source: Source) -> dict[str, Any]:
                 for name, sql in (value or {}).items()
                 if isinstance(sql, str) and sql.strip()
             }
+        elif key == "facades":
+            duckdb[key] = [
+                {
+                    "table_reference": str(item.get("table_reference", "")).strip(),
+                    "facade_function": str(item.get("facade_function", "")).strip(),
+                    "path_glob": str(item.get("path_glob", "")).strip(),
+                    "example_sql": str(item.get("example_sql", "")).strip(),
+                    "description": str(item.get("description", "")).strip(),
+                }
+                for item in (value or [])
+                if isinstance(item, dict)
+                and str(item.get("table_reference", "")).strip()
+                and str(item.get("path_glob", "")).strip()
+            ]
         else:
             duckdb[key] = str(value).strip() if isinstance(value, str) and value.strip() else ""
     record["duckdb"] = duckdb
