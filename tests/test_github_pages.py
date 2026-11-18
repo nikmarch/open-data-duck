@@ -80,9 +80,11 @@ def test_pages_plugin_api_direction_is_static() -> None:
 
     assert "id=\"plugin-api\"" in index
     assert "Plugin API direction" in index
-    assert "INSTALL odd;" in index
-    assert "LOAD odd;" in index
-    assert "FROM odd_index('alaska building')" in index
+    assert "INSTALL open_data_duck;" in index
+    assert "LOAD open_data_duck;" in index
+    assert "ATTACH 'open_data_duck' AS odd;" in index
+    assert "FROM open_data_search('building')" in index
+    assert "alaska building" not in index
     assert "DESCRIBE odd.overturemaps.latest.buildings;" in index
     assert "FROM odd.overturemaps.latest.buildings" in index
     assert "odd.overturemaps.latest.buildings" in index
