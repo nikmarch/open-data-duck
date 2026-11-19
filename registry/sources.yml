@@ -550,6 +550,79 @@ sources:
       method: arcgis-layer-metadata
       url: https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2?f=pjson
 
+  - id: usgs.earthquake.realtime-geojson
+    name: USGS realtime earthquake GeoJSON feeds
+    description: Official U.S. Geological Survey realtime earthquake summary feeds for recent seismic events, queryable directly from GeoJSON over HTTPS with DuckDB read_json_auto.
+    status: candidate
+    source_type: other
+    authority: U.S. Geological Survey Earthquake Hazards Program
+    homepage: https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
+    license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+    attribution: U.S. Geological Survey Earthquake Hazards Program; credit USGS earthquake feeds and do not imply USGS endorsement.
+    tags: [usgs, earthquakes, hazards, geojson, realtime]
+    topics: [earthquakes, seismic events, natural hazards, realtime monitoring]
+    coverage:
+      spatial: global earthquake events reported by USGS and partner seismic networks
+      temporal: rolling realtime feeds for the past hour, day, week, and 30 days
+      grain: one earthquake event feature with magnitude, place, event time, status, and point geometry
+    cadence: feeds update every minute; older events age out by feed window
+    ai:
+      summary: Best official USGS source for recent earthquake events when a user wants live seismic activity in DuckDB.
+      use_cases: [list recent earthquakes by magnitude, monitor significant events, map recent seismic activity]
+      caveats: [rolling feeds are not stable historical snapshots, all_day can be empty during unusually quiet periods, event coordinates are GeoJSON point arrays with longitude latitude depth]
+      prompt_hints: [Ask for the feed window and magnitude threshold before generating SQL; use all_month for a stable validation smoke.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT id AS event_id,
+               mag AS magnitude,
+               place,
+               time AS event_time_ms,
+               geometry
+        FROM read_json_auto(
+          'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',
+          maximum_object_size = 16777216
+        )
+        WHERE type = 'earthquake'
+        ORDER BY time DESC
+        LIMIT 10;
+      validation_query: |
+        LOAD httpfs;
+        SELECT count(*) > 0 AS ok
+        FROM read_json_auto(
+          'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson',
+          maximum_object_size = 16777216
+        )
+        WHERE type = 'earthquake'
+          AND id IS NOT NULL
+          AND mag IS NOT NULL;
+      examples:
+        magnitude_4_5_week: |
+          LOAD httpfs;
+          SELECT id AS event_id, mag, place, time, updated, geometry
+          FROM read_json_auto(
+            'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson',
+            maximum_object_size = 16777216
+          )
+          ORDER BY time DESC
+          LIMIT 25;
+        significant_month: |
+          LOAD httpfs;
+          SELECT id AS event_id, mag, place, alert, tsunami, sig, url
+          FROM read_json_auto(
+            'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson',
+            maximum_object_size = 16777216
+          )
+          ORDER BY sig DESC
+          LIMIT 25;
+    freshness:
+      method: usgs-earthquake-feed-page
+      url: https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
+
   - id: aws.noaa-ghcn-daily
     name: NOAA Global Historical Climatology Network Daily
     description: NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.

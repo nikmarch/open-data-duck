@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 16;
+static constexpr int REGISTRY_SOURCE_COUNT = 17;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 16,
+  "source_count": 17,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -324,6 +324,38 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "usgs",
         "elevation",
         "contours"
+      ]
+    },
+    {
+      "attribution": "U.S. Geological Survey Earthquake Hazards Program; credit USGS earthquake feeds and do not imply USGS endorsement.",
+      "authority": "U.S. Geological Survey Earthquake Hazards Program",
+      "description": "Official U.S. Geological Survey realtime earthquake summary feeds for recent seismic events, queryable directly from GeoJSON over HTTPS with DuckDB read_json_auto.",
+      "duckdb": {
+        "example_query": "LOAD httpfs;\nSELECT id AS event_id,\n       mag AS magnitude,\n       place,\n       time AS event_time_ms,\n       geometry\nFROM read_json_auto(\n  'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',\n  maximum_object_size = 16777216\n)\nWHERE type = 'earthquake'\nORDER BY time DESC\nLIMIT 10;",
+        "examples": {
+          "magnitude_4_5_week": "LOAD httpfs;\nSELECT id AS event_id, mag, place, time, updated, geometry\nFROM read_json_auto(\n  'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson',\n  maximum_object_size = 16777216\n)\nORDER BY time DESC\nLIMIT 25;",
+          "significant_month": "LOAD httpfs;\nSELECT id AS event_id, mag, place, alert, tsunami, sig, url\nFROM read_json_auto(\n  'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson',\n  maximum_object_size = 16777216\n)\nORDER BY sig DESC\nLIMIT 25;"
+        },
+        "extensions": [
+          "httpfs"
+        ],
+        "install": "INSTALL httpfs;",
+        "tables": {},
+        "validation_query": "LOAD httpfs;\nSELECT count(*) > 0 AS ok\nFROM read_json_auto(\n  'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson',\n  maximum_object_size = 16777216\n)\nWHERE type = 'earthquake'\n  AND id IS NOT NULL\n  AND mag IS NOT NULL;"
+      },
+      "homepage": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php",
+      "id": "usgs.earthquake.realtime-geojson",
+      "license_url": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+      "name": "USGS realtime earthquake GeoJSON feeds",
+      "release": {},
+      "source_type": "other",
+      "status": "candidate",
+      "tags": [
+        "usgs",
+        "earthquakes",
+        "hazards",
+        "geojson",
+        "realtime"
       ]
     },
     {
