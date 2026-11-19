@@ -349,6 +349,33 @@ def test_project_noaa_ncei_storm_events_uses_latest_bulk_csv_discovery() -> None
     assert "load stac" not in rendered_sql
 
 
+def test_project_world_bank_wdi_uses_api_json_envelope_recipe() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "worldbank.wdi.indicators")
+
+    rendered_sql = "\n".join(
+        (
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            "\n".join(source["duckdb"].get("examples", {}).values()),
+        )
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "World Bank Group"
+    assert "httpfs" in source["duckdb"]["extensions"]
+    assert "api.worldbank.org/v2/country/usa/indicator/sp.pop.totl" in rendered_sql
+    assert "format=json" in rendered_sql
+    assert "read_json" in rendered_sql
+    assert "json_each" in rendered_sql
+    assert "countryiso3code" in rendered_sql
+    assert "worldbank" in source["freshness"]["url"]
+    assert "load worldbank" not in rendered_sql
+    assert "install worldbank" not in rendered_sql
+
+
 def test_arcgis_feature_server_pagination_acceptance_uses_multiple_pages() -> None:
     layer_url = (
         "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/"
