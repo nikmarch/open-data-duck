@@ -27,7 +27,7 @@ esac
 
 curl --fail --location --show-error \
   --output open_data_duck.duckdb_extension \
-  \$(printf %s https://git hub .com/nikmarch/open-data-duck/releases/download/\${release_tag}/open_data_duck-v2.0.0-\${platform}.duckdb_extension)
+  \$(printf %s h ttps://git hub .com/nikmarch/open-data-duck/releases/download/\${release_tag}/open_data_duck-v2.0.0-\${platform}.duckdb_extension)
 
 xattr -dr com.apple.quarantine open_data_duck.duckdb_extension 2>/dev/null || true
 codesign --force --deep --sign - open_data_duck.duckdb_extension 2>/dev/null || true
