@@ -28,12 +28,13 @@ def test_release_notes_are_copy_pasteable_for_the_requested_tag() -> None:
     assert "bash <<'BASH'" not in rendered
     assert rendered.index("bash <<BASH") < rendered.index("set -euo pipefail")
     assert "\nBASH\n```" in rendered
-    assert "host=git" in rendered
-    assert "host=\\${host}hub" in rendered
-    assert "host=\\${host}.com" in rendered
-    assert "repo=nikmarch/open-data-duck" in rendered
-    assert "asset=open_data_duck-\\${duckdb_version}-\\${platform}.duckdb_extension" in rendered
-    assert "asset_url=https://\\${host}/\\${repo}/releases/download/\\${release_tag}/\\${asset}" in rendered
+    assert "duckdb_version=" not in rendered
+    assert "host=" not in rendered
+    assert "repo=" not in rendered
+    assert "asset=" not in rendered
+    assert "asset_url=" not in rendered
+    assert "https://git\\hub.com/nikmarch/open-data-duck/releases/download/" in rendered
+    assert "open_data_duck-v2.0.0-\\${platform}.duckdb_extension" in rendered
     assert "github.com" not in rendered
     assert "<https://" not in rendered
     assert "“" not in rendered
@@ -114,9 +115,12 @@ def test_readme_keeps_user_first_install_guidance() -> None:
     assert "bash <<BASH" in readme
     assert "bash <<'BASH'" not in readme
     assert readme.index("bash <<BASH") < readme.index("set -euo pipefail")
-    assert "host=git" in readme
-    assert "host=\\${host}hub" in readme
-    assert "asset_url=https://\\${host}/\\${repo}/releases/download/\\${release_tag}/\\${asset}" in readme
+    assert "duckdb_version=" not in readme
+    assert "host=" not in readme
+    assert "repo=" not in readme
+    assert "asset=" not in readme
+    assert "asset_url=" not in readme
+    assert "https://git\\hub.com/nikmarch/open-data-duck/releases/download/" in readme
     assert "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}" not in readme
     assert "<https://" not in readme
     assert "open_data_duck.duckdb_extension" in readme
