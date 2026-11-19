@@ -10,16 +10,25 @@
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/function/replacement_scan.hpp"
+#include "duckdb/catalog/default/default_views.hpp"
+#include "duckdb/catalog/duck_catalog.hpp"
+#include "duckdb/catalog/catalog_entry/duck_schema_entry.hpp"
+#include "duckdb/catalog/catalog_entry/view_catalog_entry.hpp"
 #include "duckdb/main/client_config.hpp"
 #include "duckdb/main/config.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/database.hpp"
+#include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
+#include "duckdb/parser/parser.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
+#include "duckdb/parser/parsed_data/attach_info.hpp"
 #include "duckdb/parser/tableref.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include "duckdb/planner/expression/bound_function_expression.hpp"
+#include "duckdb/storage/storage_extension.hpp"
+#include "duckdb/transaction/duck_transaction_manager.hpp"
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
 #include <mutex>
@@ -666,6 +675,70 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 }
 
 //===--------------------------------------------------------------------===//
+// open_data_duck storage extension catalog
+//===--------------------------------------------------------------------===//
+
+class OpenDataDuckCatalogViewGenerator : public DefaultGenerator {
+public:
+	OpenDataDuckCatalogViewGenerator(Catalog &catalog, SchemaCatalogEntry &schema)
+	    : DefaultGenerator(catalog), schema(schema) {
+	}
+
+	unique_ptr<CatalogEntry> CreateDefaultEntry(ClientContext &context, const Identifier &entry_name) override {
+		string sql;
+		if (entry_name == Identifier("index")) {
+			sql = "SELECT * FROM open_data_sources()";
+		} else if (entry_name == Identifier("tables")) {
+			sql = "SELECT * FROM open_data_tables()";
+		} else {
+			return nullptr;
+		}
+
+		auto view = make_uniq<CreateViewInfo>();
+		view->SetQualifiedName(QualifiedName({Identifier::DefaultSchema()}, entry_name));
+		view->sql = sql;
+		auto parser = Parser::GetBuiltinParser();
+		auto view_info = CreateViewInfo::FromSelect(parser, std::move(view));
+		return make_uniq_base<CatalogEntry, ViewCatalogEntry>(catalog, schema, *view_info);
+	}
+
+	vector<Identifier> GetDefaultEntries() override {
+		return {Identifier("index"), Identifier("tables")};
+	}
+
+private:
+	SchemaCatalogEntry &schema;
+};
+
+static unique_ptr<Catalog> OpenDataDuckStorageAttach(optional_ptr<StorageExtensionInfo> storage_info,
+                                                     ClientContext &context, AttachedDatabase &db, const string &name,
+                                                     AttachInfo &info, AttachOptions &attach_options) {
+	info.path = IN_MEMORY_PATH;
+	auto catalog = make_uniq<DuckCatalog>(db);
+	catalog->Initialize(false);
+
+	auto system_transaction = CatalogTransaction::GetSystemTransaction(db.GetDatabase());
+	auto &schema = catalog->GetSchema(system_transaction, Identifier::DefaultSchema());
+	auto &duck_schema = schema.Cast<DuckSchemaEntry>();
+	auto &catalog_set = duck_schema.GetCatalogSet(CatalogType::VIEW_ENTRY);
+	catalog_set.SetDefaultGenerator(make_uniq<OpenDataDuckCatalogViewGenerator>(*catalog, schema));
+
+	return std::move(catalog);
+}
+
+static unique_ptr<TransactionManager> OpenDataDuckStorageTransactionManager(optional_ptr<StorageExtensionInfo> storage_info,
+                                                                           AttachedDatabase &db, Catalog &catalog) {
+	return make_uniq<DuckTransactionManager>(db);
+}
+
+struct OpenDataDuckStorageExtension : StorageExtension {
+	OpenDataDuckStorageExtension() {
+		attach = OpenDataDuckStorageAttach;
+		create_transaction_manager = OpenDataDuckStorageTransactionManager;
+	}
+};
+
+//===--------------------------------------------------------------------===//
 // Registration
 //===--------------------------------------------------------------------===//
 
@@ -705,6 +778,8 @@ static void LoadInternal(ExtensionLoader &loader) {
 	TableFunction tables("open_data_tables", {}, OpenDataTablesScan, OpenDataTablesBind, OpenDataTablesInit);
 	loader.RegisterFunction(tables);
 
+	StorageExtension::Register(DBConfig::GetConfig(loader.GetDatabaseInstance()), "open_data_duck",
+	                           make_shared_ptr<OpenDataDuckStorageExtension>());
 	DBConfig::GetConfig(loader.GetDatabaseInstance()).replacement_scans.emplace_back(OpenDataDuckReplacementScan);
 }
 

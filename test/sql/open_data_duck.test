@@ -213,6 +213,22 @@ SELECT id FROM odd.index WHERE list_contains(tags, 'buildings') AND id = 'overtu
 ----
 overture.maps.release
 
+# Issue #83: attaching TYPE open_data_duck creates a real virtual catalog with
+# catalog views instead of an empty DuckDB file.
+statement ok
+ATTACH 'odd' AS odd_catalog (TYPE open_data_duck);
+
+query I
+SELECT id FROM odd_catalog.index WHERE list_contains(tags, 'buildings') AND id = 'overture.maps.release';
+----
+overture.maps.release
+
+query I
+SHOW TABLES FROM odd_catalog;
+----
+index
+tables
+
 # An unknown name under a known namespace must not be swallowed by the replacement scan
 # before the catalog error; a name outside every namespace is left to DuckDB.
 statement error
