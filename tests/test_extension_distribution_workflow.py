@@ -45,17 +45,17 @@ def test_precommunity_release_workflow_publishes_smoked_release_assets() -> None
     assert "open_data_duck-v2.0.0-extension-*" in workflow
     assert "open_data_duck-v2.0.0-extension-linux_amd64" in workflow
     assert "osx_arm64" in workflow
-    assert "open_data_duck-v2.0.0-linux_amd64.duckdb_extension" in workflow
-    assert "open_data_duck-v2.0.0-osx_arm64.duckdb_extension" in workflow
+    assert "${EXTENSION_NAME}-${DUCKDB_VERSION}-${platform}.duckdb_extension" in workflow
     assert "SHA256SUMS.txt" in workflow
     assert "actions/checkout@v4" in workflow
     assert "./duckdb -unsigned -noheader -csv :memory:" in workflow
+    assert "scripts/render_precommunity_release_notes.py \"${RELEASE_TAG}\"" in workflow
+    assert 'release_tag="v0.1.0-pre.1"' not in workflow
     assert "gh release edit" in workflow
     assert "gh release create" in workflow
     assert "gh release upload" in workflow
     assert "--prerelease" in workflow
     assert "--draft" in workflow
-    assert "active current development" in workflow
 
 
 def test_pages_workflow_publishes_custom_extension_repository() -> None:
@@ -75,23 +75,19 @@ def test_pages_workflow_publishes_custom_extension_repository() -> None:
 def test_readme_describes_unsigned_extension_artifacts() -> None:
     readme = README.read_text(encoding="utf-8")
 
-    assert "Main Extension Distribution Pipeline" in readme
-    assert "Pre-community Extension Release workflow" in readme
-    assert "open_data_duck-v2.0.0-extension-linux_amd64" in readme
-    assert "open_data_duck-v2.0.0-linux_amd64.duckdb_extension" in readme
-    assert "open_data_duck-v2.0.0-osx_arm64.duckdb_extension" in readme
-    assert "temporary pre-community unsigned builds" in readme
-    assert "not signed community" in readme
+    assert "copy the install block from that release's notes" in readme
+    assert "Each release page carries its own tag" in readme
     assert "GitHub prerelease asset" in readme
     assert "DuckDB-version- and platform-specific" in readme
-    assert "canonical local filename `open_data_duck.duckdb_extension`" in readme
+    assert "not signed community" in readme
+    assert "open_data_duck.duckdb_extension` on purpose" in readme
     assert "Darwin-arm64) platform=\"osx_arm64\"" in readme
     assert "Linux-x86_64) platform=\"linux_amd64\"" in readme
+    assert "unsupported platform" in readme
     assert "--output open_data_duck.duckdb_extension" in readme
     assert "xattr -dr com.apple.quarantine open_data_duck.duckdb_extension" in readme
     assert "codesign --force --deep --sign - open_data_duck.duckdb_extension" in readme
-    assert "active current development" in readme
-    assert "install commands" in readme.casefold()
+    assert "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}/open_data_duck-${duckdb_version}-${platform}.duckdb_extension" in readme
     assert "https://nikmarch.github.io/open-data-duck/extensions" in readme
     assert "v2.0.0/osx_arm64/open_data_duck.duckdb_extension.gz" in readme
     assert "open_data_duck.duckdb_extension.gz" in readme
