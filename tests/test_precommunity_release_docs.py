@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import os
+import re
+import stat
+import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -17,17 +22,28 @@ spec.loader.exec_module(release_notes)
 def test_release_notes_are_copy_pasteable_for_the_requested_tag() -> None:
     rendered = release_notes.render_release_notes("v0.1.0-pre.3")
 
-    assert 'release_tag="v0.1.0-pre.3"' in rendered
-    assert 'release_tag="v0.1.0-pre.1"' not in rendered
-    assert "bash <<'BASH'" in rendered
-    assert rendered.index("bash <<'BASH'") < rendered.index("set -euo pipefail")
+    assert "release_tag=v0.1.0-pre.3" in rendered
+    assert "release_tag=v0.1.0-pre.1" not in rendered
+    assert "bash <<BASH" in rendered
+    assert "bash <<'BASH'" not in rendered
+    assert rendered.index("bash <<BASH") < rendered.index("set -euo pipefail")
     assert "\nBASH\n```" in rendered
-    assert 'host="github.com"' in rendered
-    assert 'repo="nikmarch/open-data-duck"' in rendered
-    assert 'asset="open_data_duck-${duckdb_version}-${platform}.duckdb_extension"' in rendered
-    assert 'asset_url="https://${host}/${repo}/releases/download/${release_tag}/${asset}"' in rendered
-    assert "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}" not in rendered
+    assert "duckdb_version=" not in rendered
+    assert "host=" not in rendered
+    assert "repo=" not in rendered
+    assert "asset=" not in rendered
+    assert "asset_url=" not in rendered
+    assert 'h""ttps://git""hub"".com/nikmarch/open-data-duck/releases/download/' in rendered
+    assert "open_data_duck-v2.0.0-\\${platform}.duckdb_extension" in rendered
+    assert "github.com" not in rendered
+    assert "hub.com" not in rendered
+    assert "https://" not in rendered
+    assert "printf %s" not in rendered
     assert "<https://" not in rendered
+    assert "“" not in rendered
+    assert "”" not in rendered
+    assert "‘" not in rendered
+    assert "’" not in rendered
     assert "open_data_duck.duckdb_extension" in rendered
     assert "unsupported platform" in rendered
     assert "duckdb -unsigned :memory:" in rendered
@@ -35,6 +51,54 @@ def test_release_notes_are_copy_pasteable_for_the_requested_tag() -> None:
     assert "open_data_duck: pong" in rendered
     assert "true" in rendered
     assert "INSTALL open_data_duck FROM community;` is not expected to work" in rendered
+
+
+def test_rendered_install_block_runs_in_child_bash_with_expected_url() -> None:
+    rendered = release_notes.render_release_notes("v0.1.0")
+    install_block_match = re.search(r"```\n(.*?)\n```", rendered, re.S)
+    assert install_block_match is not None
+    install_block = install_block_match.group(1)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        curl = bin_dir / "curl"
+        curl.write_text(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            "printf '%s\\n' \"${@: -1}\" > \"${TMPDIR}/curl-url.txt\"\n"
+            "touch open_data_duck.duckdb_extension\n",
+            encoding="utf-8",
+        )
+        duckdb = bin_dir / "duckdb"
+        duckdb.write_text(
+            "#!/usr/bin/env bash\n"
+            "cat >/dev/null\n"
+            "printf 'open_data_duck: pong\\ntrue\\n'\n",
+            encoding="utf-8",
+        )
+        for executable in (curl, duckdb):
+            executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{bin_dir}:{env['PATH']}"
+        env["TMPDIR"] = tmp
+        result = subprocess.run(
+            install_block,
+            shell=True,
+            text=True,
+            cwd=tmp,
+            env=env,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr + result.stdout
+        assert (tmp_path / "curl-url.txt").read_text(encoding="utf-8").strip() == (
+            "https://github.com/nikmarch/open-data-duck/releases/download/"
+            "v0.1.0/open_data_duck-v2.0.0-linux_amd64.duckdb_extension"
+        )
 
 
 def test_precommunity_workflow_generates_release_notes_from_the_requested_tag() -> None:
@@ -47,18 +111,30 @@ def test_precommunity_workflow_generates_release_notes_from_the_requested_tag() 
 
 def test_readme_keeps_user_first_install_guidance() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    install_block_match = re.search(r"```bash\n(.*?)\n```", readme, re.S)
+    assert install_block_match is not None
+    install_block = install_block_match.group(1)
 
     assert "copy the install block from that release's notes" in readme
-    assert 'release_tag="v0.1.0-pre.4"' in readme
-    assert 'release_tag="v0.1.0-pre.1"' not in readme
-    assert "bash <<'BASH'" in readme
-    assert readme.index("bash <<'BASH'") < readme.index("set -euo pipefail")
-    assert 'asset_url="https://${host}/${repo}/releases/download/${release_tag}/${asset}"' in readme
-    assert "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}" not in readme
-    assert "<https://" not in readme
-    assert "open_data_duck.duckdb_extension" in readme
-    assert "unsupported platform" in readme
-    assert "duckdb -unsigned :memory:" in readme
+    assert "release_tag=v0.1.0" in install_block
+    assert "release_tag=v0.1.0-pre.1" not in readme
+    assert "bash <<BASH" in install_block
+    assert "bash <<'BASH'" not in install_block
+    assert install_block.index("bash <<BASH") < install_block.index("set -euo pipefail")
+    assert "duckdb_version=" not in install_block
+    assert "host=" not in install_block
+    assert "repo=" not in install_block
+    assert "asset=" not in install_block
+    assert "asset_url=" not in install_block
+    assert 'h""ttps://git""hub"".com/nikmarch/open-data-duck/releases/download/' in install_block
+    assert "github.com" not in install_block
+    assert "hub.com" not in install_block
+    assert "https://" not in install_block
+    assert "printf %s" not in install_block
+    assert "<https://" not in install_block
+    assert "open_data_duck.duckdb_extension" in install_block
+    assert "unsupported platform" in install_block
+    assert "duckdb -unsigned :memory:" in install_block
     assert "open_data_duck: pong" in readme
     assert "Use `INSTALL open_data_duck FROM community;` only after" in readme
 
