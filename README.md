@@ -250,7 +250,7 @@ scripts/render_spatial_map.py \
   --lon -149.38067090928263 \
   --radius-m 100 \
   --limit 5 \
-  --release-tag v0.1.0-pre.3 \
+  --release-tag v0.1.0-pre.N \
   --output /tmp/odd-spatial-map.png
 ```
 

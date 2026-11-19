@@ -10,7 +10,7 @@ Example:
       --lat 61.60757040082204 \
       --lon -149.38067090928263 \
       --radius-m 100 \
-      --release-tag v0.1.0-pre.3 \
+      --release-tag v0.1.0-pre.N \
       --output /tmp/odd-spatial-map.png
 """
 
@@ -190,32 +190,16 @@ def duckdb_csv(paths: RuntimePaths, sql: str) -> list[dict[str, str]]:
     return list(csv.DictReader(io.StringIO(out)))
 
 
-def query_table_paths(paths: RuntimePaths) -> dict[str, str]:
+def query_overture_release(paths: RuntimePaths) -> str:
     sql = f"""
 FORCE INSTALL open_data_duck FROM '{paths.extension_repo.as_posix()}';
 LOAD open_data_duck;
-ATTACH ':memory:' AS odd (TYPE open_data_duck);
-SELECT 'release' AS kind,
-       open_data_release('overture.maps.release') AS value
-UNION ALL
-SELECT replace(table_reference, 'odd.overturemaps.latest.', '') AS kind,
-       path AS value
-FROM odd.tables
-WHERE table_reference IN (
-  'odd.overturemaps.latest.address',
-  'odd.overturemaps.latest.segment',
-  'odd.overturemaps.latest.place',
-  'odd.overturemaps.latest.building'
-)
-ORDER BY kind;
+SELECT open_data_release('overture.maps.release') AS release;
 """
     rows = duckdb_csv(paths, sql)
-    result = {row["kind"]: row["value"] for row in rows}
-    required = {"address", "segment", "place", "building"}
-    missing = required - result.keys()
-    if missing:
-        raise RuntimeError(f"ODD did not return paths for: {', '.join(sorted(missing))}")
-    return result
+    if not rows or not rows[0].get("release"):
+        raise RuntimeError("ODD did not resolve the Overture release")
+    return rows[0]["release"]
 
 
 def utm_epsg(lat: float, lon: float) -> str:
@@ -224,12 +208,15 @@ def utm_epsg(lat: float, lon: float) -> str:
     return f"EPSG:{prefix}{zone:02d}"
 
 
-def query_spatial_results(paths: RuntimePaths, table_paths: dict[str, str], lat: float, lon: float, radius_m: float, limit: int) -> dict[str, list[dict[str, str]]]:
+def query_spatial_results(paths: RuntimePaths, lat: float, lon: float, radius_m: float, limit: int) -> dict[str, list[dict[str, str]]]:
     lat_delta = (radius_m / 111_320.0) * 1.5
     lon_delta = (radius_m / (111_320.0 * max(math.cos(math.radians(lat)), 0.01))) * 1.5
     epsg = utm_epsg(lat, lon)
 
     sql = f"""
+FORCE INSTALL open_data_duck FROM '{paths.extension_repo.as_posix()}';
+LOAD open_data_duck;
+ATTACH ':memory:' AS odd (TYPE open_data_duck);
 LOAD httpfs;
 LOAD spatial;
 SET s3_region='us-west-2';
@@ -245,7 +232,7 @@ COPY (
            ST_Y(geometry) AS lat,
            ST_X(geometry) AS lon,
            ST_Distance_Sphere(geometry, ST_Point((SELECT lon FROM params), (SELECT lat FROM params))) AS distance_m
-    FROM read_parquet('{table_paths['address']}', hive_partitioning = true), params
+    FROM odd.overturemaps.latest.address, params
     WHERE bbox.xmin <= lon + {lon_delta:.15f}
       AND bbox.xmax >= lon - {lon_delta:.15f}
       AND bbox.ymin <= lat + {lat_delta:.15f}
@@ -264,7 +251,7 @@ COPY (
            ST_Transform(ST_Point({lon:.15f}, {lat:.15f}), 'EPSG:4326', '{epsg}', true) AS pt_utm
   ), candidates AS (
     SELECT id, names."primary" AS name, subtype, class, subclass, geometry, bbox
-    FROM read_parquet('{table_paths['segment']}', hive_partitioning = true), params
+    FROM odd.overturemaps.latest.segment, params
     WHERE bbox.xmin <= lon + {lon_delta:.15f}
       AND bbox.xmax >= lon - {lon_delta:.15f}
       AND bbox.ymin <= lat + {lat_delta:.15f}
@@ -290,7 +277,7 @@ COPY (
            ST_Y(geometry) AS lat,
            ST_X(geometry) AS lon,
            ST_Distance_Sphere(geometry, ST_Point((SELECT lon FROM params), (SELECT lat FROM params))) AS distance_m
-    FROM read_parquet('{table_paths['place']}', hive_partitioning = true), params
+    FROM odd.overturemaps.latest.place, params
     WHERE bbox.xmin <= lon + {lon_delta:.15f}
       AND bbox.xmax >= lon - {lon_delta:.15f}
       AND bbox.ymin <= lat + {lat_delta:.15f}
@@ -309,7 +296,7 @@ COPY (
            ST_Transform(ST_Point({lon:.15f}, {lat:.15f}), 'EPSG:4326', '{epsg}', true) AS pt_utm
   ), candidates AS (
     SELECT id, coalesce(names."primary", '') AS name, subtype, class, geometry, bbox
-    FROM read_parquet('{table_paths['building']}', hive_partitioning = true), params
+    FROM odd.overturemaps.latest.building, params
     WHERE bbox.xmin <= lon + {lon_delta:.15f}
       AND bbox.xmax >= lon - {lon_delta:.15f}
       AND bbox.ymin <= lat + {lat_delta:.15f}
@@ -585,12 +572,8 @@ def main() -> int:
 
     release_tag = args.release_tag or latest_release_tag()
     runtime = prepare_runtime(release_tag, args.workdir)
-    table_paths = query_table_paths(runtime)
-    results = query_spatial_results(runtime, table_paths, args.lat, args.lon, args.radius_m, args.limit)
-    overture_release = table_paths.get("release", "")
-    # Prefer parsing it from the discovered S3 paths because those are what the data queries used.
-    path_match = re.search(r"/release/([^/]+)/", table_paths["address"])
-    overture_release = path_match.group(1) if path_match else (overture_release or "unknown")
+    overture_release = query_overture_release(runtime)
+    results = query_spatial_results(runtime, args.lat, args.lon, args.radius_m, args.limit)
 
     render_map(
         results,
