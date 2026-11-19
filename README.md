@@ -209,6 +209,18 @@ con.execute("LOAD './open_data_duck.duckdb_extension'")
 print(con.execute("SELECT open_data_duck_ping()").fetchone()[0])
 ```
 
+## Release from GitHub Actions
+
+Use the existing **Pre-community Extension Release** workflow for pre-community binaries:
+
+1. Open GitHub Actions -> **Pre-community Extension Release** -> **Run workflow**.
+2. Select `main` as the workflow ref.
+3. Enter a new tag such as `v0.1.0-pre.4`.
+4. Keep `create_tag=true` so the workflow creates the Git tag from `target_ref`.
+5. Use `draft=true` for a private test release, or `draft=false` to publish a public prerelease.
+
+The workflow validates the tag, refuses to overwrite existing tags/releases unless `update_existing=true`, builds Linux/macOS assets, smoke-tests the Linux asset, and writes release notes with a one-copy-paste install block for that exact tag.
+
 ## Development
 
 ```bash
