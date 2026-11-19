@@ -72,14 +72,14 @@ FROM odd.index
 WHERE list_contains(tags, 'buildings')
    OR name ILIKE '%building%';
 
--- Inspect only queryable data tables.
-SELECT table_reference, path_glob
+-- Inspect only queryable data tables (discovered from the source, cached per process).
+SELECT table_reference, reader, path
 FROM odd.tables
-WHERE table_reference = 'odd.overturemaps.latest.buildings';
+WHERE table_reference = 'odd.overturemaps.latest.building';
 
 -- Query the matched table through an ODD table facade.
 SELECT *
-FROM odd.overturemaps.latest.buildings
+FROM odd.overturemaps.latest.building
 WHERE bbox.xmin <= -149
   AND bbox.xmax >= -150
   AND bbox.ymin <= 61
@@ -87,22 +87,28 @@ WHERE bbox.xmin <= -149
 LIMIT 10;
 ```
 
-`odd.index` is the SQL-searchable catalog. It returns queryable references such as `odd.overturemaps.latest.buildings`. The native extension resolves those references with replacement scans into DuckDB readers. Keep bbox filters tight; Overture tables are large.
+`odd.index` is the SQL-searchable catalog. Each source that exposes data tables carries a `namespace` such as `odd.overturemaps.latest`. The native extension resolves `namespace.<table>` references with replacement scans into DuckDB readers. Keep bbox filters tight; Overture tables are large.
 
-### How `latest` is resolved
+### How `latest` tables are discovered
 
-`odd.overturemaps.latest.*` facades carry a `{release}` placeholder in their `path_glob`. On the first query in a process the extension runs the registry's `release.latest.resolve_sql` (a lookup against `https://stac.overturemaps.org/catalog.json`), fills in the release, and caches it for the rest of the process. Pin a release instead with the source's `release.pinned.duckdb_setting` variable; the pin always wins over the lookup:
+The registry stores no table paths. Each source with a namespace carries two SQL snippets:
+
+- `release.latest.resolve_sql` returns the current release id (Overture: the `latest` child of `https://stac.overturemaps.org/catalog.json`; Census: the newest `GENZ<year>` directory; NOAA: the newest `by_year` file).
+- `duckdb.tables.discover_sql` returns one `(name, reader, path)` row per table for a given `{release}` (Overture: every STAC collection of the release; Census: every county/tract shapefile at every scale).
+
+On the first touch of `odd.tables` or of any `namespace.<table>` in a process, the extension runs both snippets on its own connection and caches the rows for that `source@release`. Pin a release with the source's `release.pinned.duckdb_setting` variable; the pin always wins over the lookup and gets its own cache entry:
 
 ```sql
 SET VARIABLE overture_release = '2026-10-21.0';
 SELECT open_data_release('overture.maps.release');  -- 2026-10-21.0
 RESET VARIABLE overture_release;
 SELECT open_data_release('overture.maps.release');  -- resolved from the STAC catalog, then cached
+SELECT table_reference, path FROM odd.tables WHERE source_id = 'overture.maps.release';
 ```
 
 ## Current pre-community behavior
 
-The extension also returns SQL recipes and facade metadata for inspection.
+The extension also returns SQL recipes and table metadata for inspection.
 
 ```sql
 LOAD './open_data_duck.duckdb_extension';
@@ -151,10 +157,10 @@ uv run odd sql overture.maps.release --validation --no-install
 LOAD './open_data_duck.duckdb_extension';
 
 SELECT id, name, status FROM open_data_sources();
-SELECT id, name, table_reference FROM open_data_search('building');
-SELECT table_reference, path_glob FROM open_data_facades();
-SELECT id, name, table_reference FROM odd.index WHERE list_contains(tags, 'buildings');
-SELECT table_reference, path_glob FROM odd.tables;
+SELECT id, name, namespace FROM open_data_search('building');
+SELECT table_reference, reader, path FROM open_data_tables();
+SELECT id, name, namespace FROM odd.index WHERE list_contains(tags, 'buildings');
+SELECT table_reference, reader, path FROM odd.tables;
 SELECT open_data_sql('overture.maps.release');
 SELECT open_data_validation_sql('overture.maps.release');
 ```
@@ -167,18 +173,18 @@ Implemented native functions:
 - `open_data_duck_registry_json()`
 - `open_data_sources()`
 - `open_data_search(query)`
-- `open_data_facades()`
+- `open_data_tables()`
 - `open_data_sql(id)`
 - `open_data_validation_sql(id)`
 - `open_data_release(id)`
 
-The first table-like facade is an Overture replacement scan for `odd.overturemaps.latest.buildings`, with the same pattern exposed for places, roads, and addresses. Each facade declares its DuckDB `reader` (`read_parquet` by default, or `read_csv`, `read_json`, `st_read`), so the same `{release}` resolution covers other release-versioned sources:
+Table namespaces today, each discovered from the source at first use. Readers are `read_parquet` (with `hive_partitioning`), `read_csv`, `read_json`, or `st_read`:
 
-| table reference | reader | pin variable |
-| --- | --- | --- |
-| `odd.overturemaps.latest.{buildings,places,roads,addresses}` | `read_parquet` | `overture_release` |
-| `odd.census.latest.counties`, `odd.census.latest.tracts` | `st_read` (needs `LOAD spatial`) | `census_cartographic_year` |
-| `odd.noaa.latest.ghcn_daily` | `read_csv` | `noaa_ghcn_year` |
+| namespace | tables | reader | pin variable |
+| --- | --- | --- | --- |
+| `odd.overturemaps.latest` | every STAC collection of the release (`building`, `place`, `segment`, `address`, `division`, `land`, `water`, ...) | `read_parquet` | `overture_release` |
+| `odd.census.latest` | `county_20m`, `county_5m`, `county_500k`, `tract_5m`, `tract_500k`, ... | `st_read` (needs `LOAD spatial`) | `census_cartographic_year` |
+| `odd.noaa.latest` | `ghcn_daily` | `read_csv` | `noaa_ghcn_year` |
 
 ## Temporary custom extension repository
 

@@ -326,9 +326,12 @@ def test_overture_source_family_has_release_modes_and_core_examples() -> None:
     # The extension runs this snippet once per process to resolve `latest`, then caches it.
     assert "https://stac.overturemaps.org/catalog.json" in latest["resolve_sql"]
     assert "latest" in latest["resolve_sql"]
-    for facade in source["duckdb"]["facades"]:
-        assert "{release}" in facade["path_glob"], facade["table_reference"]
-        assert not re.search(r"/release/\d{4}-\d{2}-\d{2}\.\d+/", facade["path_glob"]), facade["table_reference"]
+    tables = source["duckdb"]["tables"]
+    assert tables["namespace"] == "odd.overturemaps.latest"
+    # Overture tables are discovered from the release's STAC collections, never listed by hand.
+    assert "https://stac.overturemaps.org/{release}/collections.parquet" in tables["discover_sql"]
+    assert "s3://overturemaps" not in tables["discover_sql"]
+    assert "facades" not in source["duckdb"]
     assert source["release"]["pinned"] == {
         "duckdb_setting": "overture_release",
         "s3_base_setting": "overture_s3_base",
@@ -586,39 +589,34 @@ def test_cli_sql_exits_nonzero_for_unknown_source(
     assert "Source not found: missing.source" in capsys.readouterr().out
 
 
-LATEST_FACADES = {
-    "census.cartographic.county-boundaries": ("census_cartographic_year", "odd.census.latest.counties", "st_read"),
-    "census.cartographic.tract-boundaries": ("census_cartographic_year", "odd.census.latest.tracts", "st_read"),
-    "aws.noaa-ghcn-daily": ("noaa_ghcn_year", "odd.noaa.latest.ghcn_daily", "read_csv"),
+LATEST_TABLES = {
+    "overture.maps.release": ("overture_release", "odd.overturemaps.latest"),
+    "census.cartographic.county-boundaries": ("census_cartographic_year", "odd.census.latest"),
+    "census.cartographic.tract-boundaries": ("census_cartographic_year", "odd.census.latest"),
+    "aws.noaa-ghcn-daily": ("noaa_ghcn_year", "odd.noaa.latest"),
 }
 
 
-def test_release_versioned_sources_declare_resolve_sql_and_reader_facades() -> None:
+def test_release_versioned_sources_declare_resolve_sql_and_table_discovery() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
     by_id = {source["id"]: source for source in registry["sources"]}
 
-    for source_id, (pin_variable, table_reference, reader) in LATEST_FACADES.items():
+    for source_id, (pin_variable, namespace) in LATEST_TABLES.items():
         source = by_id[source_id]
         latest = source["release"]["latest"]
         assert latest["resolve_sql"].strip(), source_id
         assert latest["url"] in latest["resolve_sql"], source_id
         assert source["release"]["pinned"]["duckdb_setting"] == pin_variable
-        facades = {facade["table_reference"]: facade for facade in source["duckdb"]["facades"]}
-        facade = facades[table_reference]
-        assert facade["reader"] == reader
-        assert "{release}" in facade["path_glob"]
-        assert f"FROM {table_reference}" in facade["example_sql"]
+        tables = source["duckdb"]["tables"]
+        assert tables["namespace"] == namespace
+        assert re.fullmatch(r"odd\.[a-z0-9_]+\.[a-z0-9_]+", tables["namespace"])
+        assert "{release}" in tables["discover_sql"], source_id
+        # Contract consumed by the extension: one row per table.
+        assert re.search(r"\bAS name\b", tables["discover_sql"]), source_id
+        assert re.search(r"\bAS reader\b", tables["discover_sql"]), source_id
+        assert re.search(r"\bAS path\b", tables["discover_sql"]), source_id
 
-    # Overture keeps the default reader (read_parquet) implicitly.
-    overture = by_id["overture.maps.release"]
-    assert all("reader" not in facade for facade in overture["duckdb"]["facades"])
-
-
-def test_facade_table_references_are_unique_across_sources() -> None:
-    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
-    references = [
-        facade["table_reference"]
-        for source in registry["sources"]
-        for facade in source["duckdb"].get("facades", [])
-    ]
-    assert len(references) == len(set(references))
+    for source in registry["sources"]:
+        assert "facades" not in source["duckdb"], source["id"]
+        if "tables" in source["duckdb"]:
+            assert "release" in source, source["id"]

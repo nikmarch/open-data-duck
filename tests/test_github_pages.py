@@ -88,8 +88,8 @@ def test_pages_plugin_api_direction_is_static() -> None:
     assert "alaska building" not in index
     assert "FROM odd.tables" in index
     assert "replacement scan" in index
-    assert "FROM odd.overturemaps.latest.buildings" in index
-    assert "odd.overturemaps.latest.buildings" in index
+    assert "FROM odd.overturemaps.latest.building" in index
+    assert "odd.overturemaps.latest.buildings" not in index
     assert "No fake terminal" in index
     assert parser.scripts == set()
     assert parser.examples == set()

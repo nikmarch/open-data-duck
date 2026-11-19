@@ -66,18 +66,14 @@ def test_embedded_registry_round_trips_every_source_with_required_fields() -> No
     overture = next(record for record in embedded["sources"] if record["id"] == "overture.maps.release")
     assert overture["release"]["pinned"]["duckdb_setting"] == "overture_release"
     assert "stac.overturemaps.org/catalog.json" in overture["release"]["latest"]["resolve_sql"]
-    assert overture["duckdb"]["facades"][0] == {
-        "description": "Global building footprints from Overture Maps releases.",
-        "example_sql": "SELECT *\nFROM odd.overturemaps.latest.buildings\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
-        "facade_function": "open_data_overture_buildings",
-        "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=buildings/type=building/*",
-        "reader": "read_parquet",
-        "table_reference": "odd.overturemaps.latest.buildings",
-    }
+    assert overture["duckdb"]["tables"]["namespace"] == "odd.overturemaps.latest"
+    assert "{release}/collections.parquet" in overture["duckdb"]["tables"]["discover_sql"]
+    assert "facades" not in overture["duckdb"]
     census = next(record for record in embedded["sources"] if record["id"] == "census.cartographic.county-boundaries")
-    assert census["duckdb"]["facades"][0]["reader"] == "st_read"
-    assert census["duckdb"]["facades"][0]["table_reference"] == "odd.census.latest.counties"
+    assert census["duckdb"]["tables"]["namespace"] == "odd.census.latest"
     assert census["release"]["pinned"]["duckdb_setting"] == "census_cartographic_year"
+    plain = next(record for record in embedded["sources"] if record["id"] == "socrata.nyc.311-service-requests")
+    assert plain["duckdb"]["tables"] == {}
     assert set(overture["duckdb"]["examples"]) >= {
         "places_bbox_direct_s3",
         "buildings_bbox_direct_s3",

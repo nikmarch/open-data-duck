@@ -58,19 +58,12 @@
               "type": "object",
               "additionalProperties": { "type": "string" }
             },
-            "facades": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": ["table_reference", "facade_function", "path_glob", "example_sql"],
-                "properties": {
-                  "table_reference": { "type": "string" },
-                  "facade_function": { "type": "string" },
-                  "path_glob": { "type": "string" },
-                  "reader": { "enum": ["read_parquet", "read_csv", "read_json", "st_read"] },
-                  "example_sql": { "type": "string" },
-                  "description": { "type": "string" }
-                }
+            "tables": {
+              "type": "object",
+              "required": ["namespace", "discover_sql"],
+              "properties": {
+                "namespace": { "type": "string", "pattern": "^odd\\.[a-z0-9_]+\\.[a-z0-9_]+$" },
+                "discover_sql": { "type": "string" }
               }
             }
           }

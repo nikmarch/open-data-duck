@@ -117,3 +117,36 @@ def test_latest_release_resolve_sql_returns_release_id(source_id: str, pattern: 
         connection.close()
     assert row is not None
     assert re.fullmatch(pattern, row[0]), row
+
+
+@pytest.mark.skipif(
+    os.environ.get("ODD_DUCKDB_NETWORK_TESTS") != "1",
+    reason="set ODD_DUCKDB_NETWORK_TESTS=1 to discover latest tables from the public endpoints",
+)
+@pytest.mark.parametrize(
+    ("source_id", "expected_names"),
+    [
+        ("overture.maps.release", {"building", "place", "segment", "address", "division"}),
+        ("census.cartographic.county-boundaries", {"county_20m", "county_5m", "county_500k"}),
+        ("census.cartographic.tract-boundaries", {"tract_5m", "tract_500k"}),
+        ("aws.noaa-ghcn-daily", {"ghcn_daily"}),
+    ],
+)
+def test_discover_sql_lists_tables_for_latest_release(source_id: str, expected_names: set[str]) -> None:
+    source = find_source(REGISTRY_PATH, source_id)
+
+    assert source is not None
+    connection = duckdb.connect(":memory:")
+    try:
+        release = connection.execute(source.release["latest"]["resolve_sql"]).fetchone()[0]
+        discover_sql = source.duckdb["tables"]["discover_sql"].replace("{release}", release)
+        cursor = connection.execute(discover_sql)
+        columns = [column[0] for column in cursor.description]
+        rows = cursor.fetchall()
+    finally:
+        connection.close()
+    assert columns == ["name", "reader", "path"]
+    names = {row[0] for row in rows}
+    assert expected_names <= names, names
+    assert all(row[1] in {"read_parquet", "read_csv", "read_json", "st_read"} for row in rows)
+    assert all(release in row[2] for row in rows), rows

@@ -27,7 +27,7 @@ sources:
       latest:
         method: stac-catalog
         url: https://stac.overturemaps.org/catalog.json
-        # The extension runs this once per process on the first `latest` facade
+        # The extension runs this once per process on the first `latest` table
         # query and caches the result. SET VARIABLE overture_release = '...' pins instead.
         resolve_sql: |
           SELECT regexp_extract(l.href, '/([0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+)/catalog\.json$', 1) AS release
@@ -141,55 +141,16 @@ sources:
             AND bbox.ymin <= 61
             AND bbox.ymax >= 60
           LIMIT 10;
-      facades:
-        - table_reference: odd.overturemaps.latest.buildings
-          facade_function: open_data_overture_buildings
-          path_glob: s3://overturemaps-us-west-2/release/{release}/theme=buildings/type=building/*
-          description: Global building footprints from Overture Maps releases.
-          example_sql: |
-            SELECT *
-            FROM odd.overturemaps.latest.buildings
-            WHERE bbox.xmin <= -149
-              AND bbox.xmax >= -150
-              AND bbox.ymin <= 61
-              AND bbox.ymax >= 60
-            LIMIT 10;
-        - table_reference: odd.overturemaps.latest.places
-          facade_function: open_data_overture_places
-          path_glob: s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*
-          description: Global places and points of interest from Overture Maps releases.
-          example_sql: |
-            SELECT *
-            FROM odd.overturemaps.latest.places
-            WHERE bbox.xmin <= -149
-              AND bbox.xmax >= -150
-              AND bbox.ymin <= 61
-              AND bbox.ymax >= 60
-            LIMIT 10;
-        - table_reference: odd.overturemaps.latest.roads
-          facade_function: open_data_overture_roads
-          path_glob: s3://overturemaps-us-west-2/release/{release}/theme=transportation/type=segment/*
-          description: Global road and transportation segments from Overture Maps releases.
-          example_sql: |
-            SELECT *
-            FROM odd.overturemaps.latest.roads
-            WHERE bbox.xmin <= -149
-              AND bbox.xmax >= -150
-              AND bbox.ymin <= 61
-              AND bbox.ymax >= 60
-            LIMIT 10;
-        - table_reference: odd.overturemaps.latest.addresses
-          facade_function: open_data_overture_addresses
-          path_glob: s3://overturemaps-us-west-2/release/{release}/theme=addresses/type=address/*
-          description: Global address points from Overture Maps releases.
-          example_sql: |
-            SELECT *
-            FROM odd.overturemaps.latest.addresses
-            WHERE bbox.xmin <= -149
-              AND bbox.xmax >= -150
-              AND bbox.ymin <= 61
-              AND bbox.ymax >= 60
-            LIMIT 10;
+      tables:
+        namespace: odd.overturemaps.latest
+        # One table per STAC collection of the release; paths come from the
+        # collection assets, so nothing here lists themes or S3 prefixes by hand.
+        discover_sql: |
+          SELECT collection AS name,
+                 'read_parquet' AS reader,
+                 regexp_replace(regexp_replace(min(assets.aws.href), '^https://([^.]+)\.s3\.[^/]+/', 's3://\1/'), '/part-[^/]+$', '/*') AS path
+          FROM read_parquet('https://stac.overturemaps.org/{release}/collections.parquet')
+          GROUP BY collection;
     freshness:
       method: release-calendar
       url: https://docs.overturemaps.org/release-calendar/
@@ -412,17 +373,15 @@ sources:
           FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')
           WHERE STATEFP = '02'
           ORDER BY GEOID;
-      facades:
-        - table_reference: odd.census.latest.counties
-          facade_function: open_data_census_counties
-          reader: st_read
-          path_glob: /vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/cb_{release}_us_county_20m.zip/cb_{release}_us_county_20m.shp
-          description: Generalized U.S. county boundaries (1:20m) from the latest Census cartographic boundary release.
-          example_sql: |
-            LOAD spatial;
-            SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
-            FROM odd.census.latest.counties
-            LIMIT 10;
+      tables:
+        namespace: odd.census.latest
+        # Every county shapefile of the release at every published scale (20m, 5m, 500k, ...).
+        discover_sql: |
+          SELECT regexp_extract(z, 'cb_{release}_us_(.+)\.zip', 1) AS name,
+                 'st_read' AS reader,
+                 '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/' || z || '/' || replace(z, '.zip', '.shp') AS path
+          FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'cb_{release}_us_county[a-z0-9_]*\.zip')) AS z
+                FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));
     release:
       latest:
         method: html-listing
@@ -485,18 +444,15 @@ sources:
           WHERE STATEFP = '02'
           ORDER BY GEOID
           LIMIT 25;
-      facades:
-        - table_reference: odd.census.latest.tracts
-          facade_function: open_data_census_tracts
-          reader: st_read
-          path_glob: /vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/cb_{release}_us_tract_5m.zip/cb_{release}_us_tract_5m.shp
-          description: Generalized U.S. census tract boundaries (1:5m) from the latest Census cartographic boundary release.
-          example_sql: |
-            LOAD spatial;
-            SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
-            FROM odd.census.latest.tracts
-            WHERE STATEFP = '02'
-            LIMIT 10;
+      tables:
+        namespace: odd.census.latest
+        # Every tract shapefile of the release at every published scale (20m, 5m, 500k, ...).
+        discover_sql: |
+          SELECT regexp_extract(z, 'cb_{release}_us_(.+)\.zip', 1) AS name,
+                 'st_read' AS reader,
+                 '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/' || z || '/' || replace(z, '.zip', '.shp') AS path
+          FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'cb_{release}_us_tract[a-z0-9_]*\.zip')) AS z
+                FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));
     release:
       latest:
         method: html-listing
@@ -629,17 +585,12 @@ sources:
         SELECT count(*) > 0 AS ok
         FROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')
         LIMIT 1;
-      facades:
-        - table_reference: odd.noaa.latest.ghcn_daily
-          facade_function: open_data_noaa_ghcn_daily
-          reader: read_csv
-          path_glob: https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/{release}.csv
-          description: GHCN-Daily station observations for the latest year file on AWS Open Data.
-          example_sql: |
-            LOAD httpfs;
-            SELECT id, date, element, data_value
-            FROM odd.noaa.latest.ghcn_daily
-            LIMIT 10;
+      tables:
+        namespace: odd.noaa.latest
+        discover_sql: |
+          SELECT 'ghcn_daily' AS name,
+                 'read_csv' AS reader,
+                 'https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/{release}.csv' AS path;
     release:
       latest:
         method: s3-listing
