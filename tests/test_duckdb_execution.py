@@ -103,6 +103,7 @@ def test_real_duckdb_can_install_and_load_supported_extensions() -> None:
         ("overture.maps.release", r"\d{4}-\d{2}-\d{2}\.\d+"),
         ("census.cartographic.county-boundaries", r"20\d{2}"),
         ("census.cartographic.tract-boundaries", r"20\d{2}"),
+        ("noaa.ncei.storm-events", r"20\d{2}"),
         ("aws.noaa-ghcn-daily", r"20\d{2}"),
     ],
 )
@@ -129,6 +130,7 @@ def test_latest_release_resolve_sql_returns_release_id(source_id: str, pattern: 
         ("overture.maps.release", {"building", "place", "segment", "address", "division"}),
         ("census.cartographic.county-boundaries", {"county_20m", "county_5m", "county_500k"}),
         ("census.cartographic.tract-boundaries", {"tract_5m", "tract_500k"}),
+        ("noaa.ncei.storm-events", {"storm_events_details", "storm_events_fatalities", "storm_events_locations"}),
         ("aws.noaa-ghcn-daily", {"ghcn_daily"}),
     ],
 )

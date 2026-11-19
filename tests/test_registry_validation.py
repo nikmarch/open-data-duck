@@ -315,6 +315,40 @@ def test_project_usgs_earthquake_feed_uses_direct_geojson_recipe() -> None:
     assert "load stac" not in rendered_sql
 
 
+def test_project_noaa_ncei_storm_events_uses_latest_bulk_csv_discovery() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "noaa.ncei.storm-events")
+
+    rendered_sql = "\n".join(
+        (
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            "\n".join(source["duckdb"].get("examples", {}).values()),
+        )
+    ).casefold()
+    latest = source["release"]["latest"]
+    tables = source["duckdb"]["tables"]
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "NOAA National Centers for Environmental Information"
+    assert "httpfs" in source["duckdb"]["extensions"]
+    assert "www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/" in rendered_sql
+    assert "read_csv_auto" in rendered_sql
+    assert "StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz" in source["duckdb"]["validation_query"]
+    assert latest["method"] == "html-listing"
+    assert latest["url"] in latest["resolve_sql"]
+    assert "StormEvents_details-ftp_v1" in latest["resolve_sql"]
+    assert source["release"]["pinned"] == {"duckdb_setting": "noaa_storm_events_year", "example": "2024"}
+    assert tables["namespace"] == "odd.noaa.latest"
+    assert "StormEvents_[a-z]+-ftp_v1" in tables["discover_sql"]
+    assert "max(created)" in tables["discover_sql"]
+    assert "storm_events_" in tables["discover_sql"]
+    assert "c20261118" not in tables["discover_sql"]
+    assert "load stac" not in rendered_sql
+
+
 def test_arcgis_feature_server_pagination_acceptance_uses_multiple_pages() -> None:
     layer_url = (
         "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/"
@@ -618,6 +652,7 @@ LATEST_TABLES = {
     "overture.maps.release": ("overture_release", "odd.overturemaps.latest"),
     "census.cartographic.county-boundaries": ("census_cartographic_year", "odd.census.latest"),
     "census.cartographic.tract-boundaries": ("census_cartographic_year", "odd.census.latest"),
+    "noaa.ncei.storm-events": ("noaa_storm_events_year", "odd.noaa.latest"),
     "aws.noaa-ghcn-daily": ("noaa_ghcn_year", "odd.noaa.latest"),
 }
 

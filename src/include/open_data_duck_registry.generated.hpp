@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 17;
+static constexpr int REGISTRY_SOURCE_COUNT = 18;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 17,
+  "source_count": 18,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -356,6 +356,52 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "hazards",
         "geojson",
         "realtime"
+      ]
+    },
+    {
+      "attribution": "NOAA National Centers for Environmental Information, Storm Events Database; credit NOAA/NCEI and do not imply NOAA endorsement.",
+      "authority": "NOAA National Centers for Environmental Information",
+      "description": "Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.",
+      "duckdb": {
+        "example_query": "LOAD httpfs;\nSELECT event_id,\n       state,\n       event_type,\n       begin_date_time,\n       cz_name\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',\n  sample_size = 20000\n)\nWHERE event_type IS NOT NULL\nORDER BY event_id\nLIMIT 10;",
+        "examples": {
+          "latest_details_by_state_type": "LOAD httpfs;\nSET VARIABLE noaa_storm_events_year = '2024';\nSELECT event_id, state, event_type, begin_date_time, cz_name\nFROM odd.noaa.latest.storm_events_details\nWHERE state = 'ALASKA'\n  AND event_type IS NOT NULL\nORDER BY begin_date_time\nLIMIT 25;",
+          "latest_fatalities_by_year": "LOAD httpfs;\nSET VARIABLE noaa_storm_events_year = '2024';\nSELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age\nFROM odd.noaa.latest.storm_events_fatalities\nORDER BY fatality_date\nLIMIT 25;"
+        },
+        "extensions": [
+          "httpfs"
+        ],
+        "install": "INSTALL httpfs;",
+        "tables": {
+          "discover_sql": "WITH files AS (\n  SELECT regexp_extract(m, 'StormEvents_([a-z]+)-ftp_v1\\.0_d{release}_c([0-9]{8})\\.csv\\.gz', 1) AS table_kind,\n         regexp_extract(m, '(StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz)', 1) AS file_name,\n         regexp_extract(m, '_c([0-9]{8})\\.csv\\.gz', 1) AS created\n  FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz')) AS m\n        FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'))\n), latest AS (\n  SELECT table_kind, max(created) AS created\n  FROM files\n  GROUP BY table_kind\n)\nSELECT 'storm_events_' || files.table_kind AS name,\n       'read_csv' AS reader,\n       'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/' || files.file_name AS path\nFROM files\nJOIN latest USING (table_kind, created)\nORDER BY name;",
+          "namespace": "odd.noaa.latest"
+        },
+        "validation_query": "LOAD httpfs;\nSELECT count(*) > 0 AS ok\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',\n  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\n  AND event_type IS NOT NULL;"
+      },
+      "homepage": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "id": "noaa.ncei.storm-events",
+      "license_url": "https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits",
+      "name": "NOAA NCEI Storm Events bulk CSV files",
+      "release": {
+        "latest": {
+          "method": "html-listing",
+          "resolve_sql": "SELECT max(regexp_extract(m, 'StormEvents_details-ftp_v1\\.0_d([0-9]{4})_c[0-9]{8}\\.csv\\.gz', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'StormEvents_details-ftp_v1\\.0_d[0-9]{4}_c[0-9]{8}\\.csv\\.gz')) AS m\n      FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'));\n",
+          "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/"
+        },
+        "pinned": {
+          "duckdb_setting": "noaa_storm_events_year",
+          "example": "2024"
+        }
+      },
+      "source_type": "other",
+      "status": "candidate",
+      "tags": [
+        "noaa",
+        "ncei",
+        "storms",
+        "weather",
+        "hazards",
+        "csv"
       ]
     },
     {
