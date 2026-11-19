@@ -290,6 +290,31 @@ def test_project_census_cartographic_boundaries_use_direct_spatial_file_recipes(
     assert "where statefp = '02'" in tract_sql
 
 
+def test_project_usgs_earthquake_feed_uses_direct_geojson_recipe() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "usgs.earthquake.realtime-geojson")
+
+    rendered_sql = "\n".join(
+        (
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            "\n".join(source["duckdb"].get("examples", {}).values()),
+        )
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "U.S. Geological Survey Earthquake Hazards Program"
+    assert "httpfs" in source["duckdb"]["extensions"]
+    assert "earthquake.usgs.gov/earthquakes/feed/v1.0/summary/" in rendered_sql
+    assert "read_json_auto" in rendered_sql
+    assert "maximum_object_size" in rendered_sql
+    assert "all_month.geojson" in source["duckdb"]["validation_query"]
+    assert "install stac" not in rendered_sql
+    assert "load stac" not in rendered_sql
+
+
 def test_arcgis_feature_server_pagination_acceptance_uses_multiple_pages() -> None:
     layer_url = (
         "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/"

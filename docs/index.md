@@ -96,6 +96,20 @@ Official generalized U.S. census tract boundary shapefiles from the Census Burea
 - AI use cases: map tract-level indicators, join tract GEOIDs to ACS estimates, build thematic maps without TIGERweb paging
 - Caveats: generalized for thematic mapping rather than surveying, choose year and scale explicitly, national tract files are larger than county files, zipped shapefile access requires DuckDB spatial/GDAL virtual paths
 
+### `usgs.earthquake.realtime-geojson` — USGS realtime earthquake GeoJSON feeds
+
+Official U.S. Geological Survey realtime earthquake summary feeds for recent seismic events, queryable directly from GeoJSON over HTTPS with DuckDB read_json_auto.
+
+- Status: `candidate`
+- Authority: U.S. Geological Survey Earthquake Hazards Program
+- Homepage: https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
+- License: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+- Tags: `usgs`, `earthquakes`, `hazards`, `geojson`, `realtime`
+- Topics: earthquakes, seismic events, natural hazards, realtime monitoring
+- Cadence: feeds update every minute; older events age out by feed window
+- AI use cases: list recent earthquakes by magnitude, monitor significant events, map recent seismic activity
+- Caveats: rolling feeds are not stable historical snapshots, all_day can be empty during unusually quiet periods, event coordinates are GeoJSON point arrays with longitude latitude depth
+
 ### `aws.noaa-ghcn-daily` — NOAA Global Historical Climatology Network Daily
 
 NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.
