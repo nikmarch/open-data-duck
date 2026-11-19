@@ -658,9 +658,6 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 			auto table_function = make_uniq<TableFunctionRef>();
 			vector<FunctionArgument> children;
 			children.emplace_back(ConstantExpression::String(table.path));
-			if (table.reader == "read_parquet") {
-				children.emplace_back(Identifier("hive_partitioning"), ConstantExpression::Boolean(true));
-			}
 			table_function->function = make_uniq<FunctionExpression>(Identifier(table.reader), std::move(children));
 			table_function->alias = Identifier(table.name);
 			return std::move(table_function);
