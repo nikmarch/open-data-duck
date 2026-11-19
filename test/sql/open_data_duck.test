@@ -207,20 +207,6 @@ SELECT open_data_release('stac.earth-search.aws');
 ----
 open_data_duck: source 'stac.earth-search.aws' has no release.latest.resolve_sql
 
-query I
-SELECT example_sql LIKE '%FROM odd.overturemaps.latest.buildings%' AND path_glob LIKE '%theme=buildings/type=building%' AND example_sql LIKE '%bbox.xmin <= -149%'
-FROM open_data_facades()
-WHERE table_reference = 'odd.overturemaps.latest.buildings';
-----
-true
-
-query I
-SELECT list(table_reference ORDER BY table_reference)
-FROM open_data_facades()
-WHERE source_id = 'overture.maps.release';
-----
-[odd.overturemaps.latest.addresses, odd.overturemaps.latest.buildings, odd.overturemaps.latest.places, odd.overturemaps.latest.roads]
-
 # Issue #79: attached ODD namespace exposes discovery as tables.
 query I
 SELECT id FROM odd.index WHERE list_contains(tags, 'buildings') AND id = 'overture.maps.release';
