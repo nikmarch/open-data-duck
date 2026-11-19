@@ -623,6 +623,107 @@ sources:
       method: usgs-earthquake-feed-page
       url: https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
 
+  - id: noaa.ncei.storm-events
+    name: NOAA NCEI Storm Events bulk CSV files
+    description: Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.
+    status: candidate
+    source_type: other
+    authority: NOAA National Centers for Environmental Information
+    homepage: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+    license_url: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+    attribution: NOAA National Centers for Environmental Information, Storm Events Database; credit NOAA/NCEI and do not imply NOAA endorsement.
+    tags: [noaa, ncei, storms, weather, hazards, csv]
+    topics: [severe weather, storm reports, tornadoes, hail, wind, fatalities]
+    coverage:
+      spatial: United States and U.S. territories covered by NOAA Storm Events reports
+      temporal: annual data-year bulk CSV exports
+      grain: storm event, fatality, or event-location row depending on the selected table
+    cadence: bulk files are revised with new creation-date suffixes as NOAA/NCEI republishes each data year
+    ai:
+      summary: Official bulk file source for historical U.S. severe weather event analysis in DuckDB.
+      use_cases: [query storm events by state and event type, inspect tornado or hail reports by year, join event details to fatalities or locations]
+      caveats: [file names include both data year and NOAA creation-date suffix, latest table discovery scans the directory listing to choose the newest suffix per file family, CSV files can be large]
+      prompt_hints: [Ask for data year, event type, and state before generating SQL; pin noaa_storm_events_year for reproducible table-facade queries.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT event_id,
+               state,
+               event_type,
+               begin_date_time,
+               cz_name
+        FROM read_csv_auto(
+          'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',
+          sample_size = 20000
+        )
+        WHERE event_type IS NOT NULL
+        ORDER BY event_id
+        LIMIT 10;
+      validation_query: |
+        LOAD httpfs;
+        SELECT count(*) > 0 AS ok
+        FROM read_csv_auto(
+          'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',
+          sample_size = 20000
+        )
+        WHERE event_id IS NOT NULL
+          AND event_type IS NOT NULL;
+      examples:
+        latest_details_by_state_type: |
+          LOAD httpfs;
+          SET VARIABLE noaa_storm_events_year = '2024';
+          SELECT event_id, state, event_type, begin_date_time, cz_name
+          FROM odd.noaa.latest.storm_events_details
+          WHERE state = 'ALASKA'
+            AND event_type IS NOT NULL
+          ORDER BY begin_date_time
+          LIMIT 25;
+        latest_fatalities_by_year: |
+          LOAD httpfs;
+          SET VARIABLE noaa_storm_events_year = '2024';
+          SELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age
+          FROM odd.noaa.latest.storm_events_fatalities
+          ORDER BY fatality_date
+          LIMIT 25;
+      tables:
+        namespace: odd.noaa.latest
+        discover_sql: |
+          WITH files AS (
+            SELECT regexp_extract(m, 'StormEvents_([a-z]+)-ftp_v1\.0_d{release}_c([0-9]{8})\.csv\.gz', 1) AS table_kind,
+                   regexp_extract(m, '(StormEvents_[a-z]+-ftp_v1\.0_d{release}_c[0-9]{8}\.csv\.gz)', 1) AS file_name,
+                   regexp_extract(m, '_c([0-9]{8})\.csv\.gz', 1) AS created
+            FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'StormEvents_[a-z]+-ftp_v1\.0_d{release}_c[0-9]{8}\.csv\.gz')) AS m
+                  FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'))
+          ), latest AS (
+            SELECT table_kind, max(created) AS created
+            FROM files
+            GROUP BY table_kind
+          )
+          SELECT 'storm_events_' || files.table_kind AS name,
+                 'read_csv' AS reader,
+                 'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/' || files.file_name AS path
+          FROM files
+          JOIN latest USING (table_kind, created)
+          ORDER BY name;
+    release:
+      latest:
+        method: html-listing
+        url: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+        resolve_sql: |
+          SELECT max(regexp_extract(m, 'StormEvents_details-ftp_v1\.0_d([0-9]{4})_c[0-9]{8}\.csv\.gz', 1)) AS release
+          FROM (SELECT unnest(regexp_extract_all(content, 'StormEvents_details-ftp_v1\.0_d[0-9]{4}_c[0-9]{8}\.csv\.gz')) AS m
+                FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'));
+      pinned:
+        duckdb_setting: noaa_storm_events_year
+        example: "2024"
+    freshness:
+      method: ncei-directory-listing
+      url: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+
   - id: aws.noaa-ghcn-daily
     name: NOAA Global Historical Climatology Network Daily
     description: NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.

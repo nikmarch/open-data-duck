@@ -110,6 +110,20 @@ Official U.S. Geological Survey realtime earthquake summary feeds for recent sei
 - AI use cases: list recent earthquakes by magnitude, monitor significant events, map recent seismic activity
 - Caveats: rolling feeds are not stable historical snapshots, all_day can be empty during unusually quiet periods, event coordinates are GeoJSON point arrays with longitude latitude depth
 
+### `noaa.ncei.storm-events` — NOAA NCEI Storm Events bulk CSV files
+
+Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.
+
+- Status: `candidate`
+- Authority: NOAA National Centers for Environmental Information
+- Homepage: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+- License: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+- Tags: `noaa`, `ncei`, `storms`, `weather`, `hazards`, `csv`
+- Topics: severe weather, storm reports, tornadoes, hail, wind, fatalities
+- Cadence: bulk files are revised with new creation-date suffixes as NOAA/NCEI republishes each data year
+- AI use cases: query storm events by state and event type, inspect tornado or hail reports by year, join event details to fatalities or locations
+- Caveats: file names include both data year and NOAA creation-date suffix, latest table discovery scans the directory listing to choose the newest suffix per file family, CSV files can be large
+
 ### `aws.noaa-ghcn-daily` — NOAA Global Historical Climatology Network Daily
 
 NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.
