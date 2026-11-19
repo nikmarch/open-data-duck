@@ -36,6 +36,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             "example_sql": "SELECT *\nFROM odd.overturemaps.latest.buildings\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
             "facade_function": "open_data_overture_buildings",
             "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=buildings/type=building/*",
+            "reader": "read_parquet",
             "table_reference": "odd.overturemaps.latest.buildings"
           },
           {
@@ -43,6 +44,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             "example_sql": "SELECT *\nFROM odd.overturemaps.latest.places\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
             "facade_function": "open_data_overture_places",
             "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*",
+            "reader": "read_parquet",
             "table_reference": "odd.overturemaps.latest.places"
           },
           {
@@ -50,6 +52,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             "example_sql": "SELECT *\nFROM odd.overturemaps.latest.roads\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
             "facade_function": "open_data_overture_roads",
             "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=transportation/type=segment/*",
+            "reader": "read_parquet",
             "table_reference": "odd.overturemaps.latest.roads"
           },
           {
@@ -57,6 +60,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             "example_sql": "SELECT *\nFROM odd.overturemaps.latest.addresses\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
             "facade_function": "open_data_overture_addresses",
             "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=addresses/type=address/*",
+            "reader": "read_parquet",
             "table_reference": "odd.overturemaps.latest.addresses"
           }
         ],
@@ -220,7 +224,16 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "spatial"
         ],
-        "facades": [],
+        "facades": [
+          {
+            "description": "Generalized U.S. county boundaries (1:20m) from the latest Census cartographic boundary release.",
+            "example_sql": "LOAD spatial;\nSELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type\nFROM odd.census.latest.counties\nLIMIT 10;",
+            "facade_function": "open_data_census_counties",
+            "path_glob": "/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/cb_{release}_us_county_20m.zip/cb_{release}_us_county_20m.shp",
+            "reader": "st_read",
+            "table_reference": "odd.census.latest.counties"
+          }
+        ],
         "install": "INSTALL spatial;",
         "validation_query": "LOAD spatial;\n\nSELECT count(*) = 3222 AS ok\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp');"
       },
@@ -228,7 +241,17 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "id": "census.cartographic.county-boundaries",
       "license_url": "https://www.census.gov/data/developers/about/terms-of-service.html",
       "name": "U.S. Census cartographic county boundary files",
-      "release": {},
+      "release": {
+        "latest": {
+          "method": "html-listing",
+          "resolve_sql": "SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m\n      FROM read_text('https://www2.census.gov/geo/tiger/'));\n",
+          "url": "https://www2.census.gov/geo/tiger/"
+        },
+        "pinned": {
+          "duckdb_setting": "census_cartographic_year",
+          "example": "2025"
+        }
+      },
       "source_type": "other",
       "status": "candidate",
       "tags": [
@@ -251,7 +274,16 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "spatial"
         ],
-        "facades": [],
+        "facades": [
+          {
+            "description": "Generalized U.S. census tract boundaries (1:5m) from the latest Census cartographic boundary release.",
+            "example_sql": "LOAD spatial;\nSELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type\nFROM odd.census.latest.tracts\nWHERE STATEFP = '02'\nLIMIT 10;",
+            "facade_function": "open_data_census_tracts",
+            "path_glob": "/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/cb_{release}_us_tract_5m.zip/cb_{release}_us_tract_5m.shp",
+            "reader": "st_read",
+            "table_reference": "odd.census.latest.tracts"
+          }
+        ],
         "install": "INSTALL spatial;",
         "validation_query": "LOAD spatial;\n\nSELECT count(*) = 85187 AS ok\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp');"
       },
@@ -259,7 +291,17 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "id": "census.cartographic.tract-boundaries",
       "license_url": "https://www.census.gov/data/developers/about/terms-of-service.html",
       "name": "U.S. Census cartographic tract boundary files",
-      "release": {},
+      "release": {
+        "latest": {
+          "method": "html-listing",
+          "resolve_sql": "SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m\n      FROM read_text('https://www2.census.gov/geo/tiger/'));\n",
+          "url": "https://www2.census.gov/geo/tiger/"
+        },
+        "pinned": {
+          "duckdb_setting": "census_cartographic_year",
+          "example": "2025"
+        }
+      },
       "source_type": "other",
       "status": "candidate",
       "tags": [
@@ -336,7 +378,16 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "httpfs"
         ],
-        "facades": [],
+        "facades": [
+          {
+            "description": "GHCN-Daily station observations for the latest year file on AWS Open Data.",
+            "example_sql": "LOAD httpfs;\nSELECT id, date, element, data_value\nFROM odd.noaa.latest.ghcn_daily\nLIMIT 10;",
+            "facade_function": "open_data_noaa_ghcn_daily",
+            "path_glob": "https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/{release}.csv",
+            "reader": "read_csv",
+            "table_reference": "odd.noaa.latest.ghcn_daily"
+          }
+        ],
         "install": "INSTALL httpfs;",
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')\nLIMIT 1;"
       },
@@ -344,7 +395,17 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "id": "aws.noaa-ghcn-daily",
       "license_url": "https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily",
       "name": "NOAA Global Historical Climatology Network Daily",
-      "release": {},
+      "release": {
+        "latest": {
+          "method": "s3-listing",
+          "resolve_sql": "SELECT max(regexp_extract(m, '([0-9]{4})\\.csv', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'by_year/[0-9]{4}\\.csv')) AS m\n      FROM read_text('https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/'));\n",
+          "url": "https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/"
+        },
+        "pinned": {
+          "duckdb_setting": "noaa_ghcn_year",
+          "example": "2024"
+        }
+      },
       "source_type": "other",
       "status": "candidate",
       "tags": [

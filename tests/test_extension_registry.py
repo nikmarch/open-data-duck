@@ -71,8 +71,13 @@ def test_embedded_registry_round_trips_every_source_with_required_fields() -> No
         "example_sql": "SELECT *\nFROM odd.overturemaps.latest.buildings\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
         "facade_function": "open_data_overture_buildings",
         "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=buildings/type=building/*",
+        "reader": "read_parquet",
         "table_reference": "odd.overturemaps.latest.buildings",
     }
+    census = next(record for record in embedded["sources"] if record["id"] == "census.cartographic.county-boundaries")
+    assert census["duckdb"]["facades"][0]["reader"] == "st_read"
+    assert census["duckdb"]["facades"][0]["table_reference"] == "odd.census.latest.counties"
+    assert census["release"]["pinned"]["duckdb_setting"] == "census_cartographic_year"
     assert set(overture["duckdb"]["examples"]) >= {
         "places_bbox_direct_s3",
         "buildings_bbox_direct_s3",

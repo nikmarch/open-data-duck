@@ -57,6 +57,7 @@ def source_to_extension_dict(source: Source) -> dict[str, Any]:
                     "table_reference": str(item.get("table_reference", "")).strip(),
                     "facade_function": str(item.get("facade_function", "")).strip(),
                     "path_glob": str(item.get("path_glob", "")).strip(),
+                    "reader": str(item.get("reader", "") or "read_parquet").strip(),
                     "example_sql": str(item.get("example_sql", "")).strip(),
                     "description": str(item.get("description", "")).strip(),
                 }

@@ -412,6 +412,28 @@ sources:
           FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')
           WHERE STATEFP = '02'
           ORDER BY GEOID;
+      facades:
+        - table_reference: odd.census.latest.counties
+          facade_function: open_data_census_counties
+          reader: st_read
+          path_glob: /vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/cb_{release}_us_county_20m.zip/cb_{release}_us_county_20m.shp
+          description: Generalized U.S. county boundaries (1:20m) from the latest Census cartographic boundary release.
+          example_sql: |
+            LOAD spatial;
+            SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
+            FROM odd.census.latest.counties
+            LIMIT 10;
+    release:
+      latest:
+        method: html-listing
+        url: https://www2.census.gov/geo/tiger/
+        resolve_sql: |
+          SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release
+          FROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m
+                FROM read_text('https://www2.census.gov/geo/tiger/'));
+      pinned:
+        duckdb_setting: census_cartographic_year
+        example: "2025"
     freshness:
       method: census-cartographic-boundary-files-page
       url: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
@@ -463,6 +485,29 @@ sources:
           WHERE STATEFP = '02'
           ORDER BY GEOID
           LIMIT 25;
+      facades:
+        - table_reference: odd.census.latest.tracts
+          facade_function: open_data_census_tracts
+          reader: st_read
+          path_glob: /vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/cb_{release}_us_tract_5m.zip/cb_{release}_us_tract_5m.shp
+          description: Generalized U.S. census tract boundaries (1:5m) from the latest Census cartographic boundary release.
+          example_sql: |
+            LOAD spatial;
+            SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
+            FROM odd.census.latest.tracts
+            WHERE STATEFP = '02'
+            LIMIT 10;
+    release:
+      latest:
+        method: html-listing
+        url: https://www2.census.gov/geo/tiger/
+        resolve_sql: |
+          SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release
+          FROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m
+                FROM read_text('https://www2.census.gov/geo/tiger/'));
+      pinned:
+        duckdb_setting: census_cartographic_year
+        example: "2025"
     freshness:
       method: census-cartographic-boundary-files-page
       url: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
@@ -584,6 +629,28 @@ sources:
         SELECT count(*) > 0 AS ok
         FROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')
         LIMIT 1;
+      facades:
+        - table_reference: odd.noaa.latest.ghcn_daily
+          facade_function: open_data_noaa_ghcn_daily
+          reader: read_csv
+          path_glob: https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/{release}.csv
+          description: GHCN-Daily station observations for the latest year file on AWS Open Data.
+          example_sql: |
+            LOAD httpfs;
+            SELECT id, date, element, data_value
+            FROM odd.noaa.latest.ghcn_daily
+            LIMIT 10;
+    release:
+      latest:
+        method: s3-listing
+        url: https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/
+        resolve_sql: |
+          SELECT max(regexp_extract(m, '([0-9]{4})\.csv', 1)) AS release
+          FROM (SELECT unnest(regexp_extract_all(content, 'by_year/[0-9]{4}\.csv')) AS m
+                FROM read_text('https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/'));
+      pinned:
+        duckdb_setting: noaa_ghcn_year
+        example: "2024"
     freshness:
       method: aws-open-data-s3-prefix
       url: https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/&max-keys=5

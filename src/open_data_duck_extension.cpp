@@ -34,6 +34,8 @@ struct OpenDataFacade {
 	string table_reference;
 	string facade_function;
 	string path_glob;
+	//! DuckDB table function that reads path_glob (read_parquet, read_csv, read_json, st_read).
+	string reader;
 	string example_sql;
 	string description;
 };
@@ -103,6 +105,10 @@ static vector<OpenDataFacade> JsonFacades(const JSONValue &duckdb_value) {
 		facade.table_reference = JsonString(item, "table_reference");
 		facade.facade_function = JsonString(item, "facade_function");
 		facade.path_glob = JsonString(item, "path_glob");
+		facade.reader = Stripped(JsonString(item, "reader"));
+		if (facade.reader.empty()) {
+			facade.reader = "read_parquet";
+		}
 		facade.example_sql = JsonString(item, "example_sql");
 		facade.description = JsonString(item, "description");
 		if (!facade.table_reference.empty() && !facade.path_glob.empty()) {
@@ -491,8 +497,8 @@ struct OpenDataFacadesGlobalState : public GlobalTableFunctionState {
 
 static unique_ptr<FunctionData> OpenDataFacadesBind(ClientContext &context, TableFunctionBindInput &input,
                                                     vector<LogicalType> &return_types, vector<Identifier> &names) {
-	const char *varchar_columns[] = {"source_id", "table_reference", "facade_function", "path_glob", "example_sql",
-	                                 "description"};
+	const char *varchar_columns[] = {"source_id", "table_reference", "facade_function", "path_glob",
+	                                 "reader",    "example_sql",     "description"};
 	for (auto column : varchar_columns) {
 		names.emplace_back(column);
 		return_types.emplace_back(LogicalType::VARCHAR);
@@ -523,6 +529,7 @@ static void OpenDataFacadesScan(ClientContext &context, TableFunctionInput &data
 		output.data[col++].Append(Value(facade.table_reference));
 		output.data[col++].Append(Value(facade.facade_function));
 		output.data[col++].Append(Value(facade.path_glob));
+		output.data[col++].Append(Value(facade.reader));
 		output.data[col++].Append(Value(facade.example_sql));
 		output.data[col++].Append(Value(facade.description));
 		count++;
@@ -562,8 +569,10 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<FunctionArgument> children;
 	children.emplace_back(ConstantExpression::String(path_glob));
-	children.emplace_back(Identifier("hive_partitioning"), ConstantExpression::Boolean(true));
-	table_function->function = make_uniq<FunctionExpression>(Identifier("read_parquet"), std::move(children));
+	if (facade->reader == "read_parquet") {
+		children.emplace_back(Identifier("hive_partitioning"), ConstantExpression::Boolean(true));
+	}
+	table_function->function = make_uniq<FunctionExpression>(Identifier(facade->reader), std::move(children));
 	table_function->alias = Identifier(facade->facade_function.empty() ? table_name : facade->facade_function);
 	return std::move(table_function);
 }

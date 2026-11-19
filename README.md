@@ -172,7 +172,13 @@ Implemented native functions:
 - `open_data_validation_sql(id)`
 - `open_data_release(id)`
 
-The first table-like facade is an Overture replacement scan for `odd.overturemaps.latest.buildings`, with the same pattern exposed for places, roads, and addresses.
+The first table-like facade is an Overture replacement scan for `odd.overturemaps.latest.buildings`, with the same pattern exposed for places, roads, and addresses. Each facade declares its DuckDB `reader` (`read_parquet` by default, or `read_csv`, `read_json`, `st_read`), so the same `{release}` resolution covers other release-versioned sources:
+
+| table reference | reader | pin variable |
+| --- | --- | --- |
+| `odd.overturemaps.latest.{buildings,places,roads,addresses}` | `read_parquet` | `overture_release` |
+| `odd.census.latest.counties`, `odd.census.latest.tracts` | `st_read` (needs `LOAD spatial`) | `census_cartographic_year` |
+| `odd.noaa.latest.ghcn_daily` | `read_csv` | `noaa_ghcn_year` |
 
 ## Temporary custom extension repository
 

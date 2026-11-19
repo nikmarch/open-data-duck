@@ -67,6 +67,7 @@
                   "table_reference": { "type": "string" },
                   "facade_function": { "type": "string" },
                   "path_glob": { "type": "string" },
+                  "reader": { "enum": ["read_parquet", "read_csv", "read_json", "st_read"] },
                   "example_sql": { "type": "string" },
                   "description": { "type": "string" }
                 }
