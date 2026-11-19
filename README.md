@@ -66,9 +66,16 @@ LOAD open_data_duck;
 -- The extension resolves ODD table references with a replacement scan.
 ATTACH 'open_data_duck' AS odd;
 
--- Search the index.
+-- Search the attached index table.
 SELECT *
-FROM open_data_search('building');
+FROM odd.index
+WHERE list_contains(tags, 'buildings')
+   OR name ILIKE '%building%';
+
+-- Inspect only queryable data tables.
+SELECT table_reference, path_glob
+FROM odd.tables
+WHERE table_reference = 'odd.overturemaps.latest.buildings';
 
 -- Query the matched table through an ODD table facade.
 SELECT *
@@ -80,7 +87,7 @@ WHERE bbox.xmin <= -149
 LIMIT 10;
 ```
 
-`open_data_search('building')` returns the queryable reference `odd.overturemaps.latest.buildings`. The native extension resolves that reference with a replacement scan into DuckDB's `read_parquet` reader for Overture's public S3 release files. Keep bbox filters tight; Overture tables are large.
+`odd.index` is the SQL-searchable catalog. It returns queryable references such as `odd.overturemaps.latest.buildings`. The native extension resolves those references with replacement scans into DuckDB readers. Keep bbox filters tight; Overture tables are large.
 
 ## Current pre-community behavior
 
@@ -135,6 +142,8 @@ LOAD './open_data_duck.duckdb_extension';
 SELECT id, name, status FROM open_data_sources();
 SELECT id, name, table_reference FROM open_data_search('building');
 SELECT table_reference, path_glob FROM open_data_facades();
+SELECT id, name, table_reference FROM odd.index WHERE list_contains(tags, 'buildings');
+SELECT table_reference, path_glob FROM odd.tables;
 SELECT open_data_sql('overture.maps.release');
 SELECT open_data_validation_sql('overture.maps.release');
 ```

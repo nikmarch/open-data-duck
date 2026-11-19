@@ -39,7 +39,7 @@
     <section class="api-preview" id="plugin-api" aria-labelledby="plugin-api-title">
       <div class="api-copy">
         <p class="eyebrow">Plugin API direction</p>
-        <h2 id="plugin-api-title">Ask the index for a topic. Then query the table facade.</h2>
+        <h2 id="plugin-api-title">Attach once. Search the catalog table. Query the facade table.</h2>
         <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker. The native extension resolves ODD table references with a replacement scan.</p>
       </div>
 
@@ -50,10 +50,12 @@ LOAD open_data_duck;
 ATTACH 'open_data_duck' AS odd;
 
 SELECT *
-FROM open_data_search('building');
+FROM odd.index
+WHERE list_contains(tags, 'buildings')
+   OR name ILIKE '%building%';
 
 SELECT table_reference, path_glob
-FROM open_data_facades()
+FROM odd.tables
 WHERE table_reference = 'odd.overturemaps.latest.buildings';
 
 SELECT *
