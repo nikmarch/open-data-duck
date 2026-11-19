@@ -56,7 +56,7 @@ def render_release_notes(release_tag: str) -> str:
 
         curl --fail --location --show-error \\
           --output open_data_duck.duckdb_extension \\
-          https://git\hub.com/{REPO}/releases/download/\${{release_tag}}/open_data_duck-{DUCKDB_VERSION}-\${{platform}}.duckdb_extension
+          \$(printf %s https://git hub .com/{REPO}/releases/download/\${{release_tag}}/open_data_duck-{DUCKDB_VERSION}-\${{platform}}.duckdb_extension)
 
         xattr -dr com.apple.quarantine open_data_duck.duckdb_extension 2>/dev/null || true
         codesign --force --deep --sign - open_data_duck.duckdb_extension 2>/dev/null || true

@@ -33,9 +33,10 @@ def test_release_notes_are_copy_pasteable_for_the_requested_tag() -> None:
     assert "repo=" not in rendered
     assert "asset=" not in rendered
     assert "asset_url=" not in rendered
-    assert "https://git\\hub.com/nikmarch/open-data-duck/releases/download/" in rendered
+    assert "\\$(printf %s https://git hub .com/nikmarch/open-data-duck/releases/download/" in rendered
     assert "open_data_duck-v2.0.0-\\${platform}.duckdb_extension" in rendered
     assert "github.com" not in rendered
+    assert "hub.com" not in rendered
     assert "<https://" not in rendered
     assert "“" not in rendered
     assert "”" not in rendered
@@ -108,24 +109,28 @@ def test_precommunity_workflow_generates_release_notes_from_the_requested_tag() 
 
 def test_readme_keeps_user_first_install_guidance() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    install_block_match = re.search(r"```bash\n(.*?)\n```", readme, re.S)
+    assert install_block_match is not None
+    install_block = install_block_match.group(1)
 
     assert "copy the install block from that release's notes" in readme
-    assert "release_tag=v0.1.0" in readme
+    assert "release_tag=v0.1.0" in install_block
     assert "release_tag=v0.1.0-pre.1" not in readme
-    assert "bash <<BASH" in readme
-    assert "bash <<'BASH'" not in readme
-    assert readme.index("bash <<BASH") < readme.index("set -euo pipefail")
-    assert "duckdb_version=" not in readme
-    assert "host=" not in readme
-    assert "repo=" not in readme
-    assert "asset=" not in readme
-    assert "asset_url=" not in readme
-    assert "https://git\\hub.com/nikmarch/open-data-duck/releases/download/" in readme
-    assert "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}" not in readme
-    assert "<https://" not in readme
-    assert "open_data_duck.duckdb_extension" in readme
-    assert "unsupported platform" in readme
-    assert "duckdb -unsigned :memory:" in readme
+    assert "bash <<BASH" in install_block
+    assert "bash <<'BASH'" not in install_block
+    assert install_block.index("bash <<BASH") < install_block.index("set -euo pipefail")
+    assert "duckdb_version=" not in install_block
+    assert "host=" not in install_block
+    assert "repo=" not in install_block
+    assert "asset=" not in install_block
+    assert "asset_url=" not in install_block
+    assert "\\$(printf %s https://git hub .com/nikmarch/open-data-duck/releases/download/" in install_block
+    assert "github.com" not in install_block
+    assert "hub.com" not in install_block
+    assert "<https://" not in install_block
+    assert "open_data_duck.duckdb_extension" in install_block
+    assert "unsupported platform" in install_block
+    assert "duckdb -unsigned :memory:" in install_block
     assert "open_data_duck: pong" in readme
     assert "Use `INSTALL open_data_duck FROM community;` only after" in readme
 
