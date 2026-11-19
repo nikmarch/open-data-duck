@@ -100,7 +100,8 @@ def test_readme_describes_unsigned_extension_artifacts() -> None:
     assert "--output open_data_duck.duckdb_extension" in readme
     assert "xattr -dr com.apple.quarantine open_data_duck.duckdb_extension" in readme
     assert "codesign --force --deep --sign - open_data_duck.duckdb_extension" in readme
-    assert "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}/open_data_duck-${duckdb_version}-${platform}.duckdb_extension" in readme
+    assert "${asset}" in readme
+    assert "https://${host}/${repo}/releases/download/${release_tag}/${asset}" in readme
     assert "https://nikmarch.github.io/open-data-duck/extensions" in readme
     assert "v2.0.0/osx_arm64/open_data_duck.duckdb_extension.gz" in readme
     assert "open_data_duck.duckdb_extension.gz" in readme
