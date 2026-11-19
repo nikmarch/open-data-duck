@@ -10,7 +10,9 @@ It does not mirror datasets; it maps friendly table names to authoritative publi
 
 ## Quick start: install the pre-community extension
 
-The extension is not in DuckDB community yet. Use DuckDB v2.0.0 with unsigned extensions enabled.
+Open Data Duck is not in DuckDB community extensions yet. For normal use, open the [latest GitHub release](https://github.com/nikmarch/open-data-duck/releases) and copy the install block from that release's notes. Each release page carries its own tag, so the command installs the release you are reading.
+
+Current public prerelease:
 
 ```bash
 set -euo pipefail
@@ -23,9 +25,7 @@ case "$(uname -s)-$(uname -m)" in
   *) echo "unsupported platform: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
 esac
 
-rm -f open_data_duck.duckdb_extension
-
-curl --fail --location \
+curl --fail --location --show-error \
   --output open_data_duck.duckdb_extension \
   "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}/open_data_duck-${duckdb_version}-${platform}.duckdb_extension"
 
@@ -39,21 +39,16 @@ SELECT count(*) > 0 FROM open_data_sources();
 SQL
 ```
 
-Expected output:
+Expected output includes:
 
 ```text
 open_data_duck: pong
 true
 ```
 
-Important: the GitHub release asset is versioned, but the local filename must be the canonical local filename `open_data_duck.duckdb_extension`. DuckDB derives the entrypoint name from the local filename. Loading `open_data_duck-v2.0.0-<platform>.duckdb_extension` directly will fail.
+The downloaded file is saved as `open_data_duck.duckdb_extension` on purpose. DuckDB derives the extension entrypoint name from the local filename; loading the versioned asset filename directly can fail.
 
-Each GitHub prerelease asset is DuckDB-version- and platform-specific. These are temporary pre-community unsigned builds, not signed community artifacts. The Pre-community Extension Release workflow publishes:
-
-- `open_data_duck-v2.0.0-linux_amd64.duckdb_extension`
-- `open_data_duck-v2.0.0-osx_arm64.duckdb_extension`
-
-The Main Extension Distribution Pipeline also builds the CI artifact `open_data_duck-v2.0.0-extension-linux_amd64`. Install commands and release names may change while the native extension is in active current development.
+Each GitHub prerelease asset is DuckDB-version- and platform-specific. These are temporary unsigned builds, not signed community artifacts. Newer prereleases replace older ones as the recommended test build; older prereleases remain for comparison or rollback. Use `INSTALL open_data_duck FROM community;` only after the extension is accepted into DuckDB community extensions.
 
 ## Intended plugin flow
 
