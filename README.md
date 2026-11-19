@@ -63,10 +63,10 @@ This is the product shape Open Data Duck is moving toward:
 INSTALL open_data_duck;
 LOAD open_data_duck;
 
--- The extension resolves ODD table references with a replacement scan.
-ATTACH 'open_data_duck' AS odd;
+-- Attach the virtual ODD catalog.
+ATTACH 'odd' AS odd (TYPE open_data_duck);
 
--- Search the attached index table.
+-- Search the attached index view.
 SELECT *
 FROM odd.index
 WHERE list_contains(tags, 'buildings')
@@ -87,7 +87,7 @@ WHERE bbox.xmin <= -149
 LIMIT 10;
 ```
 
-`odd.index` is the SQL-searchable catalog. Each source that exposes data tables carries a `namespace` such as `odd.overturemaps.latest`. The native extension resolves `namespace.<table>` references with replacement scans into DuckDB readers. Keep bbox filters tight; Overture tables are large.
+`odd.index` is the SQL-searchable catalog view. Each source that exposes data tables carries a `namespace` such as `odd.overturemaps.latest`. The native extension exposes the catalog through `ATTACH ... (TYPE open_data_duck)` and keeps resolving `namespace.<table>` references with replacement scans into DuckDB readers. Keep bbox filters tight; Overture tables are large.
 
 ### How `latest` tables are discovered
 
