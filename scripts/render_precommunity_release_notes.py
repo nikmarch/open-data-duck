@@ -44,6 +44,7 @@ def render_release_notes(release_tag: str) -> str:
         Copy-paste this whole block from the release you want to install:
 
         ```
+        bash <<'BASH'
         set -euo pipefail
 
         release_tag="{release_tag}"
@@ -54,9 +55,14 @@ def render_release_notes(release_tag: str) -> str:
           *) echo "unsupported platform: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
         esac
 
+        host="github.com"
+        repo="{REPO}"
+        asset="open_data_duck-${{duckdb_version}}-${{platform}}.duckdb_extension"
+        asset_url="https://${{host}}/${{repo}}/releases/download/${{release_tag}}/${{asset}}"
+
         curl --fail --location --show-error \\
           --output open_data_duck.duckdb_extension \\
-          "https://github.com/{REPO}/releases/download/${{release_tag}}/open_data_duck-${{duckdb_version}}-${{platform}}.duckdb_extension"
+          "${{asset_url}}"
 
         xattr -dr com.apple.quarantine open_data_duck.duckdb_extension 2>/dev/null || true
         codesign --force --deep --sign - open_data_duck.duckdb_extension 2>/dev/null || true
@@ -66,6 +72,7 @@ def render_release_notes(release_tag: str) -> str:
         SELECT open_data_duck_ping();
         SELECT count(*) > 0 FROM open_data_sources();
         SQL
+        BASH
         ```
 
         Expected output includes:

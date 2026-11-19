@@ -19,6 +19,15 @@ def test_release_notes_are_copy_pasteable_for_the_requested_tag() -> None:
 
     assert 'release_tag="v0.1.0-pre.3"' in rendered
     assert 'release_tag="v0.1.0-pre.1"' not in rendered
+    assert "bash <<'BASH'" in rendered
+    assert rendered.index("bash <<'BASH'") < rendered.index("set -euo pipefail")
+    assert "\nBASH\n```" in rendered
+    assert 'host="github.com"' in rendered
+    assert 'repo="nikmarch/open-data-duck"' in rendered
+    assert 'asset="open_data_duck-${duckdb_version}-${platform}.duckdb_extension"' in rendered
+    assert 'asset_url="https://${host}/${repo}/releases/download/${release_tag}/${asset}"' in rendered
+    assert "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}" not in rendered
+    assert "<https://" not in rendered
     assert "open_data_duck.duckdb_extension" in rendered
     assert "unsupported platform" in rendered
     assert "duckdb -unsigned :memory:" in rendered
@@ -40,7 +49,13 @@ def test_readme_keeps_user_first_install_guidance() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "copy the install block from that release's notes" in readme
-    assert 'release_tag="v0.1.0-pre.1"' in readme
+    assert 'release_tag="v0.1.0-pre.4"' in readme
+    assert 'release_tag="v0.1.0-pre.1"' not in readme
+    assert "bash <<'BASH'" in readme
+    assert readme.index("bash <<'BASH'") < readme.index("set -euo pipefail")
+    assert 'asset_url="https://${host}/${repo}/releases/download/${release_tag}/${asset}"' in readme
+    assert "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}" not in readme
+    assert "<https://" not in readme
     assert "open_data_duck.duckdb_extension" in readme
     assert "unsupported platform" in readme
     assert "duckdb -unsigned :memory:" in readme

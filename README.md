@@ -15,9 +15,10 @@ Open Data Duck is not in DuckDB community extensions yet. For normal use, open t
 Current public prerelease:
 
 ```bash
+bash <<'BASH'
 set -euo pipefail
 
-release_tag="v0.1.0-pre.1"
+release_tag="v0.1.0-pre.4"
 duckdb_version="v2.0.0"
 case "$(uname -s)-$(uname -m)" in
   Darwin-arm64) platform="osx_arm64" ;;
@@ -25,9 +26,14 @@ case "$(uname -s)-$(uname -m)" in
   *) echo "unsupported platform: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
 esac
 
+host="github.com"
+repo="nikmarch/open-data-duck"
+asset="open_data_duck-${duckdb_version}-${platform}.duckdb_extension"
+asset_url="https://${host}/${repo}/releases/download/${release_tag}/${asset}"
+
 curl --fail --location --show-error \
   --output open_data_duck.duckdb_extension \
-  "https://github.com/nikmarch/open-data-duck/releases/download/${release_tag}/open_data_duck-${duckdb_version}-${platform}.duckdb_extension"
+  "${asset_url}"
 
 xattr -dr com.apple.quarantine open_data_duck.duckdb_extension 2>/dev/null || true
 codesign --force --deep --sign - open_data_duck.duckdb_extension 2>/dev/null || true
@@ -37,6 +43,7 @@ LOAD './open_data_duck.duckdb_extension';
 SELECT open_data_duck_ping();
 SELECT count(*) > 0 FROM open_data_sources();
 SQL
+BASH
 ```
 
 Expected output includes:
