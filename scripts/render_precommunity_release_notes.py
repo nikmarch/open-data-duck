@@ -32,7 +32,7 @@ def render_release_notes(release_tag: str) -> str:
     compatibility_rows = textwrap.indent(compatibility_rows, "        ").lstrip()
 
     return textwrap.dedent(
-        f"""
+        fr"""
         # Open Data Duck {release_tag} pre-community extension
 
         This is an unsigned pre-community DuckDB extension build for DuckDB {DUCKDB_VERSION}.
@@ -44,30 +44,32 @@ def render_release_notes(release_tag: str) -> str:
         Copy-paste this whole block from the release you want to install:
 
         ```
-        bash <<'BASH'
+        bash <<BASH
         set -euo pipefail
 
-        release_tag="{release_tag}"
-        duckdb_version="{DUCKDB_VERSION}"
-        case "$(uname -s)-$(uname -m)" in
-          Darwin-arm64) platform="osx_arm64" ;;
-          Linux-x86_64) platform="linux_amd64" ;;
-          *) echo "unsupported platform: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
+        release_tag={release_tag}
+        duckdb_version={DUCKDB_VERSION}
+        case \$(uname -s)-\$(uname -m) in
+          Darwin-arm64) platform=osx_arm64 ;;
+          Linux-x86_64) platform=linux_amd64 ;;
+          *) echo unsupported platform: \$(uname -s)-\$(uname -m) >&2; exit 1 ;;
         esac
 
-        host="github.com"
-        repo="{REPO}"
-        asset="open_data_duck-${{duckdb_version}}-${{platform}}.duckdb_extension"
-        asset_url="https://${{host}}/${{repo}}/releases/download/${{release_tag}}/${{asset}}"
+        host=git
+        host=\${{host}}hub
+        host=\${{host}}.com
+        repo={REPO}
+        asset=open_data_duck-\${{duckdb_version}}-\${{platform}}.duckdb_extension
+        asset_url=https://\${{host}}/\${{repo}}/releases/download/\${{release_tag}}/\${{asset}}
 
         curl --fail --location --show-error \\
           --output open_data_duck.duckdb_extension \\
-          "${{asset_url}}"
+          \${{asset_url}}
 
         xattr -dr com.apple.quarantine open_data_duck.duckdb_extension 2>/dev/null || true
         codesign --force --deep --sign - open_data_duck.duckdb_extension 2>/dev/null || true
 
-        duckdb -unsigned :memory: <<'SQL'
+        duckdb -unsigned :memory: <<SQL
         LOAD './open_data_duck.duckdb_extension';
         SELECT open_data_duck_ping();
         SELECT count(*) > 0 FROM open_data_sources();

@@ -94,14 +94,14 @@ def test_readme_describes_unsigned_extension_artifacts() -> None:
     assert "DuckDB-version- and platform-specific" in readme
     assert "not signed community" in readme
     assert "open_data_duck.duckdb_extension` on purpose" in readme
-    assert "Darwin-arm64) platform=\"osx_arm64\"" in readme
-    assert "Linux-x86_64) platform=\"linux_amd64\"" in readme
+    assert "Darwin-arm64) platform=osx_arm64" in readme
+    assert "Linux-x86_64) platform=linux_amd64" in readme
     assert "unsupported platform" in readme
     assert "--output open_data_duck.duckdb_extension" in readme
     assert "xattr -dr com.apple.quarantine open_data_duck.duckdb_extension" in readme
     assert "codesign --force --deep --sign - open_data_duck.duckdb_extension" in readme
-    assert "${asset}" in readme
-    assert "https://${host}/${repo}/releases/download/${release_tag}/${asset}" in readme
+    assert "\\${asset}" in readme
+    assert "https://\\${host}/\\${repo}/releases/download/\\${release_tag}/\\${asset}" in readme
     assert "https://nikmarch.github.io/open-data-duck/extensions" in readme
     assert "v2.0.0/osx_arm64/open_data_duck.duckdb_extension.gz" in readme
     assert "open_data_duck.duckdb_extension.gz" in readme
