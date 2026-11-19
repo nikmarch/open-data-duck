@@ -19,6 +19,7 @@
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/tableref.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
+#include "duckdb/planner/expression/bound_function_expression.hpp"
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
 #include <mutex>
@@ -372,11 +373,36 @@ static void OpenDataSqlFunction(DataChunk &args, ExpressionState &state, Vector 
 	});
 }
 
+// ExpressionState exposes the client context under different names across DuckDB
+// versions (GetContext() in v2.0.0, GetClientContext() on main), so capture it at bind time.
+struct OpenDataReleaseBindData : public FunctionData {
+	explicit OpenDataReleaseBindData(ClientContext &context) : context(context.shared_from_this()) {
+	}
+
+	weak_ptr<ClientContext> context;
+
+	unique_ptr<FunctionData> Copy() const override {
+		auto result = make_uniq<OpenDataReleaseBindData>(*context.lock());
+		return std::move(result);
+	}
+	bool Equals(const FunctionData &other) const override {
+		return true;
+	}
+};
+
+static unique_ptr<FunctionData> OpenDataReleaseBind(BindScalarFunctionInput &input) {
+	return make_uniq<OpenDataReleaseBindData>(input.GetClientContext());
+}
+
 static void OpenDataReleaseFunction(DataChunk &args, ExpressionState &state, Vector &result) {
-	auto &context = state.GetClientContext();
+	auto &bind_data = state.expr.Cast<BoundFunctionExpression>().BindInfo()->Cast<OpenDataReleaseBindData>();
+	auto context = bind_data.context.lock();
+	if (!context) {
+		throw InternalException("open_data_duck: open_data_release() lost its client context");
+	}
 	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t source_id) {
 		const string id = source_id.GetString();
-		return StringVector::AddString(result, ResolveRelease(context, FindSourceOrThrow(id)));
+		return StringVector::AddString(result, ResolveRelease(*context, FindSourceOrThrow(id)));
 	});
 }
 
@@ -665,7 +691,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 
 	// Release a `latest` table resolves to: pinned variable, else cached release.latest.resolve_sql.
 	ScalarFunction open_data_release("open_data_release", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
-	                                 OpenDataReleaseFunction);
+	                                 OpenDataReleaseFunction, OpenDataReleaseBind);
 	open_data_release.SetFallible();
 	loader.RegisterFunction(open_data_release);
 
