@@ -247,6 +247,20 @@ uv run odd index
 uv run odd index --format json
 ```
 
+Render a local Overture spatial-query map from a pre-community release:
+
+```bash
+scripts/render_spatial_map.py \
+  --lat 61.60757040082204 \
+  --lon -149.38067090928263 \
+  --radius-m 100 \
+  --limit 5 \
+  --release-tag v0.1.0-pre.3 \
+  --output /tmp/odd-spatial-map.png
+```
+
+The helper downloads DuckDB v2.0.0 plus the selected `open_data_duck` release asset, resolves the Overture release through ODD, runs bounded spatial queries, and writes both a PNG map and a Markdown report.
+
 Optional network smoke tests:
 
 ```bash
