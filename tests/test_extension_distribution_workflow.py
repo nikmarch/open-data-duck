@@ -40,22 +40,35 @@ def test_precommunity_release_workflow_publishes_smoked_release_assets() -> None
 
     assert "workflow_dispatch:" in workflow
     assert "release_tag:" in workflow
+    assert "create_tag:" in workflow
+    assert "target_ref:" in workflow
+    assert "update_existing:" in workflow
+    assert "Validate release request and tag" in workflow
+    assert "gh api \"repos/${GITHUB_REPOSITORY}/git/refs\"" in workflow
+    assert "refs/tags/${RELEASE_TAG}" in workflow
+    assert "release_tag must look like" in workflow
+    assert "Set update_existing=true" in workflow
+    assert "target_ref ${TARGET_REF} resolves to" in workflow
     assert "tags:" in workflow
     assert "duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera" in workflow
+    assert "needs: prepare-release" in workflow
     assert "open_data_duck-v2.0.0-extension-*" in workflow
     assert "open_data_duck-v2.0.0-extension-linux_amd64" in workflow
     assert "osx_arm64" in workflow
     assert "${EXTENSION_NAME}-${DUCKDB_VERSION}-${platform}.duckdb_extension" in workflow
     assert "SHA256SUMS.txt" in workflow
     assert "actions/checkout@v4" in workflow
+    assert "ref: ${{ needs.prepare-release.outputs.target_sha }}" in workflow
     assert "./duckdb -unsigned -noheader -csv :memory:" in workflow
     assert "scripts/render_precommunity_release_notes.py \"${RELEASE_TAG}\"" in workflow
     assert 'release_tag="v0.1.0-pre.1"' not in workflow
     assert "gh release edit" in workflow
     assert "gh release create" in workflow
     assert "gh release upload" in workflow
-    assert "--prerelease" in workflow
-    assert "--draft" in workflow
+    assert "--verify-tag" in workflow
+    assert "--prerelease=true" in workflow
+    assert "--draft=true" in workflow
+    assert "--draft=false" in workflow
 
 
 def test_pages_workflow_publishes_custom_extension_repository() -> None:
@@ -96,3 +109,9 @@ def test_readme_describes_unsigned_extension_artifacts() -> None:
     assert "duckdb -unsigned :memory:" in readme
     assert "allow_unsigned_extensions" in readme
     assert "INSTALL open_data_duck FROM community" in readme
+    assert "## Release from GitHub Actions" in readme
+    assert "Pre-community Extension Release" in readme
+    assert "create_tag=true" in readme
+    assert "draft=false" in readme
+    assert "update_existing=true" in readme
+    assert "one-copy-paste install block" in readme
