@@ -1,0 +1,76 @@
+# name: test/sql/open_data_duck_network.test
+# description: table discovery and data facades against the public endpoints
+# group: [sql]
+
+require open_data_duck
+
+require httpfs
+
+require json
+
+require parquet
+
+require-env ODD_DUCKDB_NETWORK_TESTS
+
+# Discovery runs release.latest.resolve_sql + duckdb.tables.discover_sql once per
+# source@release and caches the rows for the rest of the process.
+query I
+SELECT open_data_release('overture.maps.release') SIMILAR TO '[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+';
+----
+true
+
+query II
+SELECT table_reference, reader
+FROM odd.tables
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.noaa.latest.ghcn_daily')
+ORDER BY table_reference;
+----
+odd.census.latest.county_20m	st_read
+odd.noaa.latest.ghcn_daily	read_csv
+odd.overturemaps.latest.building	read_parquet
+odd.overturemaps.latest.place	read_parquet
+
+query I
+SELECT path LIKE 's3://overturemaps-us-west-2/release/' || release || '/theme=buildings/type=building/*'
+FROM open_data_tables()
+WHERE table_reference = 'odd.overturemaps.latest.building';
+----
+true
+
+query I
+SELECT count(*) >= 15 FROM odd.tables WHERE source_id = 'overture.maps.release';
+----
+true
+
+# Pinning changes which release is discovered.
+statement ok
+SET VARIABLE overture_release = '2026-10-21.0';
+
+query I
+SELECT path FROM odd.tables WHERE table_reference = 'odd.overturemaps.latest.place';
+----
+s3://overturemaps-us-west-2/release/2026-10-21.0/theme=places/type=place/*
+
+statement ok
+RESET VARIABLE overture_release;
+
+# The data facade binds reader(path) through the replacement scan.
+statement ok
+SET s3_region = 'us-west-2';
+
+query I
+SELECT count(*) > 0
+FROM odd.overturemaps.latest.place
+WHERE bbox.xmin <= -149 AND bbox.xmax >= -150 AND bbox.ymin <= 61 AND bbox.ymax >= 60;
+----
+true
+
+query I
+SELECT count(*) > 0 FROM odd.noaa.latest.ghcn_daily LIMIT 1;
+----
+true
+
+statement error
+SELECT * FROM odd.overturemaps.latest.not_a_collection;
+----
+open_data_duck: no table 'not_a_collection' under odd.overturemaps.latest

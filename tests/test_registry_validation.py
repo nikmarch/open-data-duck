@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import importlib
+import re
 
 import pytest
 import yaml
@@ -319,10 +320,18 @@ def test_overture_source_family_has_release_modes_and_core_examples() -> None:
     source = next(source for source in registry["sources"] if source["id"] == "overture.maps.release")
 
     assert source["status"] == "candidate"
-    assert source["release"]["latest"] == {
-        "method": "release-calendar",
-        "url": "https://docs.overturemaps.org/release-calendar/",
-    }
+    latest = source["release"]["latest"]
+    assert latest["method"] == "stac-catalog"
+    assert latest["url"] == "https://stac.overturemaps.org/catalog.json"
+    # The extension runs this snippet once per process to resolve `latest`, then caches it.
+    assert "https://stac.overturemaps.org/catalog.json" in latest["resolve_sql"]
+    assert "latest" in latest["resolve_sql"]
+    tables = source["duckdb"]["tables"]
+    assert tables["namespace"] == "odd.overturemaps.latest"
+    # Overture tables are discovered from the release's STAC collections, never listed by hand.
+    assert "https://stac.overturemaps.org/{release}/collections.parquet" in tables["discover_sql"]
+    assert "s3://overturemaps" not in tables["discover_sql"]
+    assert "facades" not in source["duckdb"]
     assert source["release"]["pinned"] == {
         "duckdb_setting": "overture_release",
         "s3_base_setting": "overture_s3_base",
@@ -578,3 +587,36 @@ def test_cli_sql_exits_nonzero_for_unknown_source(
 
     assert exit_code == 1
     assert "Source not found: missing.source" in capsys.readouterr().out
+
+
+LATEST_TABLES = {
+    "overture.maps.release": ("overture_release", "odd.overturemaps.latest"),
+    "census.cartographic.county-boundaries": ("census_cartographic_year", "odd.census.latest"),
+    "census.cartographic.tract-boundaries": ("census_cartographic_year", "odd.census.latest"),
+    "aws.noaa-ghcn-daily": ("noaa_ghcn_year", "odd.noaa.latest"),
+}
+
+
+def test_release_versioned_sources_declare_resolve_sql_and_table_discovery() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    by_id = {source["id"]: source for source in registry["sources"]}
+
+    for source_id, (pin_variable, namespace) in LATEST_TABLES.items():
+        source = by_id[source_id]
+        latest = source["release"]["latest"]
+        assert latest["resolve_sql"].strip(), source_id
+        assert latest["url"] in latest["resolve_sql"], source_id
+        assert source["release"]["pinned"]["duckdb_setting"] == pin_variable
+        tables = source["duckdb"]["tables"]
+        assert tables["namespace"] == namespace
+        assert re.fullmatch(r"odd\.[a-z0-9_]+\.[a-z0-9_]+", tables["namespace"])
+        assert "{release}" in tables["discover_sql"], source_id
+        # Contract consumed by the extension: one row per table.
+        assert re.search(r"\bAS name\b", tables["discover_sql"]), source_id
+        assert re.search(r"\bAS reader\b", tables["discover_sql"]), source_id
+        assert re.search(r"\bAS path\b", tables["discover_sql"]), source_id
+
+    for source in registry["sources"]:
+        assert "facades" not in source["duckdb"], source["id"]
+        if "tables" in source["duckdb"]:
+            assert "release" in source, source["id"]

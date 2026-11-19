@@ -30,37 +30,11 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "httpfs"
         ],
-        "facades": [
-          {
-            "description": "Global building footprints from Overture Maps releases.",
-            "example_sql": "SELECT *\nFROM odd.overturemaps.latest.buildings\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
-            "facade_function": "open_data_overture_buildings",
-            "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=buildings/type=building/*",
-            "table_reference": "odd.overturemaps.latest.buildings"
-          },
-          {
-            "description": "Global places and points of interest from Overture Maps releases.",
-            "example_sql": "SELECT *\nFROM odd.overturemaps.latest.places\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
-            "facade_function": "open_data_overture_places",
-            "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=places/type=place/*",
-            "table_reference": "odd.overturemaps.latest.places"
-          },
-          {
-            "description": "Global road and transportation segments from Overture Maps releases.",
-            "example_sql": "SELECT *\nFROM odd.overturemaps.latest.roads\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
-            "facade_function": "open_data_overture_roads",
-            "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=transportation/type=segment/*",
-            "table_reference": "odd.overturemaps.latest.roads"
-          },
-          {
-            "description": "Global address points from Overture Maps releases.",
-            "example_sql": "SELECT *\nFROM odd.overturemaps.latest.addresses\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
-            "facade_function": "open_data_overture_addresses",
-            "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=addresses/type=address/*",
-            "table_reference": "odd.overturemaps.latest.addresses"
-          }
-        ],
         "install": "INSTALL httpfs;",
+        "tables": {
+          "discover_sql": "SELECT collection AS name,\n       'read_parquet' AS reader,\n       regexp_replace(regexp_replace(min(assets.aws.href), '^https://([^.]+)\\.s3\\.[^/]+/', 's3://\\1/'), '/part-[^/]+$', '/*') AS path\nFROM read_parquet('https://stac.overturemaps.org/{release}/collections.parquet')\nGROUP BY collection;",
+          "namespace": "odd.overturemaps.latest"
+        },
         "validation_query": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT count(*) >= 0 AS small_bbox_query_ok\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',\n  hive_partitioning = true\n)\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 1;"
       },
       "homepage": "https://docs.overturemaps.org/getting-data/",
@@ -69,8 +43,9 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "name": "Overture Maps source family",
       "release": {
         "latest": {
-          "method": "release-calendar",
-          "url": "https://docs.overturemaps.org/release-calendar/"
+          "method": "stac-catalog",
+          "resolve_sql": "SELECT regexp_extract(l.href, '/([0-9]{4}-[0-9]{2}-[0-9]{2}\\.[0-9]+)/catalog\\.json$', 1) AS release\nFROM (SELECT unnest(links) AS l FROM read_json('https://stac.overturemaps.org/catalog.json'))\nWHERE l.rel = 'child' AND l.latest;\n",
+          "url": "https://stac.overturemaps.org/catalog.json"
         },
         "pinned": {
           "duckdb_setting": "overture_release",
@@ -101,8 +76,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "spatial",
           "stac"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;\nINSTALL spatial;\nINSTALL stac FROM community;",
+        "tables": {},
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM STAC_Collections('https://earth-search.aws.element84.com/v1');"
       },
       "homepage": "https://earth-search.aws.element84.com/v1",
@@ -131,8 +106,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "spatial",
           "stac"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;\nINSTALL spatial;\nINSTALL stac FROM community;",
+        "tables": {},
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM STAC_Collections('https://planetarycomputer.microsoft.com/api/stac/v1');"
       },
       "homepage": "https://planetarycomputer.microsoft.com/catalog",
@@ -161,8 +136,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "spatial",
           "stac"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;\nINSTALL spatial;\nINSTALL stac FROM community;",
+        "tables": {},
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM STAC_Collections('https://cmr.earthdata.nasa.gov/stac/LPCLOUD/');"
       },
       "homepage": "https://cmr.earthdata.nasa.gov/stac/LPCLOUD/",
@@ -189,8 +164,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "arcgis"
         ],
-        "facades": [],
         "install": "-- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.\n-- Current releases install from unsigned exact-version binaries.\n-- Open DuckDB with allow_unsigned_extensions before installing a release file.",
+        "tables": {},
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM arcgis_query('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1');"
       },
       "homepage": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer",
@@ -219,15 +194,28 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "spatial"
         ],
-        "facades": [],
         "install": "INSTALL spatial;",
+        "tables": {
+          "discover_sql": "SELECT regexp_extract(z, 'cb_{release}_us_(.+)\\.zip', 1) AS name,\n       'st_read' AS reader,\n       '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/' || z || '/' || replace(z, '.zip', '.shp') AS path\nFROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'cb_{release}_us_county[a-z0-9_]*\\.zip')) AS z\n      FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));",
+          "namespace": "odd.census.latest"
+        },
         "validation_query": "LOAD spatial;\n\nSELECT count(*) = 3222 AS ok\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp');"
       },
       "homepage": "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html",
       "id": "census.cartographic.county-boundaries",
       "license_url": "https://www.census.gov/data/developers/about/terms-of-service.html",
       "name": "U.S. Census cartographic county boundary files",
-      "release": {},
+      "release": {
+        "latest": {
+          "method": "html-listing",
+          "resolve_sql": "SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m\n      FROM read_text('https://www2.census.gov/geo/tiger/'));\n",
+          "url": "https://www2.census.gov/geo/tiger/"
+        },
+        "pinned": {
+          "duckdb_setting": "census_cartographic_year",
+          "example": "2025"
+        }
+      },
       "source_type": "other",
       "status": "candidate",
       "tags": [
@@ -250,15 +238,28 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "spatial"
         ],
-        "facades": [],
         "install": "INSTALL spatial;",
+        "tables": {
+          "discover_sql": "SELECT regexp_extract(z, 'cb_{release}_us_(.+)\\.zip', 1) AS name,\n       'st_read' AS reader,\n       '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/' || z || '/' || replace(z, '.zip', '.shp') AS path\nFROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'cb_{release}_us_tract[a-z0-9_]*\\.zip')) AS z\n      FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));",
+          "namespace": "odd.census.latest"
+        },
         "validation_query": "LOAD spatial;\n\nSELECT count(*) = 85187 AS ok\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp');"
       },
       "homepage": "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html",
       "id": "census.cartographic.tract-boundaries",
       "license_url": "https://www.census.gov/data/developers/about/terms-of-service.html",
       "name": "U.S. Census cartographic tract boundary files",
-      "release": {},
+      "release": {
+        "latest": {
+          "method": "html-listing",
+          "resolve_sql": "SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m\n      FROM read_text('https://www2.census.gov/geo/tiger/'));\n",
+          "url": "https://www2.census.gov/geo/tiger/"
+        },
+        "pinned": {
+          "duckdb_setting": "census_cartographic_year",
+          "example": "2025"
+        }
+      },
       "source_type": "other",
       "status": "candidate",
       "tags": [
@@ -279,8 +280,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "arcgis"
         ],
-        "facades": [],
         "install": "-- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.\n-- Current releases install from unsigned exact-version binaries.\n-- Open DuckDB with allow_unsigned_extensions before installing a release file.",
+        "tables": {},
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM arcgis_query('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28');"
       },
       "homepage": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer",
@@ -307,8 +308,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "arcgis"
         ],
-        "facades": [],
         "install": "-- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.\n-- Current releases install from unsigned exact-version binaries.\n-- Open DuckDB with allow_unsigned_extensions before installing a release file.",
+        "tables": {},
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM arcgis_query('https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2');"
       },
       "homepage": "https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer",
@@ -335,15 +336,28 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "httpfs"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;",
+        "tables": {
+          "discover_sql": "SELECT 'ghcn_daily' AS name,\n       'read_csv' AS reader,\n       'https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/{release}.csv' AS path;",
+          "namespace": "odd.noaa.latest"
+        },
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')\nLIMIT 1;"
       },
       "homepage": "https://registry.opendata.aws/noaa-ghcn/",
       "id": "aws.noaa-ghcn-daily",
       "license_url": "https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily",
       "name": "NOAA Global Historical Climatology Network Daily",
-      "release": {},
+      "release": {
+        "latest": {
+          "method": "s3-listing",
+          "resolve_sql": "SELECT max(regexp_extract(m, '([0-9]{4})\\.csv', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'by_year/[0-9]{4}\\.csv')) AS m\n      FROM read_text('https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/'));\n",
+          "url": "https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/"
+        },
+        "pinned": {
+          "duckdb_setting": "noaa_ghcn_year",
+          "example": "2024"
+        }
+      },
       "source_type": "other",
       "status": "candidate",
       "tags": [
@@ -364,8 +378,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "httpfs"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;",
+        "tables": {},
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM read_csv_auto('https://noaa-gsod-pds.s3.amazonaws.com/2024/01001099999.csv');"
       },
       "homepage": "https://registry.opendata.aws/noaa-gsod/",
@@ -393,8 +407,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "httpfs"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;",
+        "tables": {},
         "validation_query": "SELECT count(*) > 0 AS ok\nFROM read_csv_auto('https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv');"
       },
       "homepage": "https://registry.opendata.aws/noaa-isd/",
@@ -422,8 +436,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "httpfs"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;",
+        "tables": {},
         "validation_query": "LOAD httpfs;\nSELECT count(*) > 0 AS ok\nFROM read_csv_auto('https://data.gov.au/data/dataset/ff0b0b45-e772-4835-9525-a6d7e20ea93d/resource/eef6a84b-ad44-446f-9cf9-fb5d135e3123/download/wyndhamcatdogslist.csv');"
       },
       "homepage": "https://data.gov.au/data/dataset/wyndham-registered-dogs-catscsv",
@@ -453,8 +467,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "httpfs"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;",
+        "tables": {},
         "validation_query": "LOAD httpfs;\nSELECT count(*) > 0 AS ok\nFROM read_csv_auto('https://data.cityofnewyork.us/resource/erm2-nwe9.csv?$select=unique_key&$order=unique_key&$limit=1');"
       },
       "homepage": "https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2020-to-Present/erm2-nwe9",
@@ -484,8 +498,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "extensions": [
           "httpfs"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;",
+        "tables": {},
         "validation_query": "LOAD httpfs;\nSELECT count(*) > 0 AS ok\nFROM read_csv_auto('https://data.cdc.gov/resource/swc5-untb.csv?$select=locationid&$order=locationid&$limit=1');"
       },
       "homepage": "https://data.cdc.gov/d/swc5-untb",
@@ -517,8 +531,8 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "httpfs",
           "spatial"
         ],
-        "facades": [],
         "install": "INSTALL httpfs;\nINSTALL spatial;",
+        "tables": {},
         "validation_query": "LOAD httpfs;\n\nSELECT count(*) > 0 AS ok\nFROM read_parquet('https://data.source.coop/vida/google-microsoft-open-buildings/geoparquet/by_country/country_iso=AND/AND.parquet');"
       },
       "homepage": "https://source.coop/repositories/vida/google-microsoft-open-buildings/description",

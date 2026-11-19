@@ -64,8 +64,7 @@ extensions	VARCHAR[]
 install	VARCHAR
 example_query	VARCHAR
 validation_query	VARCHAR
-table_reference	VARCHAR
-facade_function	VARCHAR
+namespace	VARCHAR
 
 query I
 SELECT count(*) = open_data_duck_registry_source_count() FROM open_data_sources();
@@ -96,10 +95,21 @@ SELECT id FROM open_data_search('overture');
 ----
 overture.maps.release
 
-query II
-SELECT table_reference, facade_function FROM open_data_search('building') WHERE id = 'overture.maps.release';
+query I
+SELECT namespace FROM open_data_search('building') WHERE id = 'overture.maps.release';
 ----
-odd.overturemaps.latest.buildings	open_data_overture_buildings
+odd.overturemaps.latest
+
+# Sources that expose tables do so under a three-part odd.<provider>.<version> namespace.
+query I
+SELECT bool_and(namespace SIMILAR TO 'odd\.[a-z0-9_]+\.[a-z0-9_]+') FROM open_data_sources() WHERE namespace <> '';
+----
+true
+
+query I
+SELECT list(DISTINCT namespace ORDER BY namespace) FROM open_data_sources() WHERE namespace <> '';
+----
+[odd.census.latest, odd.noaa.latest, odd.overturemaps.latest]
 
 query I
 SELECT count(*) > 0 FROM open_data_search('OVERTURE');
@@ -144,33 +154,58 @@ SELECT open_data_validation_sql('overture.maps.release') LIKE '%small_bbox_query
 ----
 true
 
-# Issue #75: table-like Overture facade metadata gives the native replacement
-# scan target and the exact read_parquet path that backs it.
-query II
-SELECT table_reference, facade_function
-FROM open_data_facades()
-WHERE table_reference = 'odd.overturemaps.latest.buildings';
-----
-odd.overturemaps.latest.buildings	open_data_overture_buildings
+# Table discovery (odd.tables / open_data_tables()) and the data facades need the
+# network; they live in test/sql/open_data_duck_network.test.
+
+# open_data_release(source_id) resolves the release a `latest` table will read.
+# The pinned variable from release.pinned.duckdb_setting wins over the network lookup,
+# so this stays offline.
+statement ok
+SET VARIABLE overture_release = '2026-10-21.0';
 
 query I
-SELECT path_glob FROM open_data_facades() WHERE table_reference = 'odd.overturemaps.latest.buildings';
+SELECT open_data_release('overture.maps.release');
 ----
-s3://overturemaps-us-west-2/release/2026-10-21.0/theme=buildings/type=building/*
+2026-10-21.0
+
+statement ok
+SET VARIABLE overture_release = '2026-09-23.1';
 
 query I
-SELECT example_sql LIKE '%FROM odd.overturemaps.latest.buildings%' AND path_glob LIKE '%theme=buildings/type=building%' AND example_sql LIKE '%bbox.xmin <= -149%'
-FROM open_data_facades()
-WHERE table_reference = 'odd.overturemaps.latest.buildings';
+SELECT open_data_release('overture.maps.release');
+----
+2026-09-23.1
+
+statement ok
+RESET VARIABLE overture_release;
+
+query I
+SELECT open_data_release(NULL) IS NULL;
 ----
 true
 
-query I
-SELECT list(table_reference ORDER BY table_reference)
-FROM open_data_facades()
-WHERE source_id = 'overture.maps.release';
+statement error
+SELECT open_data_release('nope.missing');
 ----
-[odd.overturemaps.latest.addresses, odd.overturemaps.latest.buildings, odd.overturemaps.latest.places, odd.overturemaps.latest.roads]
+open_data_duck: unknown source id 'nope.missing'
+
+# Every source with {release} tables has its own pin variable.
+statement ok
+SET VARIABLE census_cartographic_year = '2024';
+
+query I
+SELECT open_data_release('census.cartographic.county-boundaries');
+----
+2024
+
+statement ok
+RESET VARIABLE census_cartographic_year;
+
+# Sources without a latest-release recipe cannot be resolved.
+statement error
+SELECT open_data_release('stac.earth-search.aws');
+----
+open_data_duck: source 'stac.earth-search.aws' has no release.latest.resolve_sql
 
 # Issue #79: attached ODD namespace exposes discovery as tables.
 query I
@@ -178,10 +213,12 @@ SELECT id FROM odd.index WHERE list_contains(tags, 'buildings') AND id = 'overtu
 ----
 overture.maps.release
 
-query I
-SELECT table_reference FROM odd.tables WHERE table_reference = 'odd.overturemaps.latest.buildings';
+# An unknown name under a known namespace must not be swallowed by the replacement scan
+# before the catalog error; a name outside every namespace is left to DuckDB.
+statement error
+SELECT * FROM odd.nothing.here.at_all;
 ----
-odd.overturemaps.latest.buildings
+does not exist
 
 # The recipe text matches what the embedded registry carries for that source.
 query I

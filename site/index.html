@@ -54,12 +54,12 @@ FROM odd.index
 WHERE list_contains(tags, 'buildings')
    OR name ILIKE '%building%';
 
-SELECT table_reference, path_glob
+SELECT table_reference, reader, path
 FROM odd.tables
-WHERE table_reference = 'odd.overturemaps.latest.buildings';
+WHERE table_reference = 'odd.overturemaps.latest.building';
 
 SELECT *
-FROM odd.overturemaps.latest.buildings
+FROM odd.overturemaps.latest.building
 WHERE bbox.xmin <= -149
   AND bbox.xmax >= -150
   AND bbox.ymin <= 61
@@ -78,7 +78,7 @@ LIMIT 10;</code></pre>
             <tr>
               <td>Overture buildings</td>
               <td>Global building footprints from Overture Maps releases.</td>
-              <td><code>odd.overturemaps.latest.buildings</code></td>
+              <td><code>odd.overturemaps.latest.building</code></td>
             </tr>
             <tr>
               <td>Anchorage building permits</td>

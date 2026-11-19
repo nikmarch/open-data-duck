@@ -10,27 +10,26 @@
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/function/replacement_scan.hpp"
+#include "duckdb/main/client_config.hpp"
 #include "duckdb/main/config.hpp"
+#include "duckdb/main/connection.hpp"
+#include "duckdb/main/database.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/tableref.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
+#include "duckdb/planner/expression/bound_function_expression.hpp"
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
+
+#include <mutex>
+#include <unordered_map>
 
 namespace duckdb {
 
 //===--------------------------------------------------------------------===//
 // Embedded registry (issue #31 contract, parsed once per process)
 //===--------------------------------------------------------------------===//
-
-struct OpenDataFacade {
-	string table_reference;
-	string facade_function;
-	string path_glob;
-	string example_sql;
-	string description;
-};
 
 struct OpenDataSource {
 	string id;
@@ -44,10 +43,17 @@ struct OpenDataSource {
 	string attribution;
 	vector<string> tags;
 	vector<string> extensions;
-	vector<OpenDataFacade> facades;
+	//! duckdb.tables.namespace: odd.<provider>.<version> prefix of this source's data tables.
+	string tables_namespace;
+	//! duckdb.tables.discover_sql: SQL returning (name, reader, path) rows, with {release} substituted.
+	string tables_discover_sql;
 	string install;
 	string example_query;
 	string validation_query;
+	//! release.latest.resolve_sql: SQL returning the current release id of a `latest` table.
+	string latest_resolve_sql;
+	//! release.pinned.duckdb_setting: user variable that pins the release instead.
+	string pinned_variable;
 	//! Casefolded haystack used by open_data_search(); mirrors odd.registry.Source.search_text().
 	string search_text;
 };
@@ -74,27 +80,23 @@ static vector<string> JsonStringArray(const JSONValue &object, const string &key
 	return result;
 }
 
-static vector<OpenDataFacade> JsonFacades(const JSONValue &duckdb_value) {
-	vector<OpenDataFacade> result;
-	auto facades_value = duckdb_value.GetMember("facades");
-	if (!facades_value.IsValid() || !facades_value.IsArray()) {
-		return result;
+static string Stripped(string value) {
+	StringUtil::Trim(value);
+	return value;
+}
+
+static void JsonTables(const JSONValue &duckdb_value, OpenDataSource &source) {
+	auto tables_value = duckdb_value.GetMember("tables");
+	if (!tables_value.IsValid() || !tables_value.IsObject()) {
+		return;
 	}
-	facades_value.IterateArray([&](JSONValue item) {
-		if (!item.IsObject()) {
-			return;
-		}
-		OpenDataFacade facade;
-		facade.table_reference = JsonString(item, "table_reference");
-		facade.facade_function = JsonString(item, "facade_function");
-		facade.path_glob = JsonString(item, "path_glob");
-		facade.example_sql = JsonString(item, "example_sql");
-		facade.description = JsonString(item, "description");
-		if (!facade.table_reference.empty() && !facade.path_glob.empty()) {
-			result.push_back(std::move(facade));
-		}
-	});
-	return result;
+	auto ns = Stripped(JsonString(tables_value, "namespace"));
+	auto discover_sql = Stripped(JsonString(tables_value, "discover_sql"));
+	if (ns.empty() || discover_sql.empty()) {
+		return;
+	}
+	source.tables_namespace = std::move(ns);
+	source.tables_discover_sql = std::move(discover_sql);
 }
 
 static string BuildSearchText(const OpenDataSource &source) {
@@ -107,11 +109,7 @@ static string BuildSearchText(const OpenDataSource &source) {
 	for (auto &extension : source.extensions) {
 		parts.push_back(extension);
 	}
-	for (auto &facade : source.facades) {
-		parts.push_back(facade.table_reference);
-		parts.push_back(facade.facade_function);
-		parts.push_back(facade.description);
-	}
+	parts.push_back(source.tables_namespace);
 	parts.push_back(source.example_query);
 	return StringUtil::Lower(StringUtil::Join(parts, " "));
 }
@@ -142,10 +140,21 @@ static vector<OpenDataSource> ParseEmbeddedRegistry() {
 		auto duckdb_value = item.GetMember("duckdb");
 		if (duckdb_value.IsValid() && duckdb_value.IsObject()) {
 			source.extensions = JsonStringArray(duckdb_value, "extensions");
-			source.facades = JsonFacades(duckdb_value);
+			JsonTables(duckdb_value, source);
 			source.install = JsonString(duckdb_value, "install");
 			source.example_query = JsonString(duckdb_value, "example_query");
 			source.validation_query = JsonString(duckdb_value, "validation_query");
+		}
+		auto release_value = item.GetMember("release");
+		if (release_value.IsValid() && release_value.IsObject()) {
+			auto latest_value = release_value.GetMember("latest");
+			if (latest_value.IsValid() && latest_value.IsObject()) {
+				source.latest_resolve_sql = Stripped(JsonString(latest_value, "resolve_sql"));
+			}
+			auto pinned_value = release_value.GetMember("pinned");
+			if (pinned_value.IsValid() && pinned_value.IsObject()) {
+				source.pinned_variable = Stripped(JsonString(pinned_value, "duckdb_setting"));
+			}
 		}
 		source.search_text = BuildSearchText(source);
 		sources.push_back(std::move(source));
@@ -161,17 +170,6 @@ static vector<OpenDataSource> ParseEmbeddedRegistry() {
 static const vector<OpenDataSource> &GetEmbeddedRegistry() {
 	static const vector<OpenDataSource> registry = ParseEmbeddedRegistry();
 	return registry;
-}
-
-static const OpenDataFacade *FindFacadeByReference(const string &table_reference) {
-	for (auto &source : GetEmbeddedRegistry()) {
-		for (auto &facade : source.facades) {
-			if (StringUtil::Lower(facade.table_reference) == StringUtil::Lower(table_reference)) {
-				return &facade;
-			}
-		}
-	}
-	return nullptr;
 }
 
 static const OpenDataSource *FindSource(const string &source_id) {
@@ -193,11 +191,6 @@ static const OpenDataSource &FindSourceOrThrow(const string &source_id) {
 	                            source_id);
 }
 
-static string Stripped(string value) {
-	StringUtil::Trim(value);
-	return value;
-}
-
 //! Mirrors odd.registry.render_source_sql(): install statements, blank line, query, trailing newline.
 static string RenderSourceSql(const OpenDataSource &source, bool validation) {
 	vector<string> statements;
@@ -212,6 +205,129 @@ static string RenderSourceSql(const OpenDataSource &source, bool validation) {
 	}
 	statements.push_back(query);
 	return StringUtil::Join(statements, "\n\n") + "\n";
+}
+
+//===--------------------------------------------------------------------===//
+// Latest release resolution
+//===--------------------------------------------------------------------===//
+
+//! Release id a `latest` table reads from. Precedence: the pinned user variable
+//! (SET VARIABLE overture_release = '...'), then a process-wide cache, then
+//! release.latest.resolve_sql run once on its own connection and cached.
+static string ResolveRelease(ClientContext &context, const OpenDataSource &source) {
+	if (!source.pinned_variable.empty()) {
+		Value pinned;
+		if (ClientConfig::GetConfig(context).GetUserVariable(source.pinned_variable, pinned) && !pinned.IsNull()) {
+			return pinned.ToString();
+		}
+	}
+	if (source.latest_resolve_sql.empty()) {
+		throw InvalidInputException("open_data_duck: source '%s' has no release.latest.resolve_sql", source.id);
+	}
+
+	static std::mutex cache_lock;
+	static std::unordered_map<string, string> cache;
+	{
+		std::lock_guard<std::mutex> guard(cache_lock);
+		auto entry = cache.find(source.id);
+		if (entry != cache.end()) {
+			return entry->second;
+		}
+	}
+
+	Connection connection(DatabaseInstance::GetDatabase(context));
+	auto result = connection.Query(source.latest_resolve_sql);
+	string release;
+	if (!result->HasError()) {
+		for (auto &row : *result) {
+			if (!row.IsNull(0)) {
+				release = row.GetValue<string>(0);
+			}
+			break;
+		}
+	}
+	if (release.empty()) {
+		throw InvalidInputException("open_data_duck: could not resolve the latest release for '%s' (%s). Pin one "
+		                            "with SET VARIABLE %s = '<release>'.",
+		                            source.id, result->HasError() ? result->GetError() : "query returned no release",
+		                            source.pinned_variable);
+	}
+
+	std::lock_guard<std::mutex> guard(cache_lock);
+	cache.emplace(source.id, release);
+	return release;
+}
+
+//===--------------------------------------------------------------------===//
+// Table discovery
+//===--------------------------------------------------------------------===//
+
+struct OpenDataTable {
+	string name;
+	string reader;
+	string path;
+};
+
+struct DiscoveredTables {
+	string release;
+	vector<OpenDataTable> tables;
+};
+
+//! Rows of duckdb.tables.discover_sql for the source's current release. Runs once per
+//! process and source@release on its own connection, then serves from cache. Pinning a
+//! different release (SET VARIABLE ...) gets its own cache entry.
+static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSource &source) {
+	if (source.tables_discover_sql.empty()) {
+		throw InvalidInputException("open_data_duck: source '%s' has no duckdb.tables.discover_sql", source.id);
+	}
+	DiscoveredTables result;
+	auto sql = source.tables_discover_sql;
+	if (StringUtil::Contains(sql, "{release}")) {
+		result.release = ResolveRelease(context, source);
+		sql = StringUtil::Replace(sql, "{release}", result.release);
+	}
+	const auto cache_key = source.id + "@" + result.release;
+
+	static std::mutex cache_lock;
+	static std::unordered_map<string, DiscoveredTables> cache;
+	{
+		std::lock_guard<std::mutex> guard(cache_lock);
+		auto entry = cache.find(cache_key);
+		if (entry != cache.end()) {
+			return entry->second;
+		}
+	}
+
+	Connection connection(DatabaseInstance::GetDatabase(context));
+	auto query_result = connection.Query(sql);
+	if (query_result->HasError()) {
+		throw InvalidInputException("open_data_duck: could not discover tables for '%s': %s", source.id,
+		                            query_result->GetError());
+	}
+	if (query_result->ColumnCount() < 3) {
+		throw InvalidInputException("open_data_duck: duckdb.tables.discover_sql for '%s' must return (name, reader, path)",
+		                            source.id);
+	}
+	for (auto &row : *query_result) {
+		if (row.IsNull(0) || row.IsNull(2)) {
+			continue;
+		}
+		OpenDataTable table;
+		table.name = row.GetValue<string>(0);
+		table.reader = row.IsNull(1) ? string() : row.GetValue<string>(1);
+		table.path = row.GetValue<string>(2);
+		if (table.name.empty() || table.path.empty()) {
+			continue;
+		}
+		if (table.reader.empty()) {
+			table.reader = "read_parquet";
+		}
+		result.tables.push_back(std::move(table));
+	}
+
+	std::lock_guard<std::mutex> guard(cache_lock);
+	cache[cache_key] = result;
+	return result;
 }
 
 //===--------------------------------------------------------------------===//
@@ -257,6 +373,39 @@ static void OpenDataSqlFunction(DataChunk &args, ExpressionState &state, Vector 
 	});
 }
 
+// ExpressionState exposes the client context under different names across DuckDB
+// versions (GetContext() in v2.0.0, GetClientContext() on main), so capture it at bind time.
+struct OpenDataReleaseBindData : public FunctionData {
+	explicit OpenDataReleaseBindData(ClientContext &context) : context(context.shared_from_this()) {
+	}
+
+	weak_ptr<ClientContext> context;
+
+	unique_ptr<FunctionData> Copy() const override {
+		auto result = make_uniq<OpenDataReleaseBindData>(*context.lock());
+		return std::move(result);
+	}
+	bool Equals(const FunctionData &other) const override {
+		return true;
+	}
+};
+
+static unique_ptr<FunctionData> OpenDataReleaseBind(BindScalarFunctionInput &input) {
+	return make_uniq<OpenDataReleaseBindData>(input.GetClientContext());
+}
+
+static void OpenDataReleaseFunction(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &bind_data = state.expr.Cast<BoundFunctionExpression>().BindInfo()->Cast<OpenDataReleaseBindData>();
+	auto context = bind_data.context.lock();
+	if (!context) {
+		throw InternalException("open_data_duck: open_data_release() lost its client context");
+	}
+	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t source_id) {
+		const string id = source_id.GetString();
+		return StringVector::AddString(result, ResolveRelease(*context, FindSourceOrThrow(id)));
+	});
+}
+
 //===--------------------------------------------------------------------===//
 // Table functions: open_data_sources() and open_data_search(query)
 //===--------------------------------------------------------------------===//
@@ -291,9 +440,7 @@ static void DefineSourceColumns(vector<LogicalType> &return_types, vector<Identi
 	return_types.emplace_back(LogicalType::VARCHAR);
 	names.emplace_back("validation_query");
 	return_types.emplace_back(LogicalType::VARCHAR);
-	names.emplace_back("table_reference");
-	return_types.emplace_back(LogicalType::VARCHAR);
-	names.emplace_back("facade_function");
+	names.emplace_back("namespace");
 	return_types.emplace_back(LogicalType::VARCHAR);
 }
 
@@ -349,10 +496,6 @@ static unique_ptr<GlobalTableFunctionState> OpenDataSourcesInit(ClientContext &c
 	return make_uniq<OpenDataSourcesGlobalState>();
 }
 
-static const OpenDataFacade *PrimaryFacadeForSource(const OpenDataSource &source) {
-	return source.facades.empty() ? nullptr : &source.facades[0];
-}
-
 static Value StringListValue(const vector<string> &items) {
 	vector<Value> values;
 	values.reserve(items.size());
@@ -386,63 +529,81 @@ static void OpenDataSourcesScan(ClientContext &context, TableFunctionInput &data
 		output.data[col++].Append(Value(source.install));
 		output.data[col++].Append(Value(source.example_query));
 		output.data[col++].Append(Value(source.validation_query));
-		auto facade = PrimaryFacadeForSource(source);
-		output.data[col++].Append(Value(facade ? facade->table_reference : string()));
-		output.data[col++].Append(Value(facade ? facade->facade_function : string()));
+		output.data[col++].Append(Value(source.tables_namespace));
 		count++;
 	}
 }
 
 
 //===--------------------------------------------------------------------===//
-// Table facades and replacement scan
+// open_data_tables() and the replacement scan
 //===--------------------------------------------------------------------===//
 
-struct OpenDataFacadesGlobalState : public GlobalTableFunctionState {
-	idx_t source_offset = 0;
-	idx_t facade_offset = 0;
+struct OpenDataTablesRow {
+	string source_id;
+	string table_reference;
+	string reader;
+	string path;
+	string release;
+};
+
+struct OpenDataTablesBindData : public TableFunctionData {
+	vector<OpenDataTablesRow> rows;
+};
+
+struct OpenDataTablesGlobalState : public GlobalTableFunctionState {
+	idx_t offset = 0;
 
 	idx_t MaxThreads() const override {
 		return 1;
 	}
 };
 
-static unique_ptr<FunctionData> OpenDataFacadesBind(ClientContext &context, TableFunctionBindInput &input,
-                                                    vector<LogicalType> &return_types, vector<Identifier> &names) {
-	const char *varchar_columns[] = {"source_id", "table_reference", "facade_function", "path_glob", "example_sql",
-	                                 "description"};
+// Discovery happens at bind time so odd.tables reflects the pinned variables of this
+// connection; every source@release is cached after its first discovery.
+static unique_ptr<FunctionData> OpenDataTablesBind(ClientContext &context, TableFunctionBindInput &input,
+                                                   vector<LogicalType> &return_types, vector<Identifier> &names) {
+	const char *varchar_columns[] = {"source_id", "table_reference", "reader", "path", "release"};
 	for (auto column : varchar_columns) {
 		names.emplace_back(column);
 		return_types.emplace_back(LogicalType::VARCHAR);
 	}
-	return nullptr;
-}
-
-static unique_ptr<GlobalTableFunctionState> OpenDataFacadesInit(ClientContext &context, TableFunctionInitInput &input) {
-	return make_uniq<OpenDataFacadesGlobalState>();
-}
-
-static void OpenDataFacadesScan(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
-	auto &state = data_p.global_state->Cast<OpenDataFacadesGlobalState>();
-	auto &registry = GetEmbeddedRegistry();
-
-	idx_t count = 0;
-	while (state.source_offset < registry.size() && count < STANDARD_VECTOR_SIZE) {
-		auto &source = registry[state.source_offset];
-		if (state.facade_offset >= source.facades.size()) {
-			state.source_offset++;
-			state.facade_offset = 0;
+	auto result = make_uniq<OpenDataTablesBindData>();
+	for (auto &source : GetEmbeddedRegistry()) {
+		if (source.tables_namespace.empty()) {
 			continue;
 		}
+		auto discovered = DiscoverTables(context, source);
+		for (auto &table : discovered.tables) {
+			OpenDataTablesRow row;
+			row.source_id = source.id;
+			row.table_reference = source.tables_namespace + "." + table.name;
+			row.reader = table.reader;
+			row.path = table.path;
+			row.release = discovered.release;
+			result->rows.push_back(std::move(row));
+		}
+	}
+	return std::move(result);
+}
 
-		auto &facade = source.facades[state.facade_offset++];
+static unique_ptr<GlobalTableFunctionState> OpenDataTablesInit(ClientContext &context, TableFunctionInitInput &input) {
+	return make_uniq<OpenDataTablesGlobalState>();
+}
+
+static void OpenDataTablesScan(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+	auto &bind_data = data_p.bind_data->Cast<OpenDataTablesBindData>();
+	auto &state = data_p.global_state->Cast<OpenDataTablesGlobalState>();
+
+	idx_t count = 0;
+	while (state.offset < bind_data.rows.size() && count < STANDARD_VECTOR_SIZE) {
+		auto &row = bind_data.rows[state.offset++];
 		idx_t col = 0;
-		output.data[col++].Append(Value(source.id));
-		output.data[col++].Append(Value(facade.table_reference));
-		output.data[col++].Append(Value(facade.facade_function));
-		output.data[col++].Append(Value(facade.path_glob));
-		output.data[col++].Append(Value(facade.example_sql));
-		output.data[col++].Append(Value(facade.description));
+		output.data[col++].Append(Value(row.source_id));
+		output.data[col++].Append(Value(row.table_reference));
+		output.data[col++].Append(Value(row.reader));
+		output.data[col++].Append(Value(row.path));
+		output.data[col++].Append(Value(row.release));
 		count++;
 	}
 }
@@ -463,21 +624,45 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 		return TableFunctionReplacement("open_data_sources", "index");
 	}
 	if (lower_table_name == "odd.tables") {
-		return TableFunctionReplacement("open_data_facades", "tables");
+		return TableFunctionReplacement("open_data_tables", "tables");
 	}
 
-	auto facade = FindFacadeByReference(table_name);
-	if (!facade) {
-		return nullptr;
+	// odd.<provider>.<version>.<table>: discover the namespace's tables, then bind reader(path).
+	// Several sources may share a namespace (both Census boundary sources use odd.census.latest).
+	string matched_namespace;
+	string wanted;
+	for (auto &source : GetEmbeddedRegistry()) {
+		if (source.tables_namespace.empty()) {
+			continue;
+		}
+		auto prefix = StringUtil::Lower(source.tables_namespace) + ".";
+		if (!StringUtil::StartsWith(lower_table_name, prefix)) {
+			continue;
+		}
+		matched_namespace = source.tables_namespace;
+		wanted = lower_table_name.substr(prefix.size());
+		auto discovered = DiscoverTables(context, source);
+		for (auto &table : discovered.tables) {
+			if (StringUtil::Lower(table.name) != wanted) {
+				continue;
+			}
+			auto table_function = make_uniq<TableFunctionRef>();
+			vector<FunctionArgument> children;
+			children.emplace_back(ConstantExpression::String(table.path));
+			if (table.reader == "read_parquet") {
+				children.emplace_back(Identifier("hive_partitioning"), ConstantExpression::Boolean(true));
+			}
+			table_function->function = make_uniq<FunctionExpression>(Identifier(table.reader), std::move(children));
+			table_function->alias = Identifier(table.name);
+			return std::move(table_function);
+		}
 	}
-
-	auto table_function = make_uniq<TableFunctionRef>();
-	vector<FunctionArgument> children;
-	children.emplace_back(ConstantExpression::String(facade->path_glob));
-	children.emplace_back(Identifier("hive_partitioning"), ConstantExpression::Boolean(true));
-	table_function->function = make_uniq<FunctionExpression>(Identifier("read_parquet"), std::move(children));
-	table_function->alias = Identifier(facade->facade_function.empty() ? table_name : facade->facade_function);
-	return std::move(table_function);
+	if (!matched_namespace.empty()) {
+		throw InvalidInputException("open_data_duck: no table '%s' under %s. SELECT table_reference FROM odd.tables "
+		                            "lists what this release exposes.",
+		                            wanted, matched_namespace);
+	}
+	return nullptr;
 }
 
 //===--------------------------------------------------------------------===//
@@ -504,6 +689,12 @@ static void LoadInternal(ExtensionLoader &loader) {
 	open_data_validation_sql.SetFallible();
 	loader.RegisterFunction(open_data_validation_sql);
 
+	// Release a `latest` table resolves to: pinned variable, else cached release.latest.resolve_sql.
+	ScalarFunction open_data_release("open_data_release", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                                 OpenDataReleaseFunction, OpenDataReleaseBind);
+	open_data_release.SetFallible();
+	loader.RegisterFunction(open_data_release);
+
 	TableFunction sources("open_data_sources", {}, OpenDataSourcesScan, OpenDataSourcesBind, OpenDataSourcesInit);
 	loader.RegisterFunction(sources);
 
@@ -511,8 +702,8 @@ static void LoadInternal(ExtensionLoader &loader) {
 	                     OpenDataSourcesInit);
 	loader.RegisterFunction(search);
 
-	TableFunction facades("open_data_facades", {}, OpenDataFacadesScan, OpenDataFacadesBind, OpenDataFacadesInit);
-	loader.RegisterFunction(facades);
+	TableFunction tables("open_data_tables", {}, OpenDataTablesScan, OpenDataTablesBind, OpenDataTablesInit);
+	loader.RegisterFunction(tables);
 
 	DBConfig::GetConfig(loader.GetDatabaseInstance()).replacement_scans.emplace_back(OpenDataDuckReplacementScan);
 }
