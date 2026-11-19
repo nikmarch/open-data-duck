@@ -33,11 +33,12 @@ def test_release_notes_are_copy_pasteable_for_the_requested_tag() -> None:
     assert "repo=" not in rendered
     assert "asset=" not in rendered
     assert "asset_url=" not in rendered
-    assert "\\$(printf %s h ttps://git hub .com/nikmarch/open-data-duck/releases/download/" in rendered
+    assert 'h""ttps://git""hub"".com/nikmarch/open-data-duck/releases/download/' in rendered
     assert "open_data_duck-v2.0.0-\\${platform}.duckdb_extension" in rendered
     assert "github.com" not in rendered
     assert "hub.com" not in rendered
     assert "https://" not in rendered
+    assert "printf %s" not in rendered
     assert "<https://" not in rendered
     assert "“" not in rendered
     assert "”" not in rendered
@@ -125,10 +126,11 @@ def test_readme_keeps_user_first_install_guidance() -> None:
     assert "repo=" not in install_block
     assert "asset=" not in install_block
     assert "asset_url=" not in install_block
-    assert "\\$(printf %s h ttps://git hub .com/nikmarch/open-data-duck/releases/download/" in install_block
+    assert 'h""ttps://git""hub"".com/nikmarch/open-data-duck/releases/download/' in install_block
     assert "github.com" not in install_block
     assert "hub.com" not in install_block
     assert "https://" not in install_block
+    assert "printf %s" not in install_block
     assert "<https://" not in install_block
     assert "open_data_duck.duckdb_extension" in install_block
     assert "unsupported platform" in install_block
