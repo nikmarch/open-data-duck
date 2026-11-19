@@ -110,6 +110,20 @@ Official U.S. Geological Survey realtime earthquake summary feeds for recent sei
 - AI use cases: list recent earthquakes by magnitude, monitor significant events, map recent seismic activity
 - Caveats: rolling feeds are not stable historical snapshots, all_day can be empty during unusually quiet periods, event coordinates are GeoJSON point arrays with longitude latitude depth
 
+### `worldbank.wdi.indicators` — World Bank World Development Indicators API
+
+Official World Bank Indicators API access to World Development Indicators time-series development data, queryable as public JSON over HTTPS with DuckDB httpfs and JSON functions.
+
+- Status: `candidate`
+- Authority: World Bank Group
+- Homepage: https://api.worldbank.org/v2/
+- License: https://www.worldbank.org/ext/en/legal/terms-conditions/datasets
+- Tags: `world-bank`, `wdi`, `indicators`, `development`, `json`
+- Topics: development indicators, population, economy, health, education, country time series
+- Cadence: API metadata reports source-specific last updated dates
+- AI use cases: query country indicator histories, compare development indicators across years, pull WDI time series into DuckDB
+- Caveats: API responses use a two-element JSON envelope, some indicators can have null values, some third-party datasets or indicators may carry different metadata terms
+
 ### `noaa.ncei.storm-events` — NOAA NCEI Storm Events bulk CSV files
 
 Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.

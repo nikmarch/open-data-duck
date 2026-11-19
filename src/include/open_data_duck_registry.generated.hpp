@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 18;
+static constexpr int REGISTRY_SOURCE_COUNT = 19;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 18,
+  "source_count": 19,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -356,6 +356,37 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "hazards",
         "geojson",
         "realtime"
+      ]
+    },
+    {
+      "attribution": "World Bank Group, World Development Indicators; attribute as: The World Bank: World Development Indicators: World Bank Group. Do not imply World Bank endorsement.",
+      "authority": "World Bank Group",
+      "description": "Official World Bank Indicators API access to World Development Indicators time-series development data, queryable as public JSON over HTTPS with DuckDB httpfs and JSON functions.",
+      "duckdb": {
+        "example_query": "LOAD httpfs;\nWITH payload AS (\n  SELECT json\n  FROM read_json(\n    'https://api.worldbank.org/v2/country/USA/indicator/SP.POP.TOTL?format=json&per_page=20000',\n    format = 'auto'\n  )\n  WHERE json_type(json) = 'ARRAY'\n), rows AS (\n  SELECT e.value AS item\n  FROM payload, json_each(payload.json) AS e\n)\nSELECT item->'country'->>'id' AS country_id,\n       item->>'countryiso3code' AS iso3,\n       item->'indicator'->>'id' AS indicator_id,\n       CAST(item->>'date' AS INTEGER) AS year,\n       CAST(item->>'value' AS DOUBLE) AS value\nFROM rows\nWHERE item->>'value' IS NOT NULL\nORDER BY year DESC\nLIMIT 10;",
+        "examples": {
+          "usa_gdp_current_usd": "LOAD httpfs;\nWITH payload AS (\n  SELECT json\n  FROM read_json(\n    'https://api.worldbank.org/v2/country/USA/indicator/NY.GDP.MKTP.CD?format=json&per_page=20000',\n    format = 'auto'\n  )\n  WHERE json_type(json) = 'ARRAY'\n), rows AS (\n  SELECT e.value AS item\n  FROM payload, json_each(payload.json) AS e\n)\nSELECT CAST(item->>'date' AS INTEGER) AS year,\n       CAST(item->>'value' AS DOUBLE) AS gdp_current_usd\nFROM rows\nWHERE item->>'value' IS NOT NULL\nORDER BY year DESC\nLIMIT 25;"
+        },
+        "extensions": [
+          "httpfs"
+        ],
+        "install": "INSTALL httpfs;",
+        "tables": {},
+        "validation_query": "LOAD httpfs;\nWITH payload AS (\n  SELECT json\n  FROM read_json(\n    'https://api.worldbank.org/v2/country/USA/indicator/SP.POP.TOTL?format=json&per_page=20000',\n    format = 'auto'\n  )\n  WHERE json_type(json) = 'ARRAY'\n), rows AS (\n  SELECT e.value AS item\n  FROM payload, json_each(payload.json) AS e\n)\nSELECT count(*) > 0 AS has_rows,\n       max(CAST(item->>'date' AS INTEGER)) >= 2020 AS has_recent_data\nFROM rows\nWHERE item->>'value' IS NOT NULL;"
+      },
+      "homepage": "https://api.worldbank.org/v2/",
+      "id": "worldbank.wdi.indicators",
+      "license_url": "https://www.worldbank.org/ext/en/legal/terms-conditions/datasets",
+      "name": "World Bank World Development Indicators API",
+      "release": {},
+      "source_type": "other",
+      "status": "candidate",
+      "tags": [
+        "world-bank",
+        "wdi",
+        "indicators",
+        "development",
+        "json"
       ]
     },
     {
