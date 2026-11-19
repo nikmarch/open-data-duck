@@ -35,28 +35,28 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             "description": "Global building footprints from Overture Maps releases.",
             "example_sql": "SELECT *\nFROM odd.overturemaps.latest.buildings\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
             "facade_function": "open_data_overture_buildings",
-            "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=buildings/type=building/*",
+            "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=buildings/type=building/*",
             "table_reference": "odd.overturemaps.latest.buildings"
           },
           {
             "description": "Global places and points of interest from Overture Maps releases.",
             "example_sql": "SELECT *\nFROM odd.overturemaps.latest.places\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
             "facade_function": "open_data_overture_places",
-            "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=places/type=place/*",
+            "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*",
             "table_reference": "odd.overturemaps.latest.places"
           },
           {
             "description": "Global road and transportation segments from Overture Maps releases.",
             "example_sql": "SELECT *\nFROM odd.overturemaps.latest.roads\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
             "facade_function": "open_data_overture_roads",
-            "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=transportation/type=segment/*",
+            "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=transportation/type=segment/*",
             "table_reference": "odd.overturemaps.latest.roads"
           },
           {
             "description": "Global address points from Overture Maps releases.",
             "example_sql": "SELECT *\nFROM odd.overturemaps.latest.addresses\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
             "facade_function": "open_data_overture_addresses",
-            "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=addresses/type=address/*",
+            "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=addresses/type=address/*",
             "table_reference": "odd.overturemaps.latest.addresses"
           }
         ],
@@ -69,8 +69,9 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "name": "Overture Maps source family",
       "release": {
         "latest": {
-          "method": "release-calendar",
-          "url": "https://docs.overturemaps.org/release-calendar/"
+          "method": "stac-catalog",
+          "resolve_sql": "SELECT regexp_extract(l.href, '/([0-9]{4}-[0-9]{2}-[0-9]{2}\\.[0-9]+)/catalog\\.json$', 1) AS release\nFROM (SELECT unnest(links) AS l FROM read_json('https://stac.overturemaps.org/catalog.json'))\nWHERE l.rel = 'child' AND l.latest;\n",
+          "url": "https://stac.overturemaps.org/catalog.json"
         },
         "pinned": {
           "duckdb_setting": "overture_release",

@@ -65,11 +65,12 @@ def test_embedded_registry_round_trips_every_source_with_required_fields() -> No
 
     overture = next(record for record in embedded["sources"] if record["id"] == "overture.maps.release")
     assert overture["release"]["pinned"]["duckdb_setting"] == "overture_release"
+    assert "stac.overturemaps.org/catalog.json" in overture["release"]["latest"]["resolve_sql"]
     assert overture["duckdb"]["facades"][0] == {
         "description": "Global building footprints from Overture Maps releases.",
         "example_sql": "SELECT *\nFROM odd.overturemaps.latest.buildings\nWHERE bbox.xmin <= -149\n  AND bbox.xmax >= -150\n  AND bbox.ymin <= 61\n  AND bbox.ymax >= 60\nLIMIT 10;",
         "facade_function": "open_data_overture_buildings",
-        "path_glob": "s3://overturemaps-us-west-2/release/2026-10-21.0/theme=buildings/type=building/*",
+        "path_glob": "s3://overturemaps-us-west-2/release/{release}/theme=buildings/type=building/*",
         "table_reference": "odd.overturemaps.latest.buildings",
     }
     assert set(overture["duckdb"]["examples"]) >= {

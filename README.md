@@ -89,6 +89,17 @@ LIMIT 10;
 
 `odd.index` is the SQL-searchable catalog. It returns queryable references such as `odd.overturemaps.latest.buildings`. The native extension resolves those references with replacement scans into DuckDB readers. Keep bbox filters tight; Overture tables are large.
 
+### How `latest` is resolved
+
+`odd.overturemaps.latest.*` facades carry a `{release}` placeholder in their `path_glob`. On the first query in a process the extension runs the registry's `release.latest.resolve_sql` (a lookup against `https://stac.overturemaps.org/catalog.json`), fills in the release, and caches it for the rest of the process. Pin a release instead with the source's `release.pinned.duckdb_setting` variable; the pin always wins over the lookup:
+
+```sql
+SET VARIABLE overture_release = '2026-10-21.0';
+SELECT open_data_release('overture.maps.release');  -- 2026-10-21.0
+RESET VARIABLE overture_release;
+SELECT open_data_release('overture.maps.release');  -- resolved from the STAC catalog, then cached
+```
+
 ## Current pre-community behavior
 
 The extension also returns SQL recipes and facade metadata for inspection.
@@ -159,6 +170,7 @@ Implemented native functions:
 - `open_data_facades()`
 - `open_data_sql(id)`
 - `open_data_validation_sql(id)`
+- `open_data_release(id)`
 
 The first table-like facade is an Overture replacement scan for `odd.overturemaps.latest.buildings`, with the same pattern exposed for places, roads, and addresses.
 

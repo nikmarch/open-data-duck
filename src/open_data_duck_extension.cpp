@@ -10,13 +10,19 @@
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/function/table_function.hpp"
 #include "duckdb/function/replacement_scan.hpp"
+#include "duckdb/main/client_config.hpp"
 #include "duckdb/main/config.hpp"
+#include "duckdb/main/connection.hpp"
+#include "duckdb/main/database.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/tableref.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
+
+#include <mutex>
+#include <unordered_map>
 
 namespace duckdb {
 
@@ -48,6 +54,10 @@ struct OpenDataSource {
 	string install;
 	string example_query;
 	string validation_query;
+	//! release.latest.resolve_sql: SQL returning the current release id of a `latest` facade.
+	string latest_resolve_sql;
+	//! release.pinned.duckdb_setting: user variable that pins the release instead.
+	string pinned_variable;
 	//! Casefolded haystack used by open_data_search(); mirrors odd.registry.Source.search_text().
 	string search_text;
 };
@@ -72,6 +82,11 @@ static vector<string> JsonStringArray(const JSONValue &object, const string &key
 		}
 	});
 	return result;
+}
+
+static string Stripped(string value) {
+	StringUtil::Trim(value);
+	return value;
 }
 
 static vector<OpenDataFacade> JsonFacades(const JSONValue &duckdb_value) {
@@ -147,6 +162,17 @@ static vector<OpenDataSource> ParseEmbeddedRegistry() {
 			source.example_query = JsonString(duckdb_value, "example_query");
 			source.validation_query = JsonString(duckdb_value, "validation_query");
 		}
+		auto release_value = item.GetMember("release");
+		if (release_value.IsValid() && release_value.IsObject()) {
+			auto latest_value = release_value.GetMember("latest");
+			if (latest_value.IsValid() && latest_value.IsObject()) {
+				source.latest_resolve_sql = Stripped(JsonString(latest_value, "resolve_sql"));
+			}
+			auto pinned_value = release_value.GetMember("pinned");
+			if (pinned_value.IsValid() && pinned_value.IsObject()) {
+				source.pinned_variable = Stripped(JsonString(pinned_value, "duckdb_setting"));
+			}
+		}
 		source.search_text = BuildSearchText(source);
 		sources.push_back(std::move(source));
 	});
@@ -163,10 +189,12 @@ static const vector<OpenDataSource> &GetEmbeddedRegistry() {
 	return registry;
 }
 
-static const OpenDataFacade *FindFacadeByReference(const string &table_reference) {
+static const OpenDataFacade *FindFacadeByReference(const string &table_reference, const OpenDataSource *&owner) {
+	owner = nullptr;
 	for (auto &source : GetEmbeddedRegistry()) {
 		for (auto &facade : source.facades) {
 			if (StringUtil::Lower(facade.table_reference) == StringUtil::Lower(table_reference)) {
+				owner = &source;
 				return &facade;
 			}
 		}
@@ -193,11 +221,6 @@ static const OpenDataSource &FindSourceOrThrow(const string &source_id) {
 	                            source_id);
 }
 
-static string Stripped(string value) {
-	StringUtil::Trim(value);
-	return value;
-}
-
 //! Mirrors odd.registry.render_source_sql(): install statements, blank line, query, trailing newline.
 static string RenderSourceSql(const OpenDataSource &source, bool validation) {
 	vector<string> statements;
@@ -212,6 +235,57 @@ static string RenderSourceSql(const OpenDataSource &source, bool validation) {
 	}
 	statements.push_back(query);
 	return StringUtil::Join(statements, "\n\n") + "\n";
+}
+
+//===--------------------------------------------------------------------===//
+// Latest release resolution
+//===--------------------------------------------------------------------===//
+
+//! Release id a `latest` facade reads from. Precedence: the pinned user variable
+//! (SET VARIABLE overture_release = '...'), then a process-wide cache, then
+//! release.latest.resolve_sql run once on its own connection and cached.
+static string ResolveRelease(ClientContext &context, const OpenDataSource &source) {
+	if (!source.pinned_variable.empty()) {
+		Value pinned;
+		if (ClientConfig::GetConfig(context).GetUserVariable(source.pinned_variable, pinned) && !pinned.IsNull()) {
+			return pinned.ToString();
+		}
+	}
+	if (source.latest_resolve_sql.empty()) {
+		throw InvalidInputException("open_data_duck: source '%s' has no release.latest.resolve_sql", source.id);
+	}
+
+	static std::mutex cache_lock;
+	static std::unordered_map<string, string> cache;
+	{
+		std::lock_guard<std::mutex> guard(cache_lock);
+		auto entry = cache.find(source.id);
+		if (entry != cache.end()) {
+			return entry->second;
+		}
+	}
+
+	Connection connection(DatabaseInstance::GetDatabase(context));
+	auto result = connection.Query(source.latest_resolve_sql);
+	string release;
+	if (!result->HasError()) {
+		for (auto &row : *result) {
+			if (!row.IsNull(0)) {
+				release = row.GetValue<string>(0);
+			}
+			break;
+		}
+	}
+	if (release.empty()) {
+		throw InvalidInputException("open_data_duck: could not resolve the latest release for '%s' (%s). Pin one "
+		                            "with SET VARIABLE %s = '<release>'.",
+		                            source.id, result->HasError() ? result->GetError() : "query returned no release",
+		                            source.pinned_variable);
+	}
+
+	std::lock_guard<std::mutex> guard(cache_lock);
+	cache.emplace(source.id, release);
+	return release;
 }
 
 //===--------------------------------------------------------------------===//
@@ -254,6 +328,14 @@ static void OpenDataSqlFunction(DataChunk &args, ExpressionState &state, Vector 
 	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t source_id) {
 		const string id = source_id.GetString();
 		return StringVector::AddString(result, RenderSourceSql(FindSourceOrThrow(id), VALIDATION));
+	});
+}
+
+static void OpenDataReleaseFunction(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &context = state.GetClientContext();
+	UnaryExecutor::Execute<string_t, string_t>(args.data[0], result, args.size(), [&](string_t source_id) {
+		const string id = source_id.GetString();
+		return StringVector::AddString(result, ResolveRelease(context, FindSourceOrThrow(id)));
 	});
 }
 
@@ -466,14 +548,20 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 		return TableFunctionReplacement("open_data_facades", "tables");
 	}
 
-	auto facade = FindFacadeByReference(table_name);
+	const OpenDataSource *source = nullptr;
+	auto facade = FindFacadeByReference(table_name, source);
 	if (!facade) {
 		return nullptr;
 	}
 
+	auto path_glob = facade->path_glob;
+	if (StringUtil::Contains(path_glob, "{release}")) {
+		path_glob = StringUtil::Replace(path_glob, "{release}", ResolveRelease(context, *source));
+	}
+
 	auto table_function = make_uniq<TableFunctionRef>();
 	vector<FunctionArgument> children;
-	children.emplace_back(ConstantExpression::String(facade->path_glob));
+	children.emplace_back(ConstantExpression::String(path_glob));
 	children.emplace_back(Identifier("hive_partitioning"), ConstantExpression::Boolean(true));
 	table_function->function = make_uniq<FunctionExpression>(Identifier("read_parquet"), std::move(children));
 	table_function->alias = Identifier(facade->facade_function.empty() ? table_name : facade->facade_function);
@@ -503,6 +591,12 @@ static void LoadInternal(ExtensionLoader &loader) {
 	                                        OpenDataSqlFunction<true>);
 	open_data_validation_sql.SetFallible();
 	loader.RegisterFunction(open_data_validation_sql);
+
+	// Release a `latest` facade resolves to: pinned variable, else cached release.latest.resolve_sql.
+	ScalarFunction open_data_release("open_data_release", {LogicalType::VARCHAR}, LogicalType::VARCHAR,
+	                                 OpenDataReleaseFunction);
+	open_data_release.SetFallible();
+	loader.RegisterFunction(open_data_release);
 
 	TableFunction sources("open_data_sources", {}, OpenDataSourcesScan, OpenDataSourcesBind, OpenDataSourcesInit);
 	loader.RegisterFunction(sources);

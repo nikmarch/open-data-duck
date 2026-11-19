@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import duckdb
@@ -90,3 +91,20 @@ def test_real_duckdb_can_install_and_load_supported_extensions() -> None:
         assert row[0] >= 1
     finally:
         connection.close()
+
+
+@pytest.mark.skipif(
+    os.environ.get("ODD_DUCKDB_NETWORK_TESTS") != "1",
+    reason="set ODD_DUCKDB_NETWORK_TESTS=1 to resolve the latest Overture release from the public STAC catalog",
+)
+def test_overture_latest_release_resolve_sql_returns_release_id() -> None:
+    source = find_source(REGISTRY_PATH, "overture.maps.release")
+
+    assert source is not None
+    connection = duckdb.connect(":memory:")
+    try:
+        row = connection.execute(source.release["latest"]["resolve_sql"]).fetchone()
+    finally:
+        connection.close()
+    assert row is not None
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}\.\d+", row[0]), row

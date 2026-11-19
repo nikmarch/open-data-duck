@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import importlib
+import re
 
 import pytest
 import yaml
@@ -319,10 +320,15 @@ def test_overture_source_family_has_release_modes_and_core_examples() -> None:
     source = next(source for source in registry["sources"] if source["id"] == "overture.maps.release")
 
     assert source["status"] == "candidate"
-    assert source["release"]["latest"] == {
-        "method": "release-calendar",
-        "url": "https://docs.overturemaps.org/release-calendar/",
-    }
+    latest = source["release"]["latest"]
+    assert latest["method"] == "stac-catalog"
+    assert latest["url"] == "https://stac.overturemaps.org/catalog.json"
+    # The extension runs this snippet once per process to resolve `latest`, then caches it.
+    assert "https://stac.overturemaps.org/catalog.json" in latest["resolve_sql"]
+    assert "latest" in latest["resolve_sql"]
+    for facade in source["duckdb"]["facades"]:
+        assert "{release}" in facade["path_glob"], facade["table_reference"]
+        assert not re.search(r"/release/\d{4}-\d{2}-\d{2}\.\d+/", facade["path_glob"]), facade["table_reference"]
     assert source["release"]["pinned"] == {
         "duckdb_setting": "overture_release",
         "s3_base_setting": "overture_s3_base",

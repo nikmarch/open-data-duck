@@ -92,7 +92,8 @@
           "required": ["url"],
           "properties": {
             "url": { "type": "string", "format": "uri" },
-            "method": { "type": "string" }
+            "method": { "type": "string" },
+            "resolve_sql": { "type": "string" }
           }
         },
         "pinned": {
