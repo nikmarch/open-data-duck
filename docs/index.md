@@ -120,6 +120,29 @@ Official generalized U.S. census tract boundary shapefiles from the Census Burea
 - AI use cases: map tract-level indicators, join tract GEOIDs to ACS estimates, build thematic maps without TIGERweb paging
 - Caveats: generalized for thematic mapping rather than surveying, choose year and scale explicitly, national tract files are larger than county files, zipped shapefile access requires DuckDB spatial/GDAL virtual paths
 
+### `nhtsa.vehicle-safety` — NHTSA vehicle safety recalls and ratings APIs
+
+Official National Highway Traffic Safety Administration vehicle recall campaigns and safety-rating lookup APIs, queryable as public JSON over HTTPS with DuckDB httpfs.
+
+- Status: `candidate`
+- Authority: National Highway Traffic Safety Administration, U.S. Department of Transportation
+- Homepage: https://www.nhtsa.gov/nhtsa-datasets-and-apis
+- License: https://www.nhtsa.gov/about-nhtsa/terms-use
+- Tags: `nhtsa`, `vehicle-safety`, `recalls`, `safety-ratings`, `json`
+- Topics: vehicle recalls, crash-test ratings, automotive safety, campaign lookup, model-year lookup
+- Cadence: NHTSA APIs reflect current agency recall and safety-rating records as published
+- Tables:
+  - `recalls_by_vehicle`: NHTSA recall campaign results for a requested model year, make, and model. One row per recall campaign result.
+    - Ask for: model year, make, model, limit
+    - Warnings: Parameterized API endpoint; preserve model year, make, and model filters instead of treating it as a full-table scan.
+    - Columns: NHTSACampaignNumber: NHTSA recall campaign identifier.; ReportReceivedDate: Date NHTSA received the campaign report.; Component: Vehicle component affected by the recall.; Summary: Long recall summary text.
+  - `safety_rating_variants`: NHTSA safety-rating vehicle variants for a requested model year, make, and model. One row per returned vehicle variant.
+    - Ask for: model year, make, model, limit
+    - Warnings: Parameterized API endpoint; use the returned VehicleId for rating-detail lookups.
+    - Columns: VehicleId: Identifier used by NHTSA rating-detail lookups.; VehicleDescription: Human-readable vehicle variant description.
+- AI use cases: look up recalls for a year make model, find NHTSA safety-rating vehicle ids, inspect affected components and recall summaries
+- Caveats: APIs are parameterized rather than full dataset scans, response field names use NHTSA casing, recall text fields can be long
+
 ### `usgs.earthquake.realtime-geojson` — USGS realtime earthquake GeoJSON feeds
 
 Official U.S. Geological Survey realtime earthquake summary feeds for recent seismic events, queryable directly from GeoJSON over HTTPS with DuckDB read_json_auto.

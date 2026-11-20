@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 21;
+static constexpr int REGISTRY_SOURCE_COUNT = 22;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 21,
+  "source_count": 22,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -539,6 +539,79 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "usgs",
         "elevation",
         "contours"
+      ],
+      "validations": []
+    },
+    {
+      "attribution": "National Highway Traffic Safety Administration (NHTSA), U.S. Department of Transportation; credit NHTSA/DOT and do not imply endorsement.",
+      "authority": "National Highway Traffic Safety Administration, U.S. Department of Transportation",
+      "description": "Official National Highway Traffic Safety Administration vehicle recall campaigns and safety-rating lookup APIs, queryable as public JSON over HTTPS with DuckDB httpfs.",
+      "duckdb": {
+        "example_query": "LOAD httpfs;\nSELECT NHTSACampaignNumber,\n       Component,\n       ReportReceivedDate,\n       Summary\nFROM (\n  SELECT unnest(Results, recursive := true)\n  FROM read_json_auto(\n    'https://api.nhtsa.gov/recalls/recallsByVehicle?make=acura&model=rdx&modelYear=2012'\n  )\n)\nORDER BY NHTSACampaignNumber\nLIMIT 10;",
+        "examples": {
+          "recalls_by_campaign": "LOAD httpfs;\nSELECT NHTSACampaignNumber,\n       Component,\n       ReportReceivedDate,\n       Summary\nFROM (\n  SELECT unnest(Results, recursive := true)\n  FROM read_json_auto(\n    'https://api.nhtsa.gov/recalls/recallsByVehicle?make=honda&model=accord&modelYear=2018'\n  )\n)\nORDER BY NHTSACampaignNumber\nLIMIT 25;",
+          "safety_rating_variants_by_vehicle": "LOAD httpfs;\nSELECT VehicleId,\n       VehicleDescription\nFROM (\n  SELECT unnest(Results, recursive := true)\n  FROM read_json_auto(\n    'https://api.nhtsa.gov/SafetyRatings/modelyear/2012/make/Acura/model/RDX'\n  )\n)\nORDER BY VehicleId\nLIMIT 10;"
+        },
+        "extensions": [
+          "httpfs"
+        ],
+        "install": "INSTALL httpfs;",
+        "tables": {},
+        "validation_query": "LOAD httpfs;\nSELECT (\n         SELECT count(*) = 2\n         FROM (\n           SELECT unnest(Results, recursive := true)\n           FROM read_json_auto(\n             'https://api.nhtsa.gov/recalls/recallsByVehicle?make=acura&model=rdx&modelYear=2012'\n           )\n         )\n       ) AS recalls_fixture_ok,\n       (\n         SELECT count(*) = 2\n         FROM (\n           SELECT unnest(Results, recursive := true)\n           FROM read_json_auto(\n             'https://api.nhtsa.gov/SafetyRatings/modelyear/2012/make/Acura/model/RDX'\n           )\n         )\n       ) AS safety_rating_variants_fixture_ok;"
+      },
+      "homepage": "https://www.nhtsa.gov/nhtsa-datasets-and-apis",
+      "id": "nhtsa.vehicle-safety",
+      "license_url": "https://www.nhtsa.gov/about-nhtsa/terms-use",
+      "name": "NHTSA vehicle safety recalls and ratings APIs",
+      "release": {},
+      "source_type": "other",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "model year",
+            "make",
+            "model",
+            "limit"
+          ],
+          "columns_hint": {
+            "Component": "Vehicle component affected by the recall.",
+            "NHTSACampaignNumber": "NHTSA recall campaign identifier.",
+            "ReportReceivedDate": "Date NHTSA received the campaign report.",
+            "Summary": "Long recall summary text."
+          },
+          "description": "NHTSA recall campaign results for a requested model year, make, and model. One row per recall campaign result.",
+          "id": "recalls_by_vehicle",
+          "warnings": [
+            "Parameterized API endpoint; preserve model year",
+            "make",
+            "and model filters instead of treating it as a full-table scan."
+          ]
+        },
+        {
+          "ask_for": [
+            "model year",
+            "make",
+            "model",
+            "limit"
+          ],
+          "columns_hint": {
+            "VehicleDescription": "Human-readable vehicle variant description.",
+            "VehicleId": "Identifier used by NHTSA rating-detail lookups."
+          },
+          "description": "NHTSA safety-rating vehicle variants for a requested model year, make, and model. One row per returned vehicle variant.",
+          "id": "safety_rating_variants",
+          "warnings": [
+            "Parameterized API endpoint; use the returned VehicleId for rating-detail lookups."
+          ]
+        }
+      ],
+      "tags": [
+        "nhtsa",
+        "vehicle-safety",
+        "recalls",
+        "safety-ratings",
+        "json"
       ],
       "validations": []
     },
