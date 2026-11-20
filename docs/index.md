@@ -21,6 +21,8 @@ Census TIGERweb ArcGIS layers for U.S. state and county boundaries, useful once 
 - Cadence: Census service updates
 - Tables:
   - `county_boundaries`: TIGERweb state/county boundary layer features. One row per ArcGIS boundary feature.
+    - Ask for: state or county, fields, whether geometry is needed
+    - Warnings: Connector is blocked; use REST pagination until ArcGIS support is stable.
 - AI use cases: join data to county boundaries, inspect state and county geometries
 - Caveats: connector is blocked; use REST pagination path until extension install is reliable
 
@@ -37,6 +39,8 @@ FEMA NFHL ArcGIS layer for flood hazard zones, intended for risk and property-co
 - Cadence: FEMA service updates
 - Tables:
   - `flood_hazard_zones`: FEMA NFHL flood hazard zone features. One row per flood hazard zone feature.
+    - Ask for: bbox or jurisdiction, fields, whether geometry is needed
+    - Warnings: Not a substitute for official determinations; connector path is not stable yet.
 - AI use cases: identify flood hazard zones, enrich property or parcel analysis
 - Caveats: not a substitute for official determinations; connector path is not stable yet
 
@@ -53,6 +57,8 @@ USGS National Map ArcGIS contour layer for elevation-line features and terrain c
 - Cadence: USGS service updates
 - Tables:
   - `contours`: USGS National Map elevation contour line features. One row per contour segment feature.
+    - Ask for: bbox, contour interval or elevation need, fields
+    - Warnings: Connector is blocked; large geometry layers need paging.
 - AI use cases: inspect terrain context, locate contour features, enrich map analysis
 - Caveats: connector is blocked; large geometry layers need paging
 
@@ -71,6 +77,8 @@ Australian Government CKAN catalog package with a public CSV distribution of Wyn
 - Cadence: catalog-maintained updates
 - Tables:
   - `wyndham_pet_registrations`: Wyndham registered dog and cat counts. One row per suburb/count record in the public CSV distribution.
+    - Ask for: suburb or animal type
+    - Warnings: CKAN is discovery metadata; query the direct readable CSV distribution.
 - AI use cases: test CKAN resource discovery, query a simple government CSV distribution
 - Caveats: CKAN is not a DuckDB table function; only directly readable distributions should be marked candidate
 
@@ -89,6 +97,8 @@ Official generalized U.S. county boundary shapefiles from the Census Bureau Cart
 - Cadence: annual Census cartographic boundary file releases
 - Tables:
   - `county_20m` (`odd.census.latest.county_20m`): Generalized U.S. county polygons at 20m scale. One row per county or county-equivalent feature.
+    - Ask for: year, scale, state filter, GEOID join key
+    - Warnings: Generalized for thematic mapping, not surveying.
 - AI use cases: map county-level indicators, join county FIPS codes to generalized boundaries, build thematic maps without TIGERweb paging
 - Caveats: generalized for thematic mapping rather than surveying, choose year and scale explicitly, zipped shapefile access requires DuckDB spatial/GDAL virtual paths
 
@@ -105,6 +115,8 @@ Official generalized U.S. census tract boundary shapefiles from the Census Burea
 - Cadence: annual Census cartographic boundary file releases
 - Tables:
   - `tract_5m` (`odd.census.latest.tract_5m`): Generalized U.S. census tract polygons at 5m scale. One row per census tract feature.
+    - Ask for: year, scale, state filter, tract GEOID join key
+    - Warnings: National tract files are larger; filter by state when possible.
 - AI use cases: map tract-level indicators, join tract GEOIDs to ACS estimates, build thematic maps without TIGERweb paging
 - Caveats: generalized for thematic mapping rather than surveying, choose year and scale explicitly, national tract files are larger than county files, zipped shapefile access requires DuckDB spatial/GDAL virtual paths
 
@@ -121,6 +133,9 @@ Official U.S. Geological Survey realtime earthquake summary feeds for recent sei
 - Cadence: feeds update every minute; older events age out by feed window
 - Tables:
   - `earthquake_events`: Recent USGS earthquake event features. One row per reported seismic event in the selected rolling feed.
+    - Ask for: feed window, magnitude threshold, bbox or region, limit
+    - Warnings: Rolling feeds are not stable historical snapshots.
+    - Columns: mag: Earthquake magnitude.; place: Human-readable event location.; time: Event time in epoch milliseconds.; geometry: GeoJSON point with longitude, latitude, and depth.
 - AI use cases: list recent earthquakes by magnitude, monitor significant events, map recent seismic activity
 - Caveats: rolling feeds are not stable historical snapshots, all_day can be empty during unusually quiet periods, event coordinates are GeoJSON point arrays with longitude latitude depth
 
@@ -137,6 +152,8 @@ Official World Bank Indicators API access to World Development Indicators time-s
 - Cadence: API metadata reports source-specific last updated dates
 - Tables:
   - `indicators`: World Bank indicator observations. One row per country, indicator, and year.
+    - Ask for: country code, indicator id, year range
+    - Warnings: Values may be null; API responses use a JSON envelope.
 - AI use cases: query country indicator histories, compare development indicators across years, pull WDI time series into DuckDB
 - Caveats: API responses use a two-element JSON envelope, some indicators can have null values, some third-party datasets or indicators may carry different metadata terms
 
@@ -153,6 +170,8 @@ Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Pric
 - Cadence: CPI series are updated on the BLS release schedule; API responses reflect published BLS time-series data
 - Tables:
   - `cpi_observations`: BLS CPI time-series observations. One row per BLS series and period.
+    - Ask for: series id, start year, end year
+    - Warnings: Values are returned as strings and should be cast before numeric analysis.
 - AI use cases: pull recent CPI observations, compare CPI series, build inflation trend examples in DuckDB
 - Caveats: keyless public access should stay to small single-series requests, registered v2 API access is better for multi-series or heavier usage, values are returned as strings and should be cast
 
@@ -169,6 +188,8 @@ Official Bureau of the Fiscal Service daily total public debt outstanding record
 - Cadence: daily on Treasury Fiscal Data publication schedule
 - Tables:
   - `debt_observations`: U.S. Treasury daily public debt outstanding records. One row per record date.
+    - Ask for: date window, debt field, limit
+    - Warnings: Fiscal Data CSV responses are gzipped; use compression = 'gzip'.
 - AI use cases: pull recent debt-to-the-penny observations, monitor daily public debt changes, join federal debt levels into economic time-series analysis
 - Caveats: Fiscal Data CSV responses are gzipped even though the URL has no .gz suffix, so DuckDB queries must pass compression = 'gzip'; amounts are large dollar values and should be handled as numeric fields
 
@@ -185,8 +206,14 @@ Official NOAA National Centers for Environmental Information Storm Events Databa
 - Cadence: bulk files are revised with new creation-date suffixes as NOAA/NCEI republishes each data year
 - Tables:
   - `storm_events_details` (`odd.noaa.latest.storm_events_details`): NOAA Storm Events detail rows. One row per reported storm event.
+    - Ask for: year, state, event type, limit
+    - Warnings: Files are revised with creation-date suffixes; pin year for reproducible examples.
   - `storm_events_fatalities` (`odd.noaa.latest.storm_events_fatalities`): NOAA Storm Events fatality rows. One row per fatality associated with a storm event.
+    - Ask for: year, state or event id, limit
+    - Warnings: Join to details by event_id for event context.
   - `storm_events_locations` (`odd.noaa.latest.storm_events_locations`): NOAA Storm Events location rows. One row per location attached to a storm event.
+    - Ask for: year, state or event id, limit
+    - Warnings: Join to details by event_id for event context.
 - AI use cases: query storm events by state and event type, inspect tornado or hail reports by year, join event details to fatalities or locations
 - Caveats: file names include both data year and NOAA creation-date suffix, latest table discovery scans the directory listing to choose the newest suffix per file family, CSV files can be large
 
@@ -203,6 +230,8 @@ NOAA GHCN Daily station observations in public S3 CSV files for temperature, pre
 - Cadence: daily and historical updates
 - Tables:
   - `ghcn_daily` (`odd.noaa.latest.ghcn_daily`): GHCN Daily station observations. One row per station, date, and observed climate element.
+    - Ask for: year, station id, climate element
+    - Warnings: CSV files are large; filter by year/station/element early.
 - AI use cases: analyze daily station observations, compare precipitation or temperature by year
 - Caveats: CSV files are large; filter by year/station/element early
 
@@ -219,6 +248,8 @@ NOAA GSOD daily weather summaries by station, exposed as public S3 CSV objects q
 - Cadence: daily and historical updates
 - Tables:
   - `daily_summaries`: NOAA GSOD daily station weather summaries. One row per station-day summary.
+    - Ask for: station id, year, weather fields
+    - Warnings: Station files are split by year and station.
 - AI use cases: query station daily summaries, compare temperatures by station, join station weather to events
 - Caveats: station files are split by year and station; choose a target file before scanning
 
@@ -235,6 +266,8 @@ NOAA ISD station-history lookup table with station identifiers, names, country/s
 - Cadence: periodic metadata updates
 - Tables:
   - `station_history`: NOAA ISD station metadata. One row per weather station history record.
+    - Ask for: country, state, station name, nearby place
+    - Warnings: Metadata lookup only; use observation datasets for measurements.
 - AI use cases: find nearby station IDs, map weather station locations, join station metadata to GSOD or ISD data
 - Caveats: metadata lookup only; use observation datasets for measurements
 
@@ -253,9 +286,18 @@ Global open map data releases for places, buildings, transportation, addresses, 
 - Cadence: monthly releases
 - Tables:
   - `place` (`odd.overturemaps.latest.place`): Places and points of interest. One row per Overture place feature.
+    - Ask for: bbox or area, release or latest, limit
+    - Warnings: Large global table; always use tight bbox filters.
+    - Columns: id: Stable Overture feature id.; names: Nested names object; primary/common/local names are not plain text columns.; bbox: Bounding box for fast spatial prefilters.; geometry: Place geometry.
   - `building` (`odd.overturemaps.latest.building`): Building footprint polygons. One row per Overture building feature.
+    - Ask for: bbox or area, release or latest, limit
+    - Warnings: Large global table; always use tight bbox filters.
   - `segment` (`odd.overturemaps.latest.segment`): Transportation road/path segments. One row per Overture segment feature.
+    - Ask for: bbox or area, release or latest, limit
+    - Warnings: Large global table; always use tight bbox filters.
   - `address` (`odd.overturemaps.latest.address`): Address point/record features. One row per Overture address feature.
+    - Ask for: bbox or area, release or latest, limit
+    - Warnings: Large global table; always use tight bbox filters.
 - AI use cases: find places in a bounding box, inspect global building footprints, sample road segments, query address points, compare map releases
 - Caveats: large files require tight spatial filters, attribution varies by contributing provider, release paths should be pinned for reproducible workflows
 
@@ -274,6 +316,8 @@ VIDA's combined Google and Microsoft global building-footprint dataset, partitio
 - Cadence: source README changelog updates
 - Tables:
   - `building_footprints`: Combined Google/Microsoft building footprint polygons. One row per building footprint.
+    - Ask for: ISO3 country code, bbox, limit
+    - Warnings: Large countries are partitioned; use country and S2 paths to avoid huge scans.
 - AI use cases: query building footprints by country, filter footprints by bounding box, compare footprint source and confidence
 - Caveats: large countries are partitioned; use country and S2 paths to avoid huge scans
 
@@ -292,6 +336,8 @@ New York City 311 service-request records from 2020 to present, exposed through 
 - Cadence: daily automated updates
 - Tables:
   - `service_requests`: NYC 311 service request records. One row per 311 request.
+    - Ask for: date range, borough, complaint type, limit
+    - Warnings: Large table requires bounded SODA queries with select/order/limit.
 - AI use cases: query recent 311 complaints by borough, inspect service-request categories, test Socrata pagination
 - Caveats: large table requires bounded SODA queries, dataset metadata has no explicit license field, use the NYC Open Data law citation for use-policy context
 
@@ -308,6 +354,8 @@ CDC PLACES model-based county-level estimates for chronic disease outcomes, prev
 - Cadence: annual PLACES release; each release is a separate Socrata dataset id
 - Tables:
   - `county_health_estimates`: CDC PLACES county health estimate rows. One row per county, measure, and data-value type.
+    - Ask for: state, measure id, age-adjusted or crude prevalence
+    - Warnings: Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.
 - AI use cases: compare health measures across counties in a state, join county health estimates to boundary data, inspect confidence limits for a single measure
 - Caveats: model-based small-area estimates rather than direct survey counts, each measure appears twice per county so filter datavaluetypeid to AgeAdjPrv or CrdPrv, 229k rows require bounded SODA paging, the dataset id is release-specific
 
@@ -326,6 +374,8 @@ Element 84 STAC API for cloud-optimized geospatial imagery, especially Sentinel 
 - Cadence: collection-specific updates
 - Tables:
   - `stac_items`: STAC item search results from Earth Search. One row per imagery item returned by the STAC API.
+    - Ask for: collection, bbox, date range, cloud cover, limit
+    - Warnings: Assets can be large; inspect metadata before reading imagery assets.
 - AI use cases: discover Sentinel scenes, filter imagery by bounding box and date, inspect asset URLs
 - Caveats: license and attribution are collection-specific, assets may be large
 
@@ -342,6 +392,8 @@ Microsoft Planetary Computer STAC catalog for environmental, climate, and satell
 - Cadence: collection-specific updates
 - Tables:
   - `stac_items`: STAC item search results from Microsoft Planetary Computer. One row per catalog item returned by the STAC API.
+    - Ask for: collection, bbox, date range, limit
+    - Warnings: Some assets require Planetary Computer signing or access patterns.
 - AI use cases: discover public imagery collections, inspect STAC item assets, build climate-data queries
 - Caveats: some assets require signing or Planetary Computer-specific access patterns
 
@@ -358,5 +410,7 @@ NASA LP DAAC STAC catalog for land processes data products served through Earthd
 - Cadence: product-specific updates
 - Tables:
   - `stac_items`: NASA LP DAAC STAC item metadata. One row per land-processes product item returned by the STAC API.
+    - Ask for: product or collection, bbox or area, date range, limit
+    - Warnings: Some downstream assets may require Earthdata access workflows.
 - AI use cases: find LP DAAC products, inspect land remote-sensing assets, cite NASA datasets
 - Caveats: some downstream assets may require Earthdata access workflows

@@ -26,6 +26,16 @@ def test_research_worker_requires_engine_issue_links_for_blocked_sources() -> No
     assert "real public-source smoke coverage" in brief
 
 
+def test_research_worker_uses_table_first_source_candidates() -> None:
+    brief = Path("agents/research-worker.md").read_text(encoding="utf-8")
+
+    assert "at least one proposed table" in brief
+    assert "## Tables" in brief
+    assert "One row means" in brief
+    assert "Ask for before writing SQL" in brief
+    assert "Validation id linked to this table ref" in brief
+
+
 def test_readme_links_engine_maintenance_tracker() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
 

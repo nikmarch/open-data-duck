@@ -278,6 +278,12 @@ def render_source_detail(source: Source) -> str:
         for table in source.tables:
             ref = f" ({table['ref']})" if table.get("ref") else ""
             lines.append(f"- {table.get('id')}{ref}: {table.get('description')}")
+            if table.get("ask_for"):
+                lines.append(f"  Ask for: {_inline_value(table['ask_for'])}")
+            if table.get("warnings"):
+                lines.append(f"  Warnings: {_inline_value(table['warnings'])}")
+            if table.get("columns_hint"):
+                lines.append(f"  Columns: {_inline_mapping(table['columns_hint'])}")
     if source.ai:
         lines.extend(("", "AI usage:"))
         for key, value in source.ai.items():
@@ -322,6 +328,12 @@ def render_index_markdown(sources: list[Source]) -> str:
                 for table in source.tables:
                     ref = f" (`{table['ref']}`)" if table.get("ref") else ""
                     lines.append(f"  - `{table.get('id')}`{ref}: {table.get('description')}")
+                    if table.get("ask_for"):
+                        lines.append(f"    - Ask for: {_inline_value(table['ask_for'])}")
+                    if table.get("warnings"):
+                        lines.append(f"    - Warnings: {_inline_value(table['warnings'])}")
+                    if table.get("columns_hint"):
+                        lines.append(f"    - Columns: {_inline_mapping(table['columns_hint'])}")
             if source.ai.get("use_cases"):
                 lines.append(f"- AI use cases: {_inline_value(source.ai['use_cases'])}")
             if source.ai.get("caveats"):
@@ -443,17 +455,23 @@ def _validate_tables(source: dict[str, Any], source_path: str) -> list[Validatio
         if isinstance(table_ref, str) and table_ref.strip():
             table_refs.add(table_ref)
 
-    validation_ids = {
-        validation.get("id")
-        for validation in _mapping_list(source.get("validations"))
-        if isinstance(validation.get("id"), str)
-    }
-    validation_ids.update(
-        validation.get("id")
-        for table in _mapping_list(source.get("tables"))
-        for validation in _mapping_list(table.get("validations"))
-        if isinstance(validation.get("id"), str)
-    )
+    validation_ids: set[str] = set()
+    seen_validation_ids: set[str] = set()
+    for validation in _mapping_list(source.get("validations")):
+        validation_id = validation.get("id")
+        if isinstance(validation_id, str):
+            if validation_id in seen_validation_ids:
+                errors.append(ValidationError(source_path, f"duplicate validation id {validation_id}"))
+            seen_validation_ids.add(validation_id)
+            validation_ids.add(validation_id)
+    for table in _mapping_list(source.get("tables")):
+        for validation in _mapping_list(table.get("validations")):
+            validation_id = validation.get("id")
+            if isinstance(validation_id, str):
+                if validation_id in seen_validation_ids:
+                    errors.append(ValidationError(source_path, f"duplicate validation id {validation_id}"))
+                seen_validation_ids.add(validation_id)
+                validation_ids.add(validation_id)
     for validation_id in validation_ids:
         if isinstance(validation_id, str) and validation_id.startswith("odd.") and not _validation_matches_table_ref(validation_id, table_refs):
             errors.append(ValidationError(source_path, f"validation id {validation_id} must match a table ref"))
