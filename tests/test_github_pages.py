@@ -6,6 +6,8 @@ import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
 
+from odd.registry import load_sources, render_site_index_html
+
 
 class LinkAndAssetParser(HTMLParser):
     def __init__(self) -> None:
@@ -66,6 +68,7 @@ def test_pages_builder_publishes_static_site_with_brand_assets(tmp_path: Path) -
     assert (output_dir / "assets" / "brand" / "odd-icon.svg").exists()
     assert parser.scripts == set()
     assert "#plugin-api" in parser.links
+    assert "#source-catalog" in parser.links
     assert "#try-it" not in parser.links
     assert "#workflow" not in parser.links
     assert "https://github.com/nikmarch/open-data-duck" in parser.links
@@ -97,13 +100,32 @@ def test_pages_plugin_api_direction_is_static() -> None:
     assert parser.examples == set()
     assert "terminal.js" not in index
     assert "demo-recipes.json" not in index
-    assert "aws.noaa-ghcn-daily" not in index
     assert "Demo playback" not in index
     assert "Try the terminal" not in index
     assert "<video" not in index
     assert "<iframe" not in index
     assert "<canvas" not in index
     assert "@keyframes terminal-type" not in styles
+
+
+def test_checked_in_pages_site_is_generated_from_registry() -> None:
+    sources = load_sources(Path("registry/sources.yml"))
+    index = Path("site/index.html").read_text(encoding="utf-8")
+
+    assert index == render_site_index_html(sources)
+    assert "Generated queryable table refs from registry/sources.yml" in index
+    assert "Source and table metadata rendered from registry/sources.yml" in index
+    assert "odd.local.anchorage.building_permits" not in index
+
+
+def test_pages_catalog_includes_registry_table_metadata() -> None:
+    index = Path("site/index.html").read_text(encoding="utf-8")
+
+    assert "id=\"source-catalog\"" in index
+    assert "U.S. Census cartographic county boundary files" in index
+    assert "odd.census.latest.county_20m" in index
+    assert "Ask for: year, scale, state filter, GEOID join key" in index
+    assert "Warnings: Large global table; always use tight bbox filters." in index
 
 
 def test_pages_site_has_social_preview_metadata() -> None:
@@ -131,6 +153,7 @@ def test_pages_workflow_uses_github_actions_pages_deploy() -> None:
     assert "actions/deploy-pages@v4" in workflow
     assert "pages: write" in workflow
     assert "id-token: write" in workflow
+    assert "python -m pip install ." in workflow
     assert "python scripts/build_pages_site.py" in workflow
     assert "branches: [main]" in workflow
 
