@@ -1,0 +1,22 @@
+flowchart TD
+  CLI["uv run odd schema inspect/check/refresh"] --> CliSchema["odd.cli._schema()"]
+  CliSchema --> SchemaManifest["odd/schema_manifest.py"]
+
+  SchemaManifest --> FindSource["odd.registry.find_source()\nor load_requested_sources()"]
+  FindSource --> SourcesYaml["registry/sources.yml"]
+  SchemaManifest --> RenderSQL["odd.registry.render_source_sql()"]
+  RenderSQL --> SQL["DuckDB SQL recipe\nexample or validation"]
+
+  SchemaManifest --> Split["split_sql_statements()"]
+  Split --> DuckDB["duckdb.connect(':memory:')"]
+  DuckDB --> Helpers["sql/open_data_duck.sql\nopen_data_schema(?) helper"]
+  DuckDB --> Inspect["SELECT name, duckdb_type, nullable\nFROM open_data_schema(?)"]
+  Inspect --> SourceSchema["SourceSchema\ncolumns + schema_hash + status"]
+
+  SourceSchema --> Refresh["refresh_manifest_for_sources()"]
+  Refresh --> ManifestFile["schema/source-manifest.json"]
+
+  ManifestFile --> Check["check_source_schema()"]
+  SourceSchema --> Check
+  Check --> Compare["compare_schemas()"]
+  Compare --> Issues["CompatibilityIssue\ninfo or breaking"]

@@ -1,0 +1,43 @@
+flowchart TD
+  CLI["odd/cli.py\nargparse commands"] --> Registry["odd/registry.py\nSource model + search + render + validation"]
+  CLI --> ExtensionRegistry["odd/extension_registry.py\ngenerate C++ registry header"]
+  CLI --> SchemaManifest["odd/schema_manifest.py\nschema inspect/check/refresh"]
+
+  MCP["odd/mcp_server.py\noptional MCP tools"] --> Registry
+  MCP --> SchemaManifest
+
+  SchemaManifest --> Registry
+  SchemaManifest --> SQLHelpers["sql/open_data_duck.sql\nDuckDB schema helper SQL"]
+
+  ExtensionRegistry --> Registry
+  ExtensionRegistry --> GeneratedHeader["src/include/open_data_duck_registry.generated.hpp\nREGISTRY_JSON"]
+
+  SourcesYaml["registry/sources.yml\nsource of truth"] --> Registry
+  SourceSchema["schema/source.schema.json"] --> Registry
+  SchemaManifestFile["schema/source-manifest.json"] --> SchemaManifest
+
+  BuildPages["scripts/build_pages_site.py"] --> Registry
+  BuildPages --> SiteStatic["site/\nstatic assets"]
+  BuildPages --> BrandAssets["docs/assets/brand/\nbrand assets"]
+  Registry --> DocsIndex["docs/index.md\ngenerated Markdown"]
+  Registry --> SiteIndex["site/index.html / _site/index.html\ngenerated HTML"]
+
+  ExtensionCpp["src/open_data_duck_extension.cpp\nnative DuckDB extension"] --> GeneratedHeader
+  ExtensionCpp --> DuckDB["DuckDB extension APIs"]
+
+  SQLTests["test/sql/open_data_duck*.test\nsqllogictest"] --> ExtensionCpp
+  PyTests["tests/*.py\nPython tests"] --> CLI
+  PyTests --> Registry
+  PyTests --> ExtensionRegistry
+  PyTests --> SchemaManifest
+
+  ArcGIS["odd/arcgis.py"] -. source-family helpers .-> Registry
+  CKAN["odd/ckan.py"] -. source-family helpers .-> Registry
+  Socrata["odd/socrata.py"] -. source-family helpers .-> Registry
+
+  classDef source fill:#f5f5ff,stroke:#555;
+  classDef generated fill:#fff3cc,stroke:#996b00;
+  classDef native fill:#eef7ee,stroke:#27632a;
+  class SourcesYaml,SourceSchema,SchemaManifestFile source;
+  class GeneratedHeader,DocsIndex,SiteIndex generated;
+  class ExtensionCpp,DuckDB native;

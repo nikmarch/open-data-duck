@@ -1,0 +1,46 @@
+sequenceDiagram
+  actor User
+  participant DuckDB
+  participant Loader as LoadInternal()
+  participant Catalog as OpenDataDuckStorageAttach()
+  participant Repl as OpenDataDuckReplacementScan()
+  participant Registry as GetEmbeddedRegistry()
+  participant Release as ResolveRelease()
+  participant Discover as DiscoverTables()
+  participant SQL as RunSourceControlledSql()
+  participant Reader as DuckDB reader function
+
+  User->>DuckDB: LOAD open_data_duck
+  DuckDB->>Loader: register functions/storage extension/replacement scan
+  Loader->>DuckDB: open_data_sources(), open_data_search(), open_data_tables(), TYPE open_data_duck
+
+  User->>DuckDB: ATTACH ':memory:' AS odd (TYPE open_data_duck)
+  DuckDB->>Catalog: create DuckCatalog with default views
+  Catalog-->>DuckDB: odd.index and odd.tables view generators
+
+  User->>DuckDB: SELECT * FROM odd.index
+  DuckDB->>Repl: replacement scan full path odd.index
+  Repl-->>DuckDB: TableFunctionRef(open_data_sources AS index)
+  DuckDB->>Registry: parse/read embedded registry
+  Registry-->>DuckDB: source rows
+
+  User->>DuckDB: SELECT * FROM odd.tables
+  DuckDB->>Repl: replacement scan full path odd.tables
+  Repl-->>DuckDB: TableFunctionRef(open_data_tables AS tables)
+  DuckDB->>Discover: bind open_data_tables()
+  Discover->>Registry: sources with tables_namespace
+  Discover->>Release: resolve source release if discover_sql contains {release}
+  Release->>SQL: run release.latest.resolve_sql unless pinned/cached
+  SQL-->>Release: release id
+  Discover->>SQL: run duckdb.tables.discover_sql for source@release
+  SQL-->>Discover: rows (name, reader, path)
+  Discover-->>DuckDB: source_id, table_reference, reader, path, release rows
+
+  User->>DuckDB: SELECT * FROM odd.overturemaps.latest.building
+  DuckDB->>Repl: replacement scan full path odd.overturemaps.latest.building
+  Repl->>Registry: find source namespace prefix
+  Repl->>Discover: discover tables for matched source
+  Discover-->>Repl: table row with reader + path
+  Repl-->>DuckDB: TableFunctionRef(reader(path))
+  DuckDB->>Reader: read_parquet(path) / st_read(path) / read_csv(path)
+  Reader-->>User: table rows

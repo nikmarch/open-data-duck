@@ -1,0 +1,41 @@
+sequenceDiagram
+  actor User
+  participant CLI as odd/cli.py main()
+  participant Registry as odd/registry.py
+  participant ExtReg as odd/extension_registry.py
+  participant Schema as odd/schema_manifest.py
+  participant FS as repo files
+
+  User->>CLI: uv run odd validate
+  CLI->>Registry: validate_registry(registry/sources.yml, schema/source.schema.json)
+  Registry->>FS: read registry/sources.yml + schema/source.schema.json
+  Registry-->>CLI: list[ValidationError]
+  CLI-->>User: pass/fail text
+
+  User->>CLI: uv run odd index/search/show/sql
+  CLI->>Registry: load_sources() / search_sources() / find_source() / render_source_sql()
+  Registry->>FS: read registry/sources.yml
+  Registry-->>CLI: Source objects or rendered output
+  CLI-->>User: text/json/SQL
+
+  User->>CLI: uv run odd generate-index / generate-site
+  CLI->>Registry: write_index_artifacts() / write_site_index()
+  Registry->>FS: read registry/sources.yml
+  Registry->>FS: write docs/index.md or site/index.html
+  Registry-->>CLI: written paths
+  CLI-->>User: paths
+
+  User->>CLI: uv run odd generate-extension-registry --check
+  CLI->>ExtReg: check_extension_registry_header()
+  ExtReg->>Registry: load_sources()
+  Registry->>FS: read registry/sources.yml
+  ExtReg->>FS: compare src/include/open_data_duck_registry.generated.hpp
+  ExtReg-->>CLI: drift problems or empty list
+  CLI-->>User: current or drift report
+
+  User->>CLI: uv run odd schema inspect/check/refresh
+  CLI->>Schema: inspect_source_schema() / check_source_schema() / refresh_manifest_for_sources()
+  Schema->>Registry: find_source() / load_sources() / render_source_sql()
+  Schema->>FS: read/write schema/source-manifest.json
+  Schema-->>CLI: schema JSON or compatibility result
+  CLI-->>User: schema output

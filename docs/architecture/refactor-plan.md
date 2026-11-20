@@ -1,0 +1,219 @@
+# Refactor plan
+
+This plan is intentionally small-slice and behavior-preserving. It comes from the diagrammed current state, not from a broad rewrite goal.
+
+## Ground rules
+
+- Keep `registry/sources.yml` as the source of truth.
+- Keep generated artifacts generated; do not hand-edit `src/include/open_data_duck_registry.generated.hpp`.
+- Keep native extension behavior covered by `test/sql/open_data_duck.test` and network-sensitive behavior isolated in `test/sql/open_data_duck_network.test`.
+- Do not invent a generic engine framework until at least two source-family paths need the same runtime shape.
+
+## Slice 1: Split registry rendering from registry validation
+
+Problem visible in diagram:
+
+- `odd/registry.py` is both the registry model and a renderer/validator/site generator. The module dependency map shows `odd.cli`, `odd.extension_registry`, `odd.schema_manifest`, `odd.mcp_server`, and `scripts/build_pages_site.py` all depending on one large module.
+
+Files touched:
+
+- `odd/registry.py`
+- New candidate: `odd/registry_model.py` or `odd/sources.py`
+- New candidate: `odd/registry_renderers.py`
+- New candidate: `odd/registry_validation.py`
+- Existing tests in `tests/test_registry_validation.py`
+
+New/renamed responsibility:
+
+- Keep `Source`, `ValidationError`, loading, search, and lookup in a small model/access module.
+- Move Markdown/HTML/JSON/text rendering to a renderer module.
+- Move validation hygiene to a validation module.
+
+Behavior expected to stay the same:
+
+- CLI command output.
+- MCP wrapper output.
+- Generated `docs/index.md` and `site/index.html`.
+- Registry validation errors.
+
+Tests/verification:
+
+- `uv run pytest tests/test_registry_validation.py tests/test_github_pages.py`
+- `uv run odd validate`
+- `uv run odd generate-index --output-dir /tmp/odd-docs-check`
+- `uv run odd generate-site --output /tmp/odd-site-check.html`
+
+Risk:
+
+- Import churn. Keep public helper names re-exported temporarily if needed.
+
+## Slice 2: Extract CLI parser construction from command execution
+
+Problem visible in diagram:
+
+- The CLI sequence diagram shows `odd.cli.main()` doing parser construction, dispatch, and path defaults for every domain. That function is already the front door for registry, docs, generated header, and schema manifest commands.
+
+Files touched:
+
+- `odd/cli.py`
+- Existing CLI tests in `tests/test_registry_validation.py` and schema tests.
+
+New/renamed responsibility:
+
+- Extract parser creation into `build_parser()`.
+- Keep command handlers as small functions.
+- Optionally group schema subcommands under a small `schema_cli` helper only if the function stays large after `build_parser()` extraction.
+
+Behavior expected to stay the same:
+
+- CLI commands and flags.
+- Exit codes.
+- Printed output.
+
+Tests/verification:
+
+- Existing CLI tests that call `main()`.
+- `uv run odd validate`
+- representative commands: `uv run odd search overture --limit 1`, `uv run odd sql overture.maps.release --no-install`.
+
+Risk:
+
+- Low. Parser extraction should be mostly mechanical.
+
+## Slice 3: Name the generated extension registry contract
+
+Problem visible in diagram:
+
+- The registry-to-extension flow depends on a Python-selected field set and a C++ parser, but no named contract document or schema exists for the embedded payload.
+
+Files touched:
+
+- `odd/extension_registry.py`
+- `src/open_data_duck_extension.cpp`
+- Candidate doc: `docs/architecture/embedded-registry-contract.md` or schema fixture under `schema/`
+- Tests that check generated header drift.
+
+New/renamed responsibility:
+
+- Give the embedded payload an explicit contract name, for example `ExtensionRegistryPayload` in docs/tests.
+- Add a small Python test that asserts the emitted JSON fields match what the C++ parser expects.
+- Consider a generated compact JSON fixture for tests, not for runtime.
+
+Behavior expected to stay the same:
+
+- Header content may change only if formatting/contract tests require it; runtime behavior should not.
+
+Tests/verification:
+
+- `uv run odd generate-extension-registry --check`
+- `uv run pytest tests/test_registry_validation.py`
+
+Risk:
+
+- Medium only if header formatting changes. Prefer tests/doc first.
+
+## Slice 4: Split native extension runtime by responsibility
+
+Problem visible in diagram:
+
+- `src/open_data_duck_extension.cpp` is the clearest god-file candidate. It owns registry parsing, SQL sandboxing, release/table discovery, scalar functions, table functions, replacement scan, catalog attach, and registration.
+
+Files touched:
+
+- `src/open_data_duck_extension.cpp`
+- New candidates under `src/` or `src/include/`:
+  - `open_data_duck_registry.cpp/.hpp`
+  - `open_data_duck_sql_sandbox.cpp/.hpp`
+  - `open_data_duck_tables.cpp/.hpp`
+  - `open_data_duck_catalog.cpp/.hpp`
+
+New/renamed responsibility:
+
+- First extraction should be the embedded registry parser and lookup helpers: `OpenDataSource`, `ParseEmbeddedRegistry()`, `GetEmbeddedRegistry()`, `FindSourceOrThrow()`.
+- Second extraction should be source-controlled SQL guardrails: `ValidateSourceControlledSql()`, `ValidateSourceExtensionName()`, `RunSourceControlledSql()`.
+- Leave `LoadInternal()` and DuckDB registration in the original file until the extracted boundaries are stable.
+
+Behavior expected to stay the same:
+
+- SQL function names and output.
+- `ATTACH ... (TYPE open_data_duck)` behavior.
+- Replacement scan behavior.
+
+Tests/verification:
+
+- `make test-extension-sql`
+- If native build is too slow locally, at minimum compile the extension target and run `test/sql/open_data_duck.test`.
+
+Risk:
+
+- Medium. DuckDB C++ APIs and static initialization can be picky. Extract one boundary per PR.
+
+## Slice 5: Make release/table discovery a named native service
+
+Problem visible in diagram:
+
+- `OpenDataDuckReplacementScan()` depends on `DiscoverTables()`, which depends on `ResolveRelease()` and `RunSourceControlledSql()`. The relationship is correct but implicit; query behavior depends on cache keys and release pinning.
+
+Files touched:
+
+- `src/open_data_duck_extension.cpp`
+- Candidate files from Slice 4 if already extracted.
+- `test/sql/open_data_duck.test`
+- `test/sql/open_data_duck_network.test`
+
+New/renamed responsibility:
+
+- Introduce a small native table-discovery boundary around `ResolveRelease()` and `DiscoverTables()`.
+- Make cache key construction and pinned-release behavior visible in that boundary.
+
+Behavior expected to stay the same:
+
+- `open_data_release()` precedence: pinned variable, cached release, `release.latest.resolve_sql`.
+- `odd.tables` and facade reads discover the same table rows.
+
+Tests/verification:
+
+- Existing sqllogictests around `open_data_release()`.
+- Network sqllogictest for `odd.tables` and facade reads.
+
+Risk:
+
+- Medium. This touches network-backed behavior and cache semantics.
+
+## Slice 6: Keep engine helper modules boring until runtime integration needs them
+
+Problem visible in diagram:
+
+- `odd/arcgis.py`, `odd/ckan.py`, and `odd/socrata.py` are parallel but not wired through one interface. That can look tempting to abstract, but they are currently small and source-family-specific.
+
+Files touched:
+
+- None for now unless a concrete feature needs it.
+
+New/renamed responsibility:
+
+- No immediate abstraction.
+- If another engine feature needs the same evidence/planning shape, introduce a small protocol after the second real use.
+
+Behavior expected to stay the same:
+
+- Existing helper tests and source-family planning behavior.
+
+Tests/verification:
+
+- Existing tests that cover these modules.
+
+Risk:
+
+- Low if deferred. High if abstracted prematurely.
+
+## Recommended order
+
+1. Slice 1: split registry rendering/validation/model.
+2. Slice 2: extract CLI parser construction.
+3. Slice 3: name/test generated extension registry contract.
+4. Slice 4: extract native registry parser/lookup from `src/open_data_duck_extension.cpp`.
+5. Slice 5: extract native release/table discovery boundary.
+6. Slice 6: revisit engine helper abstraction only after a concrete need.
+
+This keeps the first PRs low-risk Python cleanup before touching DuckDB C++ runtime behavior.

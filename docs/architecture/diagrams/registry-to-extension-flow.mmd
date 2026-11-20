@@ -1,0 +1,19 @@
+flowchart LR
+  SourcesYaml["registry/sources.yml"] --> LoadSources["odd.registry.load_sources()"]
+  LoadSources --> SourceObjects["list[Source]"]
+  SourceObjects --> SourceToExtension["odd.extension_registry.source_to_extension_dict()\nselect extension-consumed fields"]
+  SourceToExtension --> Payload["build_extension_registry()\nschema_version + source_count + sources"]
+  Payload --> JSON["render_extension_registry_json()\ndeterministic JSON"]
+  JSON --> Header["render_extension_registry_header()"]
+  Header --> Generated["src/include/open_data_duck_registry.generated.hpp\nREGISTRY_JSON\nREGISTRY_SCHEMA_VERSION\nREGISTRY_SOURCE_COUNT"]
+
+  Generated --> Compile["native extension build"]
+  Compile --> ExtensionCpp["src/open_data_duck_extension.cpp"]
+  ExtensionCpp --> Parse["ParseEmbeddedRegistry()"]
+  Parse --> RuntimeRegistry["static vector<OpenDataSource>\nGetEmbeddedRegistry()"]
+
+  RuntimeRegistry --> SQLFunctions["open_data_sources()\nopen_data_search()\nopen_data_sql()\nopen_data_validation_sql()"]
+  RuntimeRegistry --> ReleaseTables["open_data_release()\nopen_data_tables()\nreplacement scan facades"]
+
+  Header -. check mode .-> Check["check_extension_registry_header()\ncompares expected vs actual"]
+  Check -. drift report .-> CLI["uv run odd generate-extension-registry --check"]
