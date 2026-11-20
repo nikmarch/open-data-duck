@@ -21,17 +21,11 @@ A malicious or compromised source definition must not be able to read or reuse s
 
 ## Enforced boundary
 
-When Open Data Duck needs to run source-controlled discovery SQL, it now runs it in a fresh in-memory DuckDB database instead of the caller's `DatabaseInstance`.
+When Open Data Duck needs to run source-controlled discovery SQL, it runs that SQL through a separate DuckDB connection and loads only the source's declared DuckDB extensions into that discovery path.
 
-That isolated database has no access to the caller's:
+The discovery SQL is constrained to a single `SELECT`/`WITH` query. The guard rejects statement chaining and blocks session- or filesystem-mutating tokens such as `ATTACH`, `LOAD`, `INSTALL`, `CREATE`, `COPY`, `SET`, `RESET`, and `PRAGMA`. It also blocks explicit session/secret inspection through `getvariable`, `current_setting`, `duckdb_settings`, and `duckdb_secrets`.
 
-- attached databases;
-- temp objects;
-- user variables;
-- session settings;
-- registered secrets.
-
-Before execution, discovery SQL is also constrained to a single `SELECT`/`WITH` query. The guard rejects statement chaining and blocks session- or filesystem-mutating tokens such as `ATTACH`, `LOAD`, `INSTALL`, `CREATE`, `COPY`, `SET`, `RESET`, and `PRAGMA`. It also blocks explicit session/secret inspection through `getvariable`, `current_setting`, `duckdb_settings`, and `duckdb_secrets`.
+That means source-controlled SQL cannot directly attach new databases, mutate caller state, load arbitrary extensions, or call the known DuckDB session/secret inspection APIs.
 
 ## Allowed work
 
