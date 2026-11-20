@@ -126,7 +126,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">22 sources across arcgis (3), ckan (1), other (11), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">23 sources across arcgis (3), ckan (1), other (12), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header">
@@ -262,6 +262,21 @@ LIMIT 10;</code></pre>
           <ul class="tag-list"><li>arcgis</li><li>usgs</li><li>elevation</li><li>contours</li></ul>
           <ul class="table-list"><li><strong>contours</strong>: USGS National Map elevation contour line features. One row per contour segment feature. <span>Ask for: bbox, contour interval or elevation need, fields</span> <span>Warnings: Connector is blocked; large geometry layers need paging.</span></li></ul>
           <a href="https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer">Homepage</a>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header">
+            <span class="status">candidate</span>
+            <span>other</span>
+          </div>
+          <h3><code>nhtsa.vehicle-safety</code></h3>
+          <p>Official National Highway Traffic Safety Administration vehicle recall campaigns and safety-rating lookup APIs, queryable as public JSON over HTTPS with DuckDB httpfs.</p>
+          <dl>
+            <dt>Authority</dt><dd>National Highway Traffic Safety Administration, U.S. Department of Transportation</dd>
+            <dt>License</dt><dd><a href="https://www.nhtsa.gov/about-nhtsa/terms-use">Terms</a></dd>
+          </dl>
+          <ul class="tag-list"><li>nhtsa</li><li>vehicle-safety</li><li>recalls</li><li>safety-ratings</li><li>json</li></ul>
+          <ul class="table-list"><li><strong>recalls_by_vehicle</strong>: NHTSA recall campaign results for a requested model year, make, and model. One row per recall campaign result. <span>Ask for: model year, make, model, limit</span> <span>Warnings: Parameterized API endpoint; preserve model year, make, and model filters instead of treating it as a full-table scan.</span></li><li><strong>safety_rating_variants</strong>: NHTSA safety-rating vehicle variants for a requested model year, make, and model. One row per returned vehicle variant. <span>Ask for: model year, make, model, limit</span> <span>Warnings: Parameterized API endpoint; use the returned VehicleId for rating-detail lookups.</span></li></ul>
+          <a href="https://www.nhtsa.gov/nhtsa-datasets-and-apis">Homepage</a>
         </article>
         <article class="source-card">
           <div class="source-card-header">

@@ -57,18 +57,18 @@ VALID_REGISTRY = {
                     "columns_hint": {"id": "Stable fixture row id."},
                     "ask_for": ["limit"],
                     "warnings": ["Fixture only."],
-                }
-            ],
-            "validations": [
-                {
-                    "id": "odd.example.latest.rows",
-                    "description": "Compare the ODD facade against the direct reader.",
-                    "release": "latest",
-                    "direct_sql": "SELECT id FROM read_parquet('https://example.com/data.parquet') ORDER BY id LIMIT 5;",
-                    "odd_sql": "SELECT id FROM odd.example.latest.rows ORDER BY id LIMIT 5;",
-                    "compare": "exact",
-                    "order_by": ["id"],
-                    "limit": 5,
+                    "validations": [
+                        {
+                            "id": "odd.example.latest.rows",
+                            "description": "Compare the ODD facade against the direct reader.",
+                            "release": "latest",
+                            "direct_sql": "SELECT id FROM read_parquet('https://example.com/data.parquet') ORDER BY id LIMIT 5;",
+                            "odd_sql": "SELECT id FROM odd.example.latest.rows ORDER BY id LIMIT 5;",
+                            "compare": "exact",
+                            "order_by": ["id"],
+                            "limit": 5,
+                        }
+                    ],
                 }
             ],
         }
@@ -88,13 +88,17 @@ MINIMAL_REGISTRY = {
             "attribution": "Credit Minimal Authority.",
             "duckdb": {"extensions": ["httpfs"]},
             "tables": [
-                {"id": "rows", "ref": "odd.minimal.latest.rows", "description": "Minimal rows."}
-            ],
-            "validations": [
                 {
-                    "id": "odd.minimal.latest.rows",
-                    "direct_sql": "SELECT id FROM read_parquet('https://example.com/data.parquet') ORDER BY id LIMIT 5;",
-                    "odd_sql": "SELECT id FROM odd.minimal.latest.rows ORDER BY id LIMIT 5;",
+                    "id": "rows",
+                    "ref": "odd.minimal.latest.rows",
+                    "description": "Minimal rows.",
+                    "validations": [
+                        {
+                            "id": "odd.minimal.latest.rows",
+                            "direct_sql": "SELECT id FROM read_parquet('https://example.com/data.parquet') ORDER BY id LIMIT 5;",
+                            "odd_sql": "SELECT id FROM odd.minimal.latest.rows ORDER BY id LIMIT 5;",
+                        }
+                    ],
                 }
             ],
         }
@@ -144,6 +148,21 @@ def test_schema_source_required_fields_are_small_core() -> None:
     assert schema["$defs"]["source"]["properties"]["duckdb"]["required"] == ["extensions"]
     assert schema["$defs"]["table"]["required"] == ["id", "description"]
     assert schema["$defs"]["validation"]["required"] == ["id", "direct_sql", "odd_sql"]
+    assert "validations" not in schema["$defs"]["source"]["properties"]
+    assert "validations" in schema["$defs"]["table"]["properties"]
+    assert schema["$defs"]["source"]["additionalProperties"] is False
+
+
+def test_validate_registry_rejects_source_level_validations(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
+    source = registry["sources"][0]
+    source["validations"] = [source["tables"][0]["validations"][0].copy()]
+    source["tables"][0].pop("validations")
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    errors = validate_registry(registry_path, schema_path)
+
+    assert any("validations" in error.path or "validations" in error.message for error in errors)
 
 
 def test_validate_registry_accepts_connector_blocked_status(tmp_path: Path) -> None:
@@ -160,13 +179,13 @@ def test_validate_registry_accepts_connector_blocked_status(tmp_path: Path) -> N
         (("authority",), "authority"),
         (("license_url",), "license_url"),
         (("attribution",), "attribution"),
-        (("validations", 0, "direct_sql"), "validations[0](odd.example.latest.rows).direct_sql"),
-        (("validations", 0, "odd_sql"), "validations[0](odd.example.latest.rows).odd_sql"),
+        (("tables", 0, "validations", 0, "direct_sql"), "tables[0](rows).validations[0](odd.example.latest.rows).direct_sql"),
+        (("tables", 0, "validations", 0, "odd_sql"), "tables[0](rows).validations[0](odd.example.latest.rows).odd_sql"),
     ],
 )
 def test_validate_registry_rejects_blank_required_text(
     tmp_path: Path,
-    field_path: tuple[str, ...],
+    field_path: tuple[str | int, ...],
     expected_path: str,
 ) -> None:
     registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
@@ -195,7 +214,7 @@ def test_validate_registry_rejects_duplicate_ids(tmp_path: Path) -> None:
 def test_validate_registry_requires_legacy_queries_only_without_validation_pairs(tmp_path: Path) -> None:
     registry = yaml.safe_load(yaml.safe_dump(MINIMAL_REGISTRY))
     source = registry["sources"][0]
-    source.pop("validations")
+    source["tables"][0].pop("validations")
     registry_path, schema_path = write_registry(tmp_path, registry)
 
     errors = validate_registry(registry_path, schema_path)
@@ -207,8 +226,8 @@ def test_validate_registry_requires_legacy_queries_only_without_validation_pairs
 
 def test_validate_registry_rejects_duplicate_validation_ids(tmp_path: Path) -> None:
     registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
-    source = registry["sources"][0]
-    source["validations"].append(source["validations"][0].copy())
+    table = registry["sources"][0]["tables"][0]
+    table["validations"].append(table["validations"][0].copy())
     registry_path, schema_path = write_registry(tmp_path, registry)
 
     errors = validate_registry(registry_path, schema_path)
@@ -219,7 +238,9 @@ def test_validate_registry_rejects_duplicate_validation_ids(tmp_path: Path) -> N
 def test_validate_registry_rejects_duplicate_validation_ids_across_table_metadata(tmp_path: Path) -> None:
     registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
     source = registry["sources"][0]
-    source["tables"][0]["validations"] = [source["validations"][0].copy()]
+    duplicate_table = yaml.safe_load(yaml.safe_dump(source["tables"][0]))
+    duplicate_table["id"] = "rows_copy"
+    source["tables"].append(duplicate_table)
     registry_path, schema_path = write_registry(tmp_path, registry)
 
     errors = validate_registry(registry_path, schema_path)
@@ -229,7 +250,7 @@ def test_validate_registry_rejects_duplicate_validation_ids_across_table_metadat
 
 def test_validate_registry_rejects_non_odd_validation_sql(tmp_path: Path) -> None:
     registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
-    registry["sources"][0]["validations"][0]["odd_sql"] = "SELECT id FROM direct_table;"
+    registry["sources"][0]["tables"][0]["validations"][0]["odd_sql"] = "SELECT id FROM direct_table;"
     registry_path, schema_path = write_registry(tmp_path, registry)
 
     errors = validate_registry(registry_path, schema_path)
@@ -239,7 +260,7 @@ def test_validate_registry_rejects_non_odd_validation_sql(tmp_path: Path) -> Non
 
 def test_validate_registry_rejects_non_sql_safe_release_ids(tmp_path: Path) -> None:
     registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
-    validation = registry["sources"][0]["validations"][0]
+    validation = registry["sources"][0]["tables"][0]["validations"][0]
     validation["id"] = "odd.example.2026-10-21.rows"
     validation["release"] = "2026-10-21"
     registry_path, schema_path = write_registry(tmp_path, registry)
@@ -470,7 +491,7 @@ def test_project_noaa_ncei_storm_events_uses_latest_bulk_csv_discovery() -> None
     assert "httpfs" in source["duckdb"]["extensions"]
     assert "www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/" in rendered_sql
     assert "read_csv_auto" in rendered_sql
-    assert "StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz" in source["duckdb"]["validation_query"]
+    assert "StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz" in source["duckdb"]["validation_query"]
     assert latest["method"] == "html-listing"
     assert latest["url"] in latest["resolve_sql"]
     assert "StormEvents_details-ftp_v1" in latest["resolve_sql"]
@@ -695,7 +716,8 @@ def test_seed_sources_include_required_query_metadata() -> None:
         for table in source["tables"]:
             assert table["id"].strip(), source["id"]
             assert table["description"].strip(), f"{source['id']}:{table.get('id')}"
-        if not source.get("validations"):
+        table_validations = [validation for table in source["tables"] for validation in table.get("validations", [])]
+        if not table_validations:
             assert source["duckdb"]["example_query"].strip(), source["id"]
             assert source["duckdb"]["validation_query"].strip(), source["id"]
 
@@ -703,7 +725,13 @@ def test_seed_sources_include_required_query_metadata() -> None:
 def test_seed_validation_pairs_use_odd_ids_and_direct_sql_contract() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
     assert all("freshness" not in source for source in registry["sources"])
-    validations = [validation for source in registry["sources"] for validation in source.get("validations", [])]
+    assert all("validations" not in source for source in registry["sources"])
+    validations = [
+        validation
+        for source in registry["sources"]
+        for table in source["tables"]
+        for validation in table.get("validations", [])
+    ]
 
     assert "odd.overturemaps.latest.place" in {validation["id"] for validation in validations}
     assert "odd.overturemaps.x2026x10x21.place" in {validation["id"] for validation in validations}
@@ -714,6 +742,11 @@ def test_seed_validation_pairs_use_odd_ids_and_direct_sql_contract() -> None:
         for table in source["tables"]
         if table.get("ref")
     }
+    validated_refs = {
+        validation["id"] if validation["id"] in table_refs else f"odd.{validation['id'].split('.')[1]}.latest.{validation['id'].split('.')[3]}"
+        for validation in validations
+    }
+    assert table_refs <= validated_refs
 
     for validation in validations:
         assert re.fullmatch(r"odd\.[a-z0-9_]+\.[a-z0-9x_]+\.[a-z0-9_]+", validation["id"]), validation["id"]
@@ -764,7 +797,8 @@ def test_source_ai_dict_exposes_metadata_without_sql_by_default(tmp_path: Path) 
     assert payload["description"] == "Example source description for humans and AI agents."
     assert payload["tags"] == ["example", "parquet"]
     assert payload["ai"]["summary"] == "Use for registry tests."
-    assert payload["validations"][0]["id"] == "odd.example.latest.rows"
+    assert payload["tables"][0]["validations"][0]["id"] == "odd.example.latest.rows"
+    assert "validations" not in payload
     assert "example_query" not in payload["duckdb"]
 
 
@@ -801,9 +835,6 @@ def test_render_source_detail_includes_ai_usage(tmp_path: Path) -> None:
 
 def test_table_level_validations_drive_rendered_sql(tmp_path: Path) -> None:
     registry = yaml.safe_load(yaml.safe_dump(MINIMAL_REGISTRY))
-    source = registry["sources"][0]
-    table_validation = source.pop("validations")[0]
-    source["tables"][0]["validations"] = [table_validation]
     registry_path, schema_path = write_registry(tmp_path, registry)
 
     assert validate_registry(registry_path, schema_path) == []

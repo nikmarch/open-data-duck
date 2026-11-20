@@ -73,12 +73,9 @@
           "items": { "$ref": "#/$defs/table" },
           "minItems": 1
         },
-        "validations": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/validation" }
-        },
         "release": { "$ref": "#/$defs/release" }
-      }
+      },
+      "additionalProperties": false
     },
     "table": {
       "type": "object",

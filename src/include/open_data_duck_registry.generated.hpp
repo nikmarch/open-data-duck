@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 22;
+static constexpr int REGISTRY_SOURCE_COUNT = 23;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 22,
+  "source_count": 23,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -71,6 +71,33 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "Places and points of interest. One row per Overture place feature.",
           "id": "place",
           "ref": "odd.overturemaps.latest.place",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the latest Overture places facade with the direct public S3 parquet recipe over a sampled tiny bbox.",
+              "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, names, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "id": "odd.overturemaps.latest.place",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, names, bbox\nFROM odd.overturemaps.latest.place\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "order_by": [
+                "id"
+              ],
+              "release": "latest"
+            },
+            {
+              "compare": "exact",
+              "description": "Compare a pinned, SQL-safe Overture release facade with the same direct release path over a sampled tiny bbox.",
+              "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, names, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/2026-10-21.0/theme=places/type=place/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "id": "odd.overturemaps.x2026x10x21.place",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT id, names, bbox\nFROM odd.overturemaps.x2026x10x21.place\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "order_by": [
+                "id"
+              ],
+              "release": "x2026x10x21",
+              "source_release": "2026-10-21.0"
+            }
+          ],
           "warnings": [
             "Large global table; always use tight bbox filters."
           ]
@@ -84,6 +111,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "Building footprint polygons. One row per Overture building feature.",
           "id": "building",
           "ref": "odd.overturemaps.latest.building",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the latest Overture buildings facade with the direct public S3 parquet recipe over a sampled tiny bbox.",
+              "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "id": "odd.overturemaps.latest.building",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.building\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "order_by": [
+                "id"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "Large global table; always use tight bbox filters."
           ]
@@ -97,6 +138,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "Transportation road/path segments. One row per Overture segment feature.",
           "id": "segment",
           "ref": "odd.overturemaps.latest.segment",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the latest Overture transportation segments facade with the direct public S3 parquet recipe over a sampled tiny bbox.",
+              "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=transportation/type=segment/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "id": "odd.overturemaps.latest.segment",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.segment\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "order_by": [
+                "id"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "Large global table; always use tight bbox filters."
           ]
@@ -110,6 +165,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "Address point/record features. One row per Overture address feature.",
           "id": "address",
           "ref": "odd.overturemaps.latest.address",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the latest Overture addresses facade with the direct public S3 parquet recipe over a sampled tiny bbox.",
+              "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=addresses/type=address/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "id": "odd.overturemaps.latest.address",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.address\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "order_by": [
+                "id"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "Large global table; always use tight bbox filters."
           ]
@@ -122,33 +191,6 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "buildings",
         "transportation",
         "addresses"
-      ],
-      "validations": [
-        {
-          "compare": "exact",
-          "description": "Compare the latest Overture places facade with the direct public S3 parquet recipe over a sampled tiny bbox.",
-          "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, names, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
-          "id": "odd.overturemaps.latest.place",
-          "limit": 10,
-          "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, names, bbox\nFROM odd.overturemaps.latest.place\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
-          "order_by": [
-            "id"
-          ],
-          "release": "latest"
-        },
-        {
-          "compare": "exact",
-          "description": "Compare a pinned, SQL-safe Overture release facade with the same direct release path over a sampled tiny bbox.",
-          "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, names, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/2026-10-21.0/theme=places/type=place/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
-          "id": "odd.overturemaps.x2026x10x21.place",
-          "limit": 10,
-          "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT id, names, bbox\nFROM odd.overturemaps.x2026x10x21.place\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
-          "order_by": [
-            "id"
-          ],
-          "release": "x2026x10x21",
-          "source_release": "2026-10-21.0"
-        }
       ]
     },
     {
@@ -195,8 +237,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "imagery",
         "aws",
         "sentinel"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "Dataset-specific attribution required; verify per Planetary Computer collection.",
@@ -241,8 +282,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "imagery",
         "climate",
         "microsoft"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "NASA LP DAAC data; cite dataset-specific DOI and attribution.",
@@ -287,8 +327,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "nasa",
         "land",
         "earthdata"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "U.S. Census Bureau TIGERweb.",
@@ -330,8 +369,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "census",
         "boundaries",
         "us"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.",
@@ -380,6 +418,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "Generalized U.S. county polygons at 20m scale. One row per county or county-equivalent feature.",
           "id": "county_20m",
           "ref": "odd.census.latest.county_20m",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the latest Census county boundary facade with the direct zipped shapefile recipe.",
+              "direct_sql": "LOAD spatial;\nSELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
+              "id": "odd.census.latest.county_20m",
+              "limit": 10,
+              "odd_sql": "LOAD spatial;\nLOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE census_cartographic_year = '2025';\nSELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type\nFROM odd.census.latest.county_20m\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
+              "order_by": [
+                "GEOID"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "Generalized for thematic mapping",
             "not surveying."
@@ -392,8 +444,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "counties",
         "shapefile",
         "geospatial"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.",
@@ -442,6 +493,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "Generalized U.S. census tract polygons at 5m scale. One row per census tract feature.",
           "id": "tract_5m",
           "ref": "odd.census.latest.tract_5m",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the latest Census tract boundary facade with the direct zipped shapefile recipe.",
+              "direct_sql": "LOAD spatial;\nSELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
+              "id": "odd.census.latest.tract_5m",
+              "limit": 10,
+              "odd_sql": "LOAD spatial;\nLOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE census_cartographic_year = '2025';\nSELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type\nFROM odd.census.latest.tract_5m\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
+              "order_by": [
+                "GEOID"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "National tract files are larger; filter by state when possible."
           ]
@@ -453,8 +518,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "tracts",
         "shapefile",
         "geospatial"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "Federal Emergency Management Agency National Flood Hazard Layer.",
@@ -496,8 +560,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "fema",
         "flood",
         "hazards"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "U.S. Geological Survey National Map.",
@@ -539,8 +602,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "usgs",
         "elevation",
         "contours"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "National Highway Traffic Safety Administration (NHTSA), U.S. Department of Transportation; credit NHTSA/DOT and do not imply endorsement.",
@@ -612,8 +674,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "recalls",
         "safety-ratings",
         "json"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "U.S. Geological Survey Earthquake Hazards Program; credit USGS earthquake feeds and do not imply USGS endorsement.",
@@ -666,8 +727,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "hazards",
         "geojson",
         "realtime"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "World Bank Group, World Development Indicators; attribute as: The World Bank: World Development Indicators: World Bank Group. Do not imply World Bank endorsement.",
@@ -712,8 +772,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "indicators",
         "development",
         "json"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "Cite BLS.gov and the API retrieval date; state that BLS.gov cannot vouch for data or analyses derived after retrieval; do not use the BLS logo or imply BLS sponsorship.",
@@ -758,8 +817,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "inflation",
         "labor-statistics",
         "json"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "Data provided by the U.S. Food and Drug Administration (https://open.fda.gov); openFDA materials are public domain / CC0 unless otherwise noted.",
@@ -816,8 +874,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "food-safety",
         "json",
         "public-domain"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "U.S. Department of the Treasury, Bureau of the Fiscal Service, Fiscal Data / Debt to the Penny; do not imply Treasury endorsement.",
@@ -862,15 +919,14 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "debt",
         "public-debt",
         "csv"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "NOAA National Centers for Environmental Information, Storm Events Database; credit NOAA/NCEI and do not imply NOAA endorsement.",
       "authority": "NOAA National Centers for Environmental Information",
       "description": "Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.",
       "duckdb": {
-        "example_query": "LOAD httpfs;\nSELECT event_id,\n       state,\n       event_type,\n       begin_date_time,\n       cz_name\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',\n  sample_size = 20000\n)\nWHERE event_type IS NOT NULL\nORDER BY event_id\nLIMIT 10;",
+        "example_query": "LOAD httpfs;\nSELECT event_id,\n       state,\n       event_type,\n       begin_date_time,\n       cz_name\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',\n  sample_size = 20000\n)\nWHERE event_type IS NOT NULL\nORDER BY event_id\nLIMIT 10;",
         "examples": {
           "latest_details_by_state_type": "LOAD httpfs;\nSET VARIABLE noaa_storm_events_year = '2024';\nSELECT event_id, state, event_type, begin_date_time, cz_name\nFROM odd.noaa.latest.storm_events_details\nWHERE state = 'ALASKA'\n  AND event_type IS NOT NULL\nORDER BY begin_date_time\nLIMIT 25;",
           "latest_fatalities_by_year": "LOAD httpfs;\nSET VARIABLE noaa_storm_events_year = '2024';\nSELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age\nFROM odd.noaa.latest.storm_events_fatalities\nORDER BY fatality_date\nLIMIT 25;"
@@ -883,7 +939,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "discover_sql": "WITH files AS (\n  SELECT regexp_extract(m, 'StormEvents_([a-z]+)-ftp_v1\\.0_d{release}_c([0-9]{8})\\.csv\\.gz', 1) AS table_kind,\n         regexp_extract(m, '(StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz)', 1) AS file_name,\n         regexp_extract(m, '_c([0-9]{8})\\.csv\\.gz', 1) AS created\n  FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz')) AS m\n        FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'))\n), latest AS (\n  SELECT table_kind, max(created) AS created\n  FROM files\n  GROUP BY table_kind\n)\nSELECT 'storm_events_' || files.table_kind AS name,\n       'read_csv' AS reader,\n       'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/' || files.file_name AS path\nFROM files\nJOIN latest USING (table_kind, created)\nORDER BY name;",
           "namespace": "odd.noaa.latest"
         },
-        "validation_query": "LOAD httpfs;\nSELECT count(*) > 0 AS ok\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',\n  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\n  AND event_type IS NOT NULL;"
+        "validation_query": "LOAD httpfs;\nSELECT count(*) > 0 AS ok\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',\n  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\n  AND event_type IS NOT NULL;"
       },
       "homepage": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
       "id": "noaa.ncei.storm-events",
@@ -913,6 +969,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "NOAA Storm Events detail rows. One row per reported storm event.",
           "id": "storm_events_details",
           "ref": "odd.noaa.latest.storm_events_details",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare NOAA Storm Events details facade with the direct bulk CSV recipe.",
+              "direct_sql": "LOAD httpfs;\nSELECT event_id, state, event_type, begin_date_time, cz_name\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',\n  sample_size = 20000\n)\nWHERE event_type IS NOT NULL\nORDER BY event_id\nLIMIT 10;\n",
+              "id": "odd.noaa.latest.storm_events_details",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE noaa_storm_events_year = '2024';\nSELECT event_id, state, event_type, begin_date_time, cz_name\nFROM odd.noaa.latest.storm_events_details\nWHERE event_type IS NOT NULL\nORDER BY event_id\nLIMIT 10;\n",
+              "order_by": [
+                "event_id"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "Files are revised with creation-date suffixes; pin year for reproducible examples."
           ]
@@ -926,6 +996,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "NOAA Storm Events fatality rows. One row per fatality associated with a storm event.",
           "id": "storm_events_fatalities",
           "ref": "odd.noaa.latest.storm_events_fatalities",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare NOAA Storm Events fatalities facade with the direct bulk CSV recipe.",
+              "direct_sql": "LOAD httpfs;\nSELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_fatalities-ftp_v1.0_d2024_c20261119.csv.gz',\n  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\nORDER BY fatality_id\nLIMIT 10;\n",
+              "id": "odd.noaa.latest.storm_events_fatalities",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE noaa_storm_events_year = '2024';\nSELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age\nFROM odd.noaa.latest.storm_events_fatalities\nWHERE event_id IS NOT NULL\nORDER BY fatality_id\nLIMIT 10;\n",
+              "order_by": [
+                "fatality_id"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "Join to details by event_id for event context."
           ]
@@ -939,6 +1023,21 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "NOAA Storm Events location rows. One row per location attached to a storm event.",
           "id": "storm_events_locations",
           "ref": "odd.noaa.latest.storm_events_locations",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare NOAA Storm Events locations facade with the direct bulk CSV recipe.",
+              "direct_sql": "LOAD httpfs;\nSELECT event_id, location_index, location, latitude, longitude\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_locations-ftp_v1.0_d2024_c20261119.csv.gz',\n  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\nORDER BY event_id, location_index\nLIMIT 10;\n",
+              "id": "odd.noaa.latest.storm_events_locations",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE noaa_storm_events_year = '2024';\nSELECT event_id, location_index, location, latitude, longitude\nFROM odd.noaa.latest.storm_events_locations\nWHERE event_id IS NOT NULL\nORDER BY event_id, location_index\nLIMIT 10;\n",
+              "order_by": [
+                "event_id",
+                "location_index"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "Join to details by event_id for event context."
           ]
@@ -951,20 +1050,6 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "weather",
         "hazards",
         "csv"
-      ],
-      "validations": [
-        {
-          "compare": "exact",
-          "description": "Compare NOAA Storm Events details facade with the direct bulk CSV recipe.",
-          "direct_sql": "LOAD httpfs;\nSELECT event_id, state, event_type, begin_date_time, cz_name\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',\n  sample_size = 20000\n)\nWHERE event_type IS NOT NULL\nORDER BY event_id\nLIMIT 10;\n",
-          "id": "odd.noaa.latest.storm_events_details",
-          "limit": 10,
-          "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE noaa_storm_events_year = '2024';\nSELECT event_id, state, event_type, begin_date_time, cz_name\nFROM odd.noaa.latest.storm_events_details\nWHERE event_type IS NOT NULL\nORDER BY event_id\nLIMIT 10;\n",
-          "order_by": [
-            "event_id"
-          ],
-          "release": "latest"
-        }
       ]
     },
     {
@@ -1011,6 +1096,22 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "description": "GHCN Daily station observations. One row per station, date, and observed climate element.",
           "id": "ghcn_daily",
           "ref": "odd.noaa.latest.ghcn_daily",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare NOAA GHCN Daily facade with the direct year CSV recipe.",
+              "direct_sql": "LOAD httpfs;\nSELECT id, date, element, data_value\nFROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')\nWHERE id IS NOT NULL\nORDER BY id, date, element\nLIMIT 10;\n",
+              "id": "odd.noaa.latest.ghcn_daily",
+              "limit": 10,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE noaa_ghcn_year = '2024';\nSELECT id, date, element, data_value\nFROM odd.noaa.latest.ghcn_daily\nWHERE id IS NOT NULL\nORDER BY id, date, element\nLIMIT 10;\n",
+              "order_by": [
+                "id",
+                "date",
+                "element"
+              ],
+              "release": "latest"
+            }
+          ],
           "warnings": [
             "CSV files are large; filter by year/station/element early."
           ]
@@ -1022,8 +1123,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "climate",
         "weather",
         "csv"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "NOAA National Centers for Environmental Information, Global Surface Summary of the Day.",
@@ -1066,8 +1166,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "weather",
         "daily",
         "csv"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "NOAA National Centers for Environmental Information, Integrated Surface Database.",
@@ -1111,8 +1210,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "stations",
         "lookup",
         "csv"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "Wyndham City Council; licensed under Creative Commons Attribution 3.0 Australia.",
@@ -1153,8 +1251,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "australia",
         "csv",
         "animals"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "NYC Open Data, 311 Service Requests from 2020 to Present, City of New York Office of Technology and Innovation.",
@@ -1200,8 +1297,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "311",
         "service-requests",
         "csv"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health. PLACES - Local Data for Better Health, County Data, 2025 release. Public domain.",
@@ -1247,8 +1343,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "counties",
         "public-domain",
         "csv"
-      ],
-      "validations": []
+      ]
     },
     {
       "attribution": "Google Open Buildings and Microsoft GlobalMLBuildingFootprints, combined by VIDA; licensed under ODbL v1.0.",
@@ -1294,8 +1389,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "geospatial",
         "geoparquet",
         "footprints"
-      ],
-      "validations": []
+      ]
     }
   ]
 }

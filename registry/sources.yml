@@ -22,21 +22,198 @@ sources:
           geometry: Place geometry.
         ask_for: [bbox or area, release or latest, limit]
         warnings: [Large global table; always use tight bbox filters.]
+        validations:
+          - id: odd.overturemaps.latest.place
+            description: Compare the latest Overture places facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+            release: latest
+            compare: exact
+            order_by: [id]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SET s3_region='us-west-2';
+              SET VARIABLE overture_release = '2026-10-21.0';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+              SELECT id, names, bbox
+              FROM read_parquet(
+                getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*'
+              )
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE overture_release = '2026-10-21.0';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+              SELECT id, names, bbox
+              FROM odd.overturemaps.latest.place
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
+          - id: odd.overturemaps.x2026x10x21.place
+            description: Compare a pinned, SQL-safe Overture release facade with the same direct release path over a sampled tiny bbox.
+            release: x2026x10x21
+            source_release: 2026-10-21.0
+            compare: exact
+            order_by: [id]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SET s3_region='us-west-2';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+              SELECT id, names, bbox
+              FROM read_parquet(
+                getvariable('overture_s3_base') || '/release/2026-10-21.0/theme=places/type=place/*'
+              )
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SELECT id, names, bbox
+              FROM odd.overturemaps.x2026x10x21.place
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
       - id: building
         ref: odd.overturemaps.latest.building
         description: Building footprint polygons. One row per Overture building feature.
         ask_for: [bbox or area, release or latest, limit]
         warnings: [Large global table; always use tight bbox filters.]
+        validations:
+          - id: odd.overturemaps.latest.building
+            description: Compare the latest Overture buildings facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+            release: latest
+            compare: exact
+            order_by: [id]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SET s3_region='us-west-2';
+              SET VARIABLE overture_release = '2026-10-21.0';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+              SELECT id, bbox
+              FROM read_parquet(
+                getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*'
+              )
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE overture_release = '2026-10-21.0';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+              SELECT id, bbox
+              FROM odd.overturemaps.latest.building
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
       - id: segment
         ref: odd.overturemaps.latest.segment
         description: Transportation road/path segments. One row per Overture segment feature.
         ask_for: [bbox or area, release or latest, limit]
         warnings: [Large global table; always use tight bbox filters.]
+        validations:
+          - id: odd.overturemaps.latest.segment
+            description: Compare the latest Overture transportation segments facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+            release: latest
+            compare: exact
+            order_by: [id]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SET s3_region='us-west-2';
+              SET VARIABLE overture_release = '2026-10-21.0';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+              SELECT id, bbox
+              FROM read_parquet(
+                getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=transportation/type=segment/*'
+              )
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE overture_release = '2026-10-21.0';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+              SELECT id, bbox
+              FROM odd.overturemaps.latest.segment
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
       - id: address
         ref: odd.overturemaps.latest.address
         description: Address point/record features. One row per Overture address feature.
         ask_for: [bbox or area, release or latest, limit]
         warnings: [Large global table; always use tight bbox filters.]
+        validations:
+          - id: odd.overturemaps.latest.address
+            description: Compare the latest Overture addresses facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+            release: latest
+            compare: exact
+            order_by: [id]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SET s3_region='us-west-2';
+              SET VARIABLE overture_release = '2026-10-21.0';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+              SELECT id, bbox
+              FROM read_parquet(
+                getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=addresses/type=address/*'
+              )
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE overture_release = '2026-10-21.0';
+              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+              SELECT id, bbox
+              FROM odd.overturemaps.latest.address
+              WHERE bbox.xmin <= 66.981
+                AND bbox.xmax >= 66.976
+                AND bbox.ymin <= 39.657
+                AND bbox.ymax >= 39.652
+              ORDER BY id
+              LIMIT 10;
     tags: [maps, geospatial, places, buildings, transportation, addresses]
     topics: [basemaps, points of interest, buildings, addresses, roads, geocoding]
     coverage:
@@ -177,75 +354,6 @@ sources:
                  regexp_replace(regexp_replace(min(assets.aws.href), '^https://([^.]+)\.s3\.[^/]+/', 's3://\1/'), '/part-[^/]+$', '/*') AS path
           FROM read_parquet('https://stac.overturemaps.org/{release}/collections.parquet')
           GROUP BY collection;
-    validations:
-      - id: odd.overturemaps.latest.place
-        description: Compare the latest Overture places facade with the direct public S3 parquet recipe over a sampled tiny bbox.
-        release: latest
-        compare: exact
-        order_by: [id]
-        limit: 10
-        direct_sql: |
-          LOAD httpfs;
-          SET s3_region='us-west-2';
-          SET VARIABLE overture_release = '2026-10-21.0';
-          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-          SELECT id, names, bbox
-          FROM read_parquet(
-            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*'
-          )
-          WHERE bbox.xmin <= 66.981
-            AND bbox.xmax >= 66.976
-            AND bbox.ymin <= 39.657
-            AND bbox.ymax >= 39.652
-          ORDER BY id
-          LIMIT 10;
-        odd_sql: |
-          LOAD open_data_duck;
-          ATTACH ':memory:' AS odd (TYPE open_data_duck);
-          SET VARIABLE overture_release = '2026-10-21.0';
-          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-          SELECT id, names, bbox
-          FROM odd.overturemaps.latest.place
-          WHERE bbox.xmin <= 66.981
-            AND bbox.xmax >= 66.976
-            AND bbox.ymin <= 39.657
-            AND bbox.ymax >= 39.652
-          ORDER BY id
-          LIMIT 10;
-      - id: odd.overturemaps.x2026x10x21.place
-        description: Compare a pinned, SQL-safe Overture release facade with the same direct release path over a sampled tiny bbox.
-        release: x2026x10x21
-        source_release: 2026-10-21.0
-        compare: exact
-        order_by: [id]
-        limit: 10
-        direct_sql: |
-          LOAD httpfs;
-          SET s3_region='us-west-2';
-          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-          SELECT id, names, bbox
-          FROM read_parquet(
-            getvariable('overture_s3_base') || '/release/2026-10-21.0/theme=places/type=place/*'
-          )
-          WHERE bbox.xmin <= 66.981
-            AND bbox.xmax >= 66.976
-            AND bbox.ymin <= 39.657
-            AND bbox.ymax >= 39.652
-          ORDER BY id
-          LIMIT 10;
-        odd_sql: |
-          LOAD open_data_duck;
-          ATTACH ':memory:' AS odd (TYPE open_data_duck);
-          SELECT id, names, bbox
-          FROM odd.overturemaps.x2026x10x21.place
-          WHERE bbox.xmin <= 66.981
-            AND bbox.xmax >= 66.976
-            AND bbox.ymin <= 39.657
-            AND bbox.ymax >= 39.652
-          ORDER BY id
-          LIMIT 10;
   - id: stac.earth-search.aws
     name: Earth Search STAC API
     description: Element 84 STAC API for cloud-optimized geospatial imagery, especially Sentinel collections hosted in the AWS open data ecosystem.
@@ -438,6 +546,30 @@ sources:
         description: Generalized U.S. county polygons at 20m scale. One row per county or county-equivalent feature.
         ask_for: [year, scale, state filter, GEOID join key]
         warnings: [Generalized for thematic mapping, not surveying.]
+        validations:
+          - id: odd.census.latest.county_20m
+            description: Compare the latest Census county boundary facade with the direct zipped shapefile recipe.
+            release: latest
+            compare: exact
+            order_by: [GEOID]
+            limit: 10
+            direct_sql: |
+              LOAD spatial;
+              SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
+              FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')
+              WHERE STATEFP = '02'
+              ORDER BY GEOID
+              LIMIT 10;
+            odd_sql: |
+              LOAD spatial;
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE census_cartographic_year = '2025';
+              SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
+              FROM odd.census.latest.county_20m
+              WHERE STATEFP = '02'
+              ORDER BY GEOID
+              LIMIT 10;
     tags: [census, boundaries, counties, shapefile, geospatial]
     topics: [administrative boundaries, counties, thematic mapping, fips]
     coverage:
@@ -509,6 +641,30 @@ sources:
         description: Generalized U.S. census tract polygons at 5m scale. One row per census tract feature.
         ask_for: [year, scale, state filter, tract GEOID join key]
         warnings: [National tract files are larger; filter by state when possible.]
+        validations:
+          - id: odd.census.latest.tract_5m
+            description: Compare the latest Census tract boundary facade with the direct zipped shapefile recipe.
+            release: latest
+            compare: exact
+            order_by: [GEOID]
+            limit: 10
+            direct_sql: |
+              LOAD spatial;
+              SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
+              FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')
+              WHERE STATEFP = '02'
+              ORDER BY GEOID
+              LIMIT 10;
+            odd_sql: |
+              LOAD spatial;
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE census_cartographic_year = '2025';
+              SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
+              FROM odd.census.latest.tract_5m
+              WHERE STATEFP = '02'
+              ORDER BY GEOID
+              LIMIT 10;
     tags: [census, boundaries, tracts, shapefile, geospatial]
     topics: [census tracts, statistical geographies, thematic mapping, geoid, fips]
     coverage:
@@ -1188,16 +1344,94 @@ sources:
         description: NOAA Storm Events detail rows. One row per reported storm event.
         ask_for: [year, state, event type, limit]
         warnings: [Files are revised with creation-date suffixes; pin year for reproducible examples.]
+        validations:
+          - id: odd.noaa.latest.storm_events_details
+            description: Compare NOAA Storm Events details facade with the direct bulk CSV recipe.
+            release: latest
+            compare: exact
+            order_by: [event_id]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SELECT event_id, state, event_type, begin_date_time, cz_name
+              FROM read_csv_auto(
+                'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',
+                sample_size = 20000
+              )
+              WHERE event_type IS NOT NULL
+              ORDER BY event_id
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE noaa_storm_events_year = '2024';
+              SELECT event_id, state, event_type, begin_date_time, cz_name
+              FROM odd.noaa.latest.storm_events_details
+              WHERE event_type IS NOT NULL
+              ORDER BY event_id
+              LIMIT 10;
       - id: storm_events_fatalities
         ref: odd.noaa.latest.storm_events_fatalities
         description: NOAA Storm Events fatality rows. One row per fatality associated with a storm event.
         ask_for: [year, state or event id, limit]
         warnings: [Join to details by event_id for event context.]
+        validations:
+          - id: odd.noaa.latest.storm_events_fatalities
+            description: Compare NOAA Storm Events fatalities facade with the direct bulk CSV recipe.
+            release: latest
+            compare: exact
+            order_by: [fatality_id]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age
+              FROM read_csv_auto(
+                'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_fatalities-ftp_v1.0_d2024_c20261119.csv.gz',
+                sample_size = 20000
+              )
+              WHERE event_id IS NOT NULL
+              ORDER BY fatality_id
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE noaa_storm_events_year = '2024';
+              SELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age
+              FROM odd.noaa.latest.storm_events_fatalities
+              WHERE event_id IS NOT NULL
+              ORDER BY fatality_id
+              LIMIT 10;
       - id: storm_events_locations
         ref: odd.noaa.latest.storm_events_locations
         description: NOAA Storm Events location rows. One row per location attached to a storm event.
         ask_for: [year, state or event id, limit]
         warnings: [Join to details by event_id for event context.]
+        validations:
+          - id: odd.noaa.latest.storm_events_locations
+            description: Compare NOAA Storm Events locations facade with the direct bulk CSV recipe.
+            release: latest
+            compare: exact
+            order_by: [event_id, location_index]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SELECT event_id, location_index, location, latitude, longitude
+              FROM read_csv_auto(
+                'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_locations-ftp_v1.0_d2024_c20261119.csv.gz',
+                sample_size = 20000
+              )
+              WHERE event_id IS NOT NULL
+              ORDER BY event_id, location_index
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE noaa_storm_events_year = '2024';
+              SELECT event_id, location_index, location, latitude, longitude
+              FROM odd.noaa.latest.storm_events_locations
+              WHERE event_id IS NOT NULL
+              ORDER BY event_id, location_index
+              LIMIT 10;
     tags: [noaa, ncei, storms, weather, hazards, csv]
     topics: [severe weather, storm reports, tornadoes, hail, wind, fatalities]
     coverage:
@@ -1223,7 +1457,7 @@ sources:
                begin_date_time,
                cz_name
         FROM read_csv_auto(
-          'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',
+          'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',
           sample_size = 20000
         )
         WHERE event_type IS NOT NULL
@@ -1233,7 +1467,7 @@ sources:
         LOAD httpfs;
         SELECT count(*) > 0 AS ok
         FROM read_csv_auto(
-          'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',
+          'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',
           sample_size = 20000
         )
         WHERE event_id IS NOT NULL
@@ -1275,32 +1509,6 @@ sources:
           FROM files
           JOIN latest USING (table_kind, created)
           ORDER BY name;
-    validations:
-      - id: odd.noaa.latest.storm_events_details
-        description: Compare NOAA Storm Events details facade with the direct bulk CSV recipe.
-        release: latest
-        compare: exact
-        order_by: [event_id]
-        limit: 10
-        direct_sql: |
-          LOAD httpfs;
-          SELECT event_id, state, event_type, begin_date_time, cz_name
-          FROM read_csv_auto(
-            'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',
-            sample_size = 20000
-          )
-          WHERE event_type IS NOT NULL
-          ORDER BY event_id
-          LIMIT 10;
-        odd_sql: |
-          LOAD open_data_duck;
-          ATTACH ':memory:' AS odd (TYPE open_data_duck);
-          SET VARIABLE noaa_storm_events_year = '2024';
-          SELECT event_id, state, event_type, begin_date_time, cz_name
-          FROM odd.noaa.latest.storm_events_details
-          WHERE event_type IS NOT NULL
-          ORDER BY event_id
-          LIMIT 10;
     release:
       latest:
         method: html-listing
@@ -1327,6 +1535,29 @@ sources:
         description: GHCN Daily station observations. One row per station, date, and observed climate element.
         ask_for: [year, station id, climate element]
         warnings: [CSV files are large; filter by year/station/element early.]
+        validations:
+          - id: odd.noaa.latest.ghcn_daily
+            description: Compare NOAA GHCN Daily facade with the direct year CSV recipe.
+            release: latest
+            compare: exact
+            order_by: [id, date, element]
+            limit: 10
+            direct_sql: |
+              LOAD httpfs;
+              SELECT id, date, element, data_value
+              FROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')
+              WHERE id IS NOT NULL
+              ORDER BY id, date, element
+              LIMIT 10;
+            odd_sql: |
+              LOAD open_data_duck;
+              ATTACH ':memory:' AS odd (TYPE open_data_duck);
+              SET VARIABLE noaa_ghcn_year = '2024';
+              SELECT id, date, element, data_value
+              FROM odd.noaa.latest.ghcn_daily
+              WHERE id IS NOT NULL
+              ORDER BY id, date, element
+              LIMIT 10;
     tags: [aws, noaa, climate, weather, csv]
     topics: [daily climate observations, stations, temperature, precipitation]
     coverage:
