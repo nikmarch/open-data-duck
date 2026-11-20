@@ -913,6 +913,101 @@ sources:
           WHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL
           ORDER BY year DESC, obs.period DESC
           LIMIT 12;
+  - id: openfda.food.enforcement-reports
+    name: FDA openFDA food enforcement recall reports
+    description: Official openFDA food enforcement recall reports from FDA Recall Enterprise System records, queryable as a public JSON API with DuckDB httpfs.
+    status: candidate
+    source_type: other
+    authority: U.S. Food and Drug Administration openFDA
+    homepage: https://open.fda.gov/apis/food/enforcement/
+    license_url: https://open.fda.gov/license/
+    attribution: Data provided by the U.S. Food and Drug Administration (https://open.fda.gov); openFDA materials are public domain / CC0 unless otherwise noted.
+    tables:
+      - id: food_enforcement_reports
+        description: FDA food enforcement recall reports. One row per public recall report returned from the openFDA food enforcement endpoint after unnesting the JSON results envelope.
+        columns_hint:
+          recall_number: FDA recall number for the enforcement report.
+          status: Recall status, such as Ongoing, Completed, or Terminated.
+          classification: Recall classification, such as Class I, Class II, or Class III.
+          product_description: Product description text from the recall report.
+          recalling_firm: Firm responsible for the recall.
+          report_date: FDA report date as YYYYMMDD text.
+        ask_for: [classification, status, date window, product or firm search term, limit]
+        warnings: [API keys are optional but keyless access can be rate-limited; responses are nested JSON envelopes, so unnest results before treating reports as rows.]
+    tags: [fda, openfda, recalls, food-safety, json, public-domain]
+    topics: [food recalls, enforcement reports, product safety, public health]
+    coverage:
+      spatial: United States FDA-regulated food products and firms represented in enforcement records
+      temporal: FDA food enforcement recall reports exposed by openFDA, documented from 2004 onward
+      grain: one FDA food enforcement recall report after unnesting the API results array
+    cadence: openFDA documents food enforcement data updates weekly
+    ai:
+      summary: Official FDA source for food recall enforcement reports when a user wants recall numbers, classifications, firms, products, and report dates.
+      use_cases: [list recent food recalls, filter recalls by classification or status, search product descriptions or recalling firms]
+      caveats: [openFDA warns the API is not validated for clinical or production use, keyless requests have lower rate limits, query the nested results array rather than the response envelope]
+      prompt_hints: [Ask for classification, recall status, product or firm search terms, date window, and row limit before generating SQL.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        WITH payload AS (
+          SELECT *
+          FROM read_json(
+            'https://api.fda.gov/food/enforcement.json?limit=10',
+            format = 'auto'
+          )
+        ), reports AS (
+          SELECT unnest(results) AS report
+          FROM payload
+        )
+        SELECT report.recall_number AS recall_number,
+               report.status AS status,
+               report.classification AS classification,
+               report.product_description AS product_description,
+               report.recalling_firm AS recalling_firm,
+               report.report_date AS report_date
+        FROM reports
+        ORDER BY report_date DESC
+        LIMIT 10;
+      validation_query: |
+        LOAD httpfs;
+        WITH payload AS (
+          SELECT *
+          FROM read_json(
+            'https://api.fda.gov/food/enforcement.json?limit=5',
+            format = 'auto'
+          )
+        ), reports AS (
+          SELECT unnest(results) AS report
+          FROM payload
+        )
+        SELECT count(*) > 0 AS has_rows,
+               bool_and(report.recall_number IS NOT NULL) AS has_recall_numbers
+        FROM reports;
+      examples:
+        class_i_recent_reports: |
+          LOAD httpfs;
+          WITH payload AS (
+            SELECT *
+            FROM read_json(
+              'https://api.fda.gov/food/enforcement.json?search=classification:%22Class%20I%22&limit=25',
+              format = 'auto'
+            )
+          ), reports AS (
+            SELECT unnest(results) AS report
+            FROM payload
+          )
+          SELECT report.recall_number AS recall_number,
+                 report.status AS status,
+                 report.product_description AS product_description,
+                 report.recalling_firm AS recalling_firm,
+                 report.report_date AS report_date
+          FROM reports
+          ORDER BY report_date DESC
+          LIMIT 25;
   - id: treasury.fiscaldata.debt-to-penny
     name: U.S. Treasury Fiscal Data Debt to the Penny API
     description: Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.

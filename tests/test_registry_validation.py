@@ -536,6 +536,38 @@ def test_project_bls_cpi_timeseries_uses_public_json_api_recipe() -> None:
     assert "install bls" not in rendered_sql
 
 
+def test_project_openfda_food_enforcement_uses_public_json_api_recipe() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "openfda.food.enforcement-reports")
+
+    rendered_sql = "\n".join(
+        (
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            "\n".join(source["duckdb"].get("examples", {}).values()),
+        )
+    ).casefold()
+    table = source["tables"][0]
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "U.S. Food and Drug Administration openFDA"
+    assert "httpfs" in source["duckdb"]["extensions"]
+    assert source["license_url"] == "https://open.fda.gov/license/"
+    assert "api.fda.gov/food/enforcement.json" in rendered_sql
+    assert "read_json" in rendered_sql
+    assert "unnest(results)" in rendered_sql
+    assert "recall_number" in rendered_sql
+    assert "classification:%22class%20i%22" in rendered_sql
+    assert "limit=5" in source["duckdb"]["validation_query"]
+    assert "bool_and(report.recall_number is not null)" in rendered_sql
+    assert table["id"] == "food_enforcement_reports"
+    assert "nested JSON envelopes" in table["warnings"][0]
+    assert "load openfda" not in rendered_sql
+    assert "install openfda" not in rendered_sql
+
+
 def test_project_treasury_debt_to_penny_uses_gzipped_fiscal_data_csv_recipe() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
     source = next(source for source in registry["sources"] if source["id"] == "treasury.fiscaldata.debt-to-penny")

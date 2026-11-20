@@ -126,7 +126,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">21 sources across arcgis (3), ckan (1), other (10), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">22 sources across arcgis (3), ckan (1), other (11), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header">
@@ -307,6 +307,21 @@ LIMIT 10;</code></pre>
           <ul class="tag-list"><li>bls</li><li>cpi</li><li>inflation</li><li>labor-statistics</li><li>json</li></ul>
           <ul class="table-list"><li><strong>cpi_observations</strong>: BLS CPI time-series observations. One row per BLS series and period. <span>Ask for: series id, start year, end year</span> <span>Warnings: Values are returned as strings and should be cast before numeric analysis.</span></li></ul>
           <a href="https://www.bls.gov/developers/home.htm">Homepage</a>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header">
+            <span class="status">candidate</span>
+            <span>other</span>
+          </div>
+          <h3><code>openfda.food.enforcement-reports</code></h3>
+          <p>Official openFDA food enforcement recall reports from FDA Recall Enterprise System records, queryable as a public JSON API with DuckDB httpfs.</p>
+          <dl>
+            <dt>Authority</dt><dd>U.S. Food and Drug Administration openFDA</dd>
+            <dt>License</dt><dd><a href="https://open.fda.gov/license/">Terms</a></dd>
+          </dl>
+          <ul class="tag-list"><li>fda</li><li>openfda</li><li>recalls</li><li>food-safety</li><li>json</li><li>public-domain</li></ul>
+          <ul class="table-list"><li><strong>food_enforcement_reports</strong>: FDA food enforcement recall reports. One row per public recall report returned from the openFDA food enforcement endpoint after unnesting the JSON results envelope. <span>Ask for: classification, status, date window, product or firm search term, limit</span> <span>Warnings: API keys are optional but keyless access can be rate-limited; responses are nested JSON envelopes, so unnest results before treating reports as rows.</span></li></ul>
+          <a href="https://open.fda.gov/apis/food/enforcement/">Homepage</a>
         </article>
         <article class="source-card">
           <div class="source-card-header">
