@@ -11,6 +11,32 @@ sources:
     homepage: https://docs.overturemaps.org/getting-data/
     license_url: https://docs.overturemaps.org/attribution/
     attribution: Overture Maps Foundation and contributing data providers.
+    tables:
+      - id: place
+        ref: odd.overturemaps.latest.place
+        description: Places and points of interest. One row per Overture place feature.
+        columns_hint:
+          id: Stable Overture feature id.
+          names: Nested names object; primary/common/local names are not plain text columns.
+          bbox: Bounding box for fast spatial prefilters.
+          geometry: Place geometry.
+        ask_for: [bbox or area, release or latest, limit]
+        warnings: [Large global table; always use tight bbox filters.]
+      - id: building
+        ref: odd.overturemaps.latest.building
+        description: Building footprint polygons. One row per Overture building feature.
+        ask_for: [bbox or area, release or latest, limit]
+        warnings: [Large global table; always use tight bbox filters.]
+      - id: segment
+        ref: odd.overturemaps.latest.segment
+        description: Transportation road/path segments. One row per Overture segment feature.
+        ask_for: [bbox or area, release or latest, limit]
+        warnings: [Large global table; always use tight bbox filters.]
+      - id: address
+        ref: odd.overturemaps.latest.address
+        description: Address point/record features. One row per Overture address feature.
+        ask_for: [bbox or area, release or latest, limit]
+        warnings: [Large global table; always use tight bbox filters.]
     tags: [maps, geospatial, places, buildings, transportation, addresses]
     topics: [basemaps, points of interest, buildings, addresses, roads, geocoding]
     coverage:
@@ -220,10 +246,6 @@ sources:
             AND bbox.ymax >= 39.652
           ORDER BY id
           LIMIT 10;
-    freshness:
-      method: release-calendar
-      url: https://docs.overturemaps.org/release-calendar/
-
   - id: stac.earth-search.aws
     name: Earth Search STAC API
     description: Element 84 STAC API for cloud-optimized geospatial imagery, especially Sentinel collections hosted in the AWS open data ecosystem.
@@ -233,6 +255,11 @@ sources:
     homepage: https://earth-search.aws.element84.com/v1
     license_url: https://registry.opendata.aws/sentinel-2-l2a-cogs/
     attribution: Dataset-specific attribution required; verify per collection.
+    tables:
+      - id: stac_items
+        description: STAC item search results from Earth Search. One row per imagery item returned by the STAC API.
+        ask_for: [collection, bbox, date range, cloud cover, limit]
+        warnings: [Assets can be large; inspect metadata before reading imagery assets.]
     tags: [stac, imagery, aws, sentinel]
     topics: [satellite imagery, earth observation, cloud optimized geotiff]
     coverage:
@@ -264,10 +291,6 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM STAC_Collections('https://earth-search.aws.element84.com/v1');
-    freshness:
-      method: stac-api
-      url: https://earth-search.aws.element84.com/v1
-
   - id: stac.microsoft.planetary-computer
     name: Microsoft Planetary Computer STAC API
     description: Microsoft Planetary Computer STAC catalog for environmental, climate, and satellite datasets exposed through a STAC API.
@@ -277,6 +300,11 @@ sources:
     homepage: https://planetarycomputer.microsoft.com/catalog
     license_url: https://planetarycomputer.microsoft.com/terms
     attribution: Dataset-specific attribution required; verify per Planetary Computer collection.
+    tables:
+      - id: stac_items
+        description: STAC item search results from Microsoft Planetary Computer. One row per catalog item returned by the STAC API.
+        ask_for: [collection, bbox, date range, limit]
+        warnings: [Some assets require Planetary Computer signing or access patterns.]
     tags: [stac, imagery, climate, microsoft]
     topics: [earth observation, climate data, environmental analysis]
     coverage:
@@ -308,10 +336,6 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM STAC_Collections('https://planetarycomputer.microsoft.com/api/stac/v1');
-    freshness:
-      method: stac-api
-      url: https://planetarycomputer.microsoft.com/api/stac/v1
-
   - id: stac.nasa.lpcloud
     name: NASA LP DAAC LPCLOUD STAC catalog
     description: NASA LP DAAC STAC catalog for land processes data products served through Earthdata/CMR endpoints.
@@ -321,6 +345,11 @@ sources:
     homepage: https://cmr.earthdata.nasa.gov/stac/LPCLOUD/
     license_url: https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy
     attribution: NASA LP DAAC data; cite dataset-specific DOI and attribution.
+    tables:
+      - id: stac_items
+        description: NASA LP DAAC STAC item metadata. One row per land-processes product item returned by the STAC API.
+        ask_for: [product or collection, bbox or area, date range, limit]
+        warnings: [Some downstream assets may require Earthdata access workflows.]
     tags: [stac, nasa, land, earthdata]
     topics: [land processes, remote sensing, NASA earth science]
     coverage:
@@ -352,10 +381,6 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM STAC_Collections('https://cmr.earthdata.nasa.gov/stac/LPCLOUD/');
-    freshness:
-      method: stac-api
-      url: https://cmr.earthdata.nasa.gov/stac/LPCLOUD/
-
   - id: arcgis.census.tigerweb.state-county
     name: U.S. Census TIGERweb state and county layers
     description: Census TIGERweb ArcGIS layers for U.S. state and county boundaries, useful once ArcGIS paging is available in the DuckDB path.
@@ -365,6 +390,11 @@ sources:
     homepage: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer
     license_url: https://www.census.gov/data/developers/about/terms-of-service.html
     attribution: U.S. Census Bureau TIGERweb.
+    tables:
+      - id: county_boundaries
+        description: TIGERweb state/county boundary layer features. One row per ArcGIS boundary feature.
+        ask_for: [state or county, fields, whether geometry is needed]
+        warnings: [Connector is blocked; use REST pagination until ArcGIS support is stable.]
     tags: [arcgis, census, boundaries, us]
     topics: [administrative boundaries, counties, states]
     coverage:
@@ -393,10 +423,6 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM arcgis_query('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1');
-    freshness:
-      method: arcgis-layer-metadata
-      url: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1?f=pjson
-
   - id: census.cartographic.county-boundaries
     name: U.S. Census cartographic county boundary files
     description: Official generalized U.S. county boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.
@@ -406,6 +432,12 @@ sources:
     homepage: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
     license_url: https://www.census.gov/data/developers/about/terms-of-service.html
     attribution: U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.
+    tables:
+      - id: county_20m
+        ref: odd.census.latest.county_20m
+        description: Generalized U.S. county polygons at 20m scale. One row per county or county-equivalent feature.
+        ask_for: [year, scale, state filter, GEOID join key]
+        warnings: [Generalized for thematic mapping, not surveying.]
     tags: [census, boundaries, counties, shapefile, geospatial]
     topics: [administrative boundaries, counties, thematic mapping, fips]
     coverage:
@@ -462,10 +494,6 @@ sources:
       pinned:
         duckdb_setting: census_cartographic_year
         example: "2025"
-    freshness:
-      method: census-cartographic-boundary-files-page
-      url: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
-
   - id: census.cartographic.tract-boundaries
     name: U.S. Census cartographic tract boundary files
     description: Official generalized U.S. census tract boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.
@@ -475,6 +503,12 @@ sources:
     homepage: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
     license_url: https://www.census.gov/data/developers/about/terms-of-service.html
     attribution: U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.
+    tables:
+      - id: tract_5m
+        ref: odd.census.latest.tract_5m
+        description: Generalized U.S. census tract polygons at 5m scale. One row per census tract feature.
+        ask_for: [year, scale, state filter, tract GEOID join key]
+        warnings: [National tract files are larger; filter by state when possible.]
     tags: [census, boundaries, tracts, shapefile, geospatial]
     topics: [census tracts, statistical geographies, thematic mapping, geoid, fips]
     coverage:
@@ -533,10 +567,6 @@ sources:
       pinned:
         duckdb_setting: census_cartographic_year
         example: "2025"
-    freshness:
-      method: census-cartographic-boundary-files-page
-      url: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
-
   - id: arcgis.fema.nfhl.flood-hazard-zones
     name: FEMA National Flood Hazard Layer flood hazard zones
     description: FEMA NFHL ArcGIS layer for flood hazard zones, intended for risk and property-context queries after ArcGIS paging support is stable.
@@ -546,6 +576,11 @@ sources:
     homepage: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer
     license_url: https://www.fema.gov/about/openfema/terms-conditions
     attribution: Federal Emergency Management Agency National Flood Hazard Layer.
+    tables:
+      - id: flood_hazard_zones
+        description: FEMA NFHL flood hazard zone features. One row per flood hazard zone feature.
+        ask_for: [bbox or jurisdiction, fields, whether geometry is needed]
+        warnings: [Not a substitute for official determinations; connector path is not stable yet.]
     tags: [arcgis, fema, flood, hazards]
     topics: [flood risk, hazards, property context]
     coverage:
@@ -574,10 +609,6 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM arcgis_query('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28');
-    freshness:
-      method: arcgis-layer-metadata
-      url: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28?f=pjson
-
   - id: arcgis.usgs.national-map-contours
     name: USGS National Map elevation contours
     description: USGS National Map ArcGIS contour layer for elevation-line features and terrain context, pending stable ArcGIS support.
@@ -587,6 +618,11 @@ sources:
     homepage: https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer
     license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
     attribution: U.S. Geological Survey National Map.
+    tables:
+      - id: contours
+        description: USGS National Map elevation contour line features. One row per contour segment feature.
+        ask_for: [bbox, contour interval or elevation need, fields]
+        warnings: [Connector is blocked; large geometry layers need paging.]
     tags: [arcgis, usgs, elevation, contours]
     topics: [terrain, elevation, topography]
     coverage:
@@ -615,10 +651,6 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM arcgis_query('https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2');
-    freshness:
-      method: arcgis-layer-metadata
-      url: https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2?f=pjson
-
   - id: usgs.earthquake.realtime-geojson
     name: USGS realtime earthquake GeoJSON feeds
     description: Official U.S. Geological Survey realtime earthquake summary feeds for recent seismic events, queryable directly from GeoJSON over HTTPS with DuckDB read_json_auto.
@@ -628,6 +660,16 @@ sources:
     homepage: https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
     license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
     attribution: U.S. Geological Survey Earthquake Hazards Program; credit USGS earthquake feeds and do not imply USGS endorsement.
+    tables:
+      - id: earthquake_events
+        description: Recent USGS earthquake event features. One row per reported seismic event in the selected rolling feed.
+        columns_hint:
+          mag: Earthquake magnitude.
+          place: Human-readable event location.
+          time: Event time in epoch milliseconds.
+          geometry: GeoJSON point with longitude, latitude, and depth.
+        ask_for: [feed window, magnitude threshold, bbox or region, limit]
+        warnings: [Rolling feeds are not stable historical snapshots.]
     tags: [usgs, earthquakes, hazards, geojson, realtime]
     topics: [earthquakes, seismic events, natural hazards, realtime monitoring]
     coverage:
@@ -688,10 +730,6 @@ sources:
           )
           ORDER BY sig DESC
           LIMIT 25;
-    freshness:
-      method: usgs-earthquake-feed-page
-      url: https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
-
   - id: worldbank.wdi.indicators
     name: World Bank World Development Indicators API
     description: Official World Bank Indicators API access to World Development Indicators time-series development data, queryable as public JSON over HTTPS with DuckDB httpfs and JSON functions.
@@ -701,6 +739,11 @@ sources:
     homepage: https://api.worldbank.org/v2/
     license_url: https://www.worldbank.org/ext/en/legal/terms-conditions/datasets
     attribution: "World Bank Group, World Development Indicators; attribute as: The World Bank: World Development Indicators: World Bank Group. Do not imply World Bank endorsement."
+    tables:
+      - id: indicators
+        description: World Bank indicator observations. One row per country, indicator, and year.
+        ask_for: [country code, indicator id, year range]
+        warnings: [Values may be null; API responses use a JSON envelope.]
     tags: [world-bank, wdi, indicators, development, json]
     topics: [development indicators, population, economy, health, education, country time series]
     coverage:
@@ -777,10 +820,6 @@ sources:
           WHERE item->>'value' IS NOT NULL
           ORDER BY year DESC
           LIMIT 25;
-    freshness:
-      method: world-bank-sources-api
-      url: https://api.worldbank.org/v2/sources?format=json&per_page=100
-
   - id: bls.cpi.timeseries
     name: BLS Consumer Price Index time series API
     description: Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Price Index time-series observations, queryable as public JSON over HTTPS with DuckDB httpfs.
@@ -790,6 +829,11 @@ sources:
     homepage: https://www.bls.gov/developers/home.htm
     license_url: https://www.bls.gov/developers/termsOfService.htm
     attribution: Cite BLS.gov and the API retrieval date; state that BLS.gov cannot vouch for data or analyses derived after retrieval; do not use the BLS logo or imply BLS sponsorship.
+    tables:
+      - id: cpi_observations
+        description: BLS CPI time-series observations. One row per BLS series and period.
+        ask_for: [series id, start year, end year]
+        warnings: [Values are returned as strings and should be cast before numeric analysis.]
     tags: [bls, cpi, inflation, labor-statistics, json]
     topics: [consumer price index, inflation, economic indicators, monthly time series]
     coverage:
@@ -869,10 +913,6 @@ sources:
           WHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL
           ORDER BY year DESC, obs.period DESC
           LIMIT 12;
-    freshness:
-      method: bls-public-data-api
-      url: https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0
-
   - id: treasury.fiscaldata.debt-to-penny
     name: U.S. Treasury Fiscal Data Debt to the Penny API
     description: Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.
@@ -882,6 +922,11 @@ sources:
     homepage: https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/debt-to-the-penny
     license_url: https://catalog.data.gov/dataset/debt-to-the-penny
     attribution: U.S. Department of the Treasury, Bureau of the Fiscal Service, Fiscal Data / Debt to the Penny; do not imply Treasury endorsement.
+    tables:
+      - id: debt_observations
+        description: U.S. Treasury daily public debt outstanding records. One row per record date.
+        ask_for: [date window, debt field, limit]
+        warnings: [Fiscal Data CSV responses are gzipped; use compression = 'gzip'.]
     tags: [treasury, fiscal-data, debt, public-debt, csv]
     topics: [federal debt, public debt outstanding, treasury, fiscal data, daily time series]
     coverage:
@@ -929,10 +974,6 @@ sources:
           )
           ORDER BY record_date DESC
           LIMIT 10;
-    freshness:
-      method: fiscal-data-api
-      url: https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date&sort=-record_date&page%5Bsize%5D=1&format=json
-
   - id: noaa.ncei.storm-events
     name: NOAA NCEI Storm Events bulk CSV files
     description: Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.
@@ -942,6 +983,22 @@ sources:
     homepage: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
     license_url: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
     attribution: NOAA National Centers for Environmental Information, Storm Events Database; credit NOAA/NCEI and do not imply NOAA endorsement.
+    tables:
+      - id: storm_events_details
+        ref: odd.noaa.latest.storm_events_details
+        description: NOAA Storm Events detail rows. One row per reported storm event.
+        ask_for: [year, state, event type, limit]
+        warnings: [Files are revised with creation-date suffixes; pin year for reproducible examples.]
+      - id: storm_events_fatalities
+        ref: odd.noaa.latest.storm_events_fatalities
+        description: NOAA Storm Events fatality rows. One row per fatality associated with a storm event.
+        ask_for: [year, state or event id, limit]
+        warnings: [Join to details by event_id for event context.]
+      - id: storm_events_locations
+        ref: odd.noaa.latest.storm_events_locations
+        description: NOAA Storm Events location rows. One row per location attached to a storm event.
+        ask_for: [year, state or event id, limit]
+        warnings: [Join to details by event_id for event context.]
     tags: [noaa, ncei, storms, weather, hazards, csv]
     topics: [severe weather, storm reports, tornadoes, hail, wind, fatalities]
     coverage:
@@ -1056,10 +1113,6 @@ sources:
       pinned:
         duckdb_setting: noaa_storm_events_year
         example: "2024"
-    freshness:
-      method: ncei-directory-listing
-      url: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
-
   - id: aws.noaa-ghcn-daily
     name: NOAA Global Historical Climatology Network Daily
     description: NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.
@@ -1069,6 +1122,12 @@ sources:
     homepage: https://registry.opendata.aws/noaa-ghcn/
     license_url: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
     attribution: NOAA National Centers for Environmental Information, Global Historical Climatology Network Daily.
+    tables:
+      - id: ghcn_daily
+        ref: odd.noaa.latest.ghcn_daily
+        description: GHCN Daily station observations. One row per station, date, and observed climate element.
+        ask_for: [year, station id, climate element]
+        warnings: [CSV files are large; filter by year/station/element early.]
     tags: [aws, noaa, climate, weather, csv]
     topics: [daily climate observations, stations, temperature, precipitation]
     coverage:
@@ -1112,10 +1171,6 @@ sources:
       pinned:
         duckdb_setting: noaa_ghcn_year
         example: "2024"
-    freshness:
-      method: aws-open-data-s3-prefix
-      url: https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/&max-keys=5
-
   - id: aws.noaa-gsod
     name: NOAA Global Surface Summary of the Day
     description: NOAA GSOD daily weather summaries by station, exposed as public S3 CSV objects queryable with DuckDB httpfs.
@@ -1125,6 +1180,11 @@ sources:
     homepage: https://registry.opendata.aws/noaa-gsod/
     license_url: https://www.ncei.noaa.gov/products/land-based-weather-stations
     attribution: NOAA National Centers for Environmental Information, Global Surface Summary of the Day.
+    tables:
+      - id: daily_summaries
+        description: NOAA GSOD daily station weather summaries. One row per station-day summary.
+        ask_for: [station id, year, weather fields]
+        warnings: [Station files are split by year and station.]
     tags: [aws, noaa, weather, daily, csv]
     topics: [daily weather summaries, stations, temperature]
     coverage:
@@ -1150,10 +1210,6 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM read_csv_auto('https://noaa-gsod-pds.s3.amazonaws.com/2024/01001099999.csv');
-    freshness:
-      method: aws-open-data-s3-prefix
-      url: https://noaa-gsod-pds.s3.amazonaws.com/
-
   - id: aws.noaa-isd-history
     name: NOAA Integrated Surface Database station history
     description: NOAA ISD station-history lookup table with station identifiers, names, country/state, and coordinates.
@@ -1163,6 +1219,11 @@ sources:
     homepage: https://registry.opendata.aws/noaa-isd/
     license_url: https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
     attribution: NOAA National Centers for Environmental Information, Integrated Surface Database.
+    tables:
+      - id: station_history
+        description: NOAA ISD station metadata. One row per weather station history record.
+        ask_for: [country, state, station name, nearby place]
+        warnings: [Metadata lookup only; use observation datasets for measurements.]
     tags: [aws, noaa, stations, lookup, csv]
     topics: [weather stations, station metadata, geocoding]
     coverage:
@@ -1188,10 +1249,6 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM read_csv_auto('https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv');
-    freshness:
-      method: aws-open-data-s3-object
-      url: https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv
-
   - id: ckan.data-gov-au.wyndham-pets
     name: Data.gov.au Wyndham registered dogs and cats
     description: Australian Government CKAN catalog package with a public CSV distribution of Wyndham registered dog and cat counts by suburb.
@@ -1201,6 +1258,11 @@ sources:
     homepage: https://data.gov.au/data/dataset/wyndham-registered-dogs-catscsv
     license_url: https://creativecommons.org/licenses/by/3.0/au/
     attribution: Wyndham City Council; licensed under Creative Commons Attribution 3.0 Australia.
+    tables:
+      - id: wyndham_pet_registrations
+        description: Wyndham registered dog and cat counts. One row per suburb/count record in the public CSV distribution.
+        ask_for: [suburb or animal type]
+        warnings: [CKAN is discovery metadata; query the direct readable CSV distribution.]
     tags: [ckan, dcat, australia, csv, animals]
     topics: [open data catalogs, local government, pets]
     coverage:
@@ -1227,10 +1289,6 @@ sources:
         LOAD httpfs;
         SELECT count(*) > 0 AS ok
         FROM read_csv_auto('https://data.gov.au/data/dataset/ff0b0b45-e772-4835-9525-a6d7e20ea93d/resource/eef6a84b-ad44-446f-9cf9-fb5d135e3123/download/wyndhamcatdogslist.csv');
-    freshness:
-      method: ckan-package-show
-      url: https://data.gov.au/data/api/3/action/package_show?id=wyndham-registered-dogs-catscsv
-
   - id: socrata.nyc.311-service-requests
     name: NYC Open Data 311 Service Requests
     description: New York City 311 service-request records from 2020 to present, exposed through the official NYC Open Data Socrata portal with bounded SODA export queries.
@@ -1240,6 +1298,11 @@ sources:
     homepage: https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2020-to-Present/erm2-nwe9
     license_url: https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-216807
     attribution: NYC Open Data, 311 Service Requests from 2020 to Present, City of New York Office of Technology and Innovation.
+    tables:
+      - id: service_requests
+        description: NYC 311 service request records. One row per 311 request.
+        ask_for: [date range, borough, complaint type, limit]
+        warnings: [Large table requires bounded SODA queries with select/order/limit.]
     tags: [socrata, nyc, "311", service-requests, csv]
     topics: [municipal services, civic requests, complaints, open data]
     coverage:
@@ -1270,10 +1333,6 @@ sources:
           LOAD httpfs;
           SELECT unique_key, created_date, complaint_type, borough, status
           FROM read_csv_auto('https://data.cityofnewyork.us/resource/erm2-nwe9.csv?$select=unique_key,created_date,complaint_type,borough,status&$where=borough=%27BROOKLYN%27%20AND%20created_date%20%3E=%20%272026-01-01T00:00:00%27&$order=unique_key&$limit=100&$offset=0');
-    freshness:
-      method: socrata-metadata-api
-      url: https://data.cityofnewyork.us/api/views/metadata/v1/erm2-nwe9
-
   - id: socrata.cdc.places-county-2025
     name: CDC PLACES county health estimates, 2025 release
     description: CDC PLACES model-based county-level estimates for chronic disease outcomes, prevention measures, risk behaviors, disabilities, health status, and health-related social needs, published on the official CDC Socrata portal with bounded SODA export queries.
@@ -1283,6 +1342,11 @@ sources:
     homepage: https://data.cdc.gov/d/swc5-untb
     license_url: https://data.cdc.gov/api/views/metadata/v1/swc5-untb
     attribution: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health. PLACES - Local Data for Better Health, County Data, 2025 release. Public domain.
+    tables:
+      - id: county_health_estimates
+        description: CDC PLACES county health estimate rows. One row per county, measure, and data-value type.
+        ask_for: [state, measure id, age-adjusted or crude prevalence]
+        warnings: [Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.]
     tags: [socrata, cdc, health, counties, public-domain, csv]
     topics: [public health, chronic disease, county estimates, health outcomes, social determinants]
     coverage:
@@ -1313,10 +1377,6 @@ sources:
           LOAD httpfs;
           SELECT locationid, locationname, measureid, data_value, low_confidence_limit, high_confidence_limit
           FROM read_csv_auto('https://data.cdc.gov/resource/swc5-untb.csv?$select=locationid,locationname,measureid,data_value,low_confidence_limit,high_confidence_limit&$where=stateabbr=%27TX%27%20AND%20datavaluetypeid=%27AgeAdjPrv%27&$order=locationid,measureid&$limit=1000&$offset=0');
-    freshness:
-      method: socrata-metadata-api
-      url: https://data.cdc.gov/api/views/metadata/v1/swc5-untb
-
   - id: sourcecoop.vida.google-microsoft-open-buildings
     name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
     description: VIDA's combined Google and Microsoft global building-footprint dataset, partitioned as public GeoParquet on Source Cooperative for direct DuckDB scans.
@@ -1326,6 +1386,11 @@ sources:
     homepage: https://source.coop/repositories/vida/google-microsoft-open-buildings/description
     license_url: https://data.source.coop/vida/google-microsoft-open-buildings/README.md
     attribution: Google Open Buildings and Microsoft GlobalMLBuildingFootprints, combined by VIDA; licensed under ODbL v1.0.
+    tables:
+      - id: building_footprints
+        description: Combined Google/Microsoft building footprint polygons. One row per building footprint.
+        ask_for: [ISO3 country code, bbox, limit]
+        warnings: [Large countries are partitioned; use country and S2 paths to avoid huge scans.]
     tags: [source-cooperative, buildings, geospatial, geoparquet, footprints]
     topics: [building footprints, open buildings, country partitions, S2 partitions]
     coverage:
@@ -1372,6 +1437,3 @@ sources:
           -- Path pattern: geoparquet/by_country_s2/country_iso={ISO3}/{S2_GRID_ID}.parquet
           SELECT count(*) AS footprints
           FROM read_parquet('https://data.source.coop/vida/google-microsoft-open-buildings/geoparquet/by_country/country_iso=AND/AND.parquet');
-    freshness:
-      method: readme-changelog
-      url: https://data.source.coop/vida/google-microsoft-open-buildings/README.md

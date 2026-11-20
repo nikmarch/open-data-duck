@@ -49,6 +49,15 @@ VALID_REGISTRY = {
                 "example_query": "SELECT * FROM read_parquet('https://example.com/data.parquet');",
                 "validation_query": "SELECT 1;",
             },
+            "tables": [
+                {
+                    "id": "rows",
+                    "ref": "odd.example.latest.rows",
+                    "description": "Example rows. One row per fixture record.",
+                    "ask_for": ["limit"],
+                    "warnings": ["Fixture only."],
+                }
+            ],
             "validations": [
                 {
                     "id": "odd.example.latest.rows",
@@ -59,6 +68,32 @@ VALID_REGISTRY = {
                     "compare": "exact",
                     "order_by": ["id"],
                     "limit": 5,
+                }
+            ],
+        }
+    ]
+}
+
+
+MINIMAL_REGISTRY = {
+    "sources": [
+        {
+            "id": "minimal.source",
+            "name": "Minimal source",
+            "status": "candidate",
+            "source_type": "parquet",
+            "authority": "Minimal Authority",
+            "license_url": "https://example.com/license",
+            "attribution": "Credit Minimal Authority.",
+            "duckdb": {"extensions": ["httpfs"]},
+            "tables": [
+                {"id": "rows", "ref": "odd.minimal.latest.rows", "description": "Minimal rows."}
+            ],
+            "validations": [
+                {
+                    "id": "odd.minimal.latest.rows",
+                    "direct_sql": "SELECT id FROM read_parquet('https://example.com/data.parquet') ORDER BY id LIMIT 5;",
+                    "odd_sql": "SELECT id FROM odd.minimal.latest.rows ORDER BY id LIMIT 5;",
                 }
             ],
         }
@@ -80,6 +115,36 @@ def test_validate_registry_accepts_valid_source(tmp_path: Path) -> None:
     assert validate_registry(registry_path, schema_path) == []
 
 
+def test_validate_registry_accepts_minimal_validation_pair_source(tmp_path: Path) -> None:
+    registry_path, schema_path = write_registry(tmp_path, MINIMAL_REGISTRY)
+
+    assert validate_registry(registry_path, schema_path) == []
+    source = find_source(registry_path, "minimal.source")
+    assert source is not None
+    assert source.description == ""
+    assert source.homepage == ""
+    assert source.duckdb == {"extensions": ["httpfs"]}
+
+
+def test_schema_source_required_fields_are_small_core() -> None:
+    schema = yaml.safe_load(Path("schema/source.schema.json").read_text(encoding="utf-8"))
+
+    assert schema["$defs"]["source"]["required"] == [
+        "id",
+        "name",
+        "status",
+        "source_type",
+        "authority",
+        "license_url",
+        "attribution",
+        "duckdb",
+        "tables",
+    ]
+    assert schema["$defs"]["source"]["properties"]["duckdb"]["required"] == ["extensions"]
+    assert schema["$defs"]["table"]["required"] == ["id", "description"]
+    assert schema["$defs"]["validation"]["required"] == ["id", "direct_sql", "odd_sql"]
+
+
 def test_validate_registry_accepts_connector_blocked_status(tmp_path: Path) -> None:
     registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
     registry["sources"][0]["status"] = "connector-blocked"
@@ -92,11 +157,8 @@ def test_validate_registry_accepts_connector_blocked_status(tmp_path: Path) -> N
     ("field_path", "expected_path"),
     [
         (("authority",), "authority"),
-        (("description",), "description"),
         (("license_url",), "license_url"),
         (("attribution",), "attribution"),
-        (("duckdb", "example_query"), "duckdb.example_query"),
-        (("duckdb", "validation_query"), "duckdb.validation_query"),
         (("validations", 0, "direct_sql"), "validations[0](odd.example.latest.rows).direct_sql"),
         (("validations", 0, "odd_sql"), "validations[0](odd.example.latest.rows).odd_sql"),
     ],
@@ -127,6 +189,19 @@ def test_validate_registry_rejects_duplicate_ids(tmp_path: Path) -> None:
     errors = validate_registry(registry_path, schema_path)
 
     assert any("duplicate source id" == error.message for error in errors)
+
+
+def test_validate_registry_requires_legacy_queries_only_without_validation_pairs(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(MINIMAL_REGISTRY))
+    source = registry["sources"][0]
+    source.pop("validations")
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    errors = validate_registry(registry_path, schema_path)
+
+    assert any("duckdb.example_query" in error.path for error in errors)
+    assert any("duckdb.validation_query" in error.path for error in errors)
+    assert any("unless validations are present" in error.message for error in errors)
 
 
 def test_validate_registry_rejects_duplicate_validation_ids(tmp_path: Path) -> None:
@@ -418,7 +493,7 @@ def test_project_world_bank_wdi_uses_api_json_envelope_recipe() -> None:
     assert "read_json" in rendered_sql
     assert "json_each" in rendered_sql
     assert "countryiso3code" in rendered_sql
-    assert "worldbank" in source["freshness"]["url"]
+    assert "freshness" not in source
     assert "load worldbank" not in rendered_sql
     assert "install worldbank" not in rendered_sql
 
@@ -569,24 +644,38 @@ def test_seed_sources_include_required_query_metadata() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
 
     for source in registry["sources"]:
-        assert source["description"].strip(), source["id"]
         assert source["license_url"].startswith("https://"), source["id"]
         assert source["attribution"].strip(), source["id"]
-        assert source.get("ai", {}).get("summary", "").strip(), source["id"]
-        assert source["duckdb"]["example_query"].strip(), source["id"]
-        assert source["duckdb"]["validation_query"].strip(), source["id"]
+        assert source["duckdb"]["extensions"], source["id"]
+        assert source["tables"], source["id"]
+        for table in source["tables"]:
+            assert table["id"].strip(), source["id"]
+            assert table["description"].strip(), f"{source['id']}:{table.get('id')}"
+        if not source.get("validations"):
+            assert source["duckdb"]["example_query"].strip(), source["id"]
+            assert source["duckdb"]["validation_query"].strip(), source["id"]
 
 
 def test_seed_validation_pairs_use_odd_ids_and_direct_sql_contract() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    assert all("freshness" not in source for source in registry["sources"])
     validations = [validation for source in registry["sources"] for validation in source.get("validations", [])]
 
     assert "odd.overturemaps.latest.place" in {validation["id"] for validation in validations}
     assert "odd.overturemaps.x2026x10x21.place" in {validation["id"] for validation in validations}
     assert "odd.noaa.latest.storm_events_details" in {validation["id"] for validation in validations}
+    table_refs = {
+        table["ref"]
+        for source in registry["sources"]
+        for table in source["tables"]
+        if table.get("ref")
+    }
 
     for validation in validations:
         assert re.fullmatch(r"odd\.[a-z0-9_]+\.[a-z0-9x_]+\.[a-z0-9_]+", validation["id"]), validation["id"]
+        validation_parts = validation["id"].split(".")
+        latest_ref = f"odd.{validation_parts[1]}.latest.{validation_parts[3]}"
+        assert validation["id"] in table_refs or latest_ref in table_refs
         assert validation["direct_sql"].strip(), validation["id"]
         assert validation["odd_sql"].strip(), validation["id"]
         assert validation["id"] in validation["odd_sql"], validation["id"]
@@ -682,7 +771,8 @@ def test_mcp_server_module_is_import_safe_and_returns_tool_payloads(tmp_path: Pa
 
     assert search_payload["count"] == 1
     assert source_payload["description"] == "Example source description for humans and AI agents."
-    assert "read_parquet" in sql_payload["sql"]
+    assert "odd.example.latest.rows" in sql_payload["sql"]
+    assert "read_parquet" not in sql_payload["sql"]
 
 
 def test_search_sources_requires_all_terms(tmp_path: Path) -> None:
@@ -702,7 +792,7 @@ def test_find_source_returns_source_by_id(tmp_path: Path) -> None:
     assert source.name == "Example source"
 
 
-def test_render_source_sql_includes_install_and_example_query(tmp_path: Path) -> None:
+def test_render_source_sql_prefers_validation_odd_sql_as_example(tmp_path: Path) -> None:
     registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
     registry["sources"][0]["duckdb"]["install"] = "INSTALL httpfs;"
     registry_path, _schema_path = write_registry(tmp_path, registry)
@@ -711,18 +801,22 @@ def test_render_source_sql_includes_install_and_example_query(tmp_path: Path) ->
     assert source is not None
     sql = render_source_sql(source)
 
-    assert "INSTALL httpfs;" in sql
-    assert "read_parquet" in sql
+    assert sql == "SELECT id FROM odd.example.latest.rows ORDER BY id LIMIT 5;\n"
+    assert "INSTALL httpfs;" not in sql
+    assert "read_parquet" not in sql
 
 
-def test_render_source_sql_can_print_validation_query(tmp_path: Path) -> None:
+def test_render_source_sql_validation_prints_direct_and_odd_pair(tmp_path: Path) -> None:
     registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
     source = find_source(registry_path, "example.source")
 
     assert source is not None
     sql = render_source_sql(source, validation=True, include_install=False)
 
-    assert sql == "SELECT 1;\n"
+    assert "direct DuckDB control for odd.example.latest.rows" in sql
+    assert "FROM read_parquet" in sql
+    assert "ODD facade example for odd.example.latest.rows" in sql
+    assert "FROM odd.example.latest.rows" in sql
 
 
 def test_cli_search_prints_matching_sources(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -789,7 +883,9 @@ def test_cli_sql_prints_source_query(tmp_path: Path, capsys: pytest.CaptureFixtu
     exit_code = main(["sql", "example.source", "--registry", str(registry_path)])
 
     assert exit_code == 0
-    assert "read_parquet" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "odd.example.latest.rows" in output
+    assert "read_parquet" not in output
 
 
 def test_cli_sql_exits_nonzero_for_unknown_source(
