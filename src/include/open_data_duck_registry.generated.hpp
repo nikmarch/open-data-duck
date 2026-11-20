@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 19;
+static constexpr int REGISTRY_SOURCE_COUNT = 20;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 19,
+  "source_count": 20,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -386,6 +386,37 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "wdi",
         "indicators",
         "development",
+        "json"
+      ]
+    },
+    {
+      "attribution": "Cite BLS.gov and the API retrieval date; state that BLS.gov cannot vouch for data or analyses derived after retrieval; do not use the BLS logo or imply BLS sponsorship.",
+      "authority": "U.S. Bureau of Labor Statistics",
+      "description": "Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Price Index time-series observations, queryable as public JSON over HTTPS with DuckDB httpfs.",
+      "duckdb": {
+        "example_query": "LOAD httpfs;\nWITH series AS (\n  SELECT unnest(Results.series) AS s\n  FROM read_json(\n    'https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0?startyear=2024&endyear=2025',\n    format = 'auto'\n  )\n), observations AS (\n  SELECT s.seriesID AS series_id,\n         unnest(s.data) AS obs\n  FROM series\n)\nSELECT series_id,\n       CAST(obs.year AS INTEGER) AS year,\n       obs.period AS period,\n       obs.periodName AS period_name,\n       TRY_CAST(obs.value AS DOUBLE) AS value\nFROM observations\nWHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL\nORDER BY year DESC, period DESC\nLIMIT 10;",
+        "examples": {
+          "core_cpi_recent_observations": "LOAD httpfs;\nWITH series AS (\n  SELECT unnest(Results.series) AS s\n  FROM read_json(\n    'https://api.bls.gov/publicAPI/v1/timeseries/data/CUSR0000SA0L1E?startyear=2024&endyear=2025',\n    format = 'auto'\n  )\n), observations AS (\n  SELECT s.seriesID AS series_id,\n         unnest(s.data) AS obs\n  FROM series\n)\nSELECT series_id,\n       CAST(obs.year AS INTEGER) AS year,\n       obs.periodName AS period_name,\n       TRY_CAST(obs.value AS DOUBLE) AS core_cpi\nFROM observations\nWHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL\nORDER BY year DESC, obs.period DESC\nLIMIT 12;"
+        },
+        "extensions": [
+          "httpfs"
+        ],
+        "install": "INSTALL httpfs;",
+        "tables": {},
+        "validation_query": "LOAD httpfs;\nWITH series AS (\n  SELECT unnest(Results.series) AS s\n  FROM read_json(\n    'https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0?startyear=2024&endyear=2025',\n    format = 'auto'\n  )\n), observations AS (\n  SELECT s.seriesID AS series_id,\n         unnest(s.data) AS obs\n  FROM series\n)\nSELECT count(*) > 0 AS has_rows,\n       bool_or(series_id = 'CUUR0000SA0') AS has_cpi_all_items_series,\n       max(CAST(obs.year AS INTEGER)) >= 2024 AS has_recent_data\nFROM observations\nWHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL;"
+      },
+      "homepage": "https://www.bls.gov/developers/home.htm",
+      "id": "bls.cpi.timeseries",
+      "license_url": "https://www.bls.gov/developers/termsOfService.htm",
+      "name": "BLS Consumer Price Index time series API",
+      "release": {},
+      "source_type": "other",
+      "status": "candidate",
+      "tags": [
+        "bls",
+        "cpi",
+        "inflation",
+        "labor-statistics",
         "json"
       ]
     },

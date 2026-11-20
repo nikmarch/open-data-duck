@@ -712,6 +712,98 @@ sources:
       method: world-bank-sources-api
       url: https://api.worldbank.org/v2/sources?format=json&per_page=100
 
+  - id: bls.cpi.timeseries
+    name: BLS Consumer Price Index time series API
+    description: Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Price Index time-series observations, queryable as public JSON over HTTPS with DuckDB httpfs.
+    status: candidate
+    source_type: other
+    authority: U.S. Bureau of Labor Statistics
+    homepage: https://www.bls.gov/developers/home.htm
+    license_url: https://www.bls.gov/developers/termsOfService.htm
+    attribution: Cite BLS.gov and the API retrieval date; state that BLS.gov cannot vouch for data or analyses derived after retrieval; do not use the BLS logo or imply BLS sponsorship.
+    tags: [bls, cpi, inflation, labor-statistics, json]
+    topics: [consumer price index, inflation, economic indicators, monthly time series]
+    coverage:
+      spatial: United States CPI areas and item categories available through BLS series ids
+      temporal: monthly CPI observations exposed by the public time-series API for the requested series
+      grain: one BLS series-period observation
+    cadence: CPI series are updated on the BLS release schedule; API responses reflect published BLS time-series data
+    ai:
+      summary: Official source for CPI inflation time series such as CPI-U all items and core CPI.
+      use_cases: [pull recent CPI observations, compare CPI series, build inflation trend examples in DuckDB]
+      caveats: [keyless public access should stay to small single-series requests, registered v2 API access is better for multi-series or heavier usage, values are returned as strings and should be cast]
+      prompt_hints: [Ask for the BLS series id, CPI item/area, and desired date range; cite the API retrieval date in outputs.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        WITH series AS (
+          SELECT unnest(Results.series) AS s
+          FROM read_json(
+            'https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0?startyear=2024&endyear=2025',
+            format = 'auto'
+          )
+        ), observations AS (
+          SELECT s.seriesID AS series_id,
+                 unnest(s.data) AS obs
+          FROM series
+        )
+        SELECT series_id,
+               CAST(obs.year AS INTEGER) AS year,
+               obs.period AS period,
+               obs.periodName AS period_name,
+               TRY_CAST(obs.value AS DOUBLE) AS value
+        FROM observations
+        WHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL
+        ORDER BY year DESC, period DESC
+        LIMIT 10;
+      validation_query: |
+        LOAD httpfs;
+        WITH series AS (
+          SELECT unnest(Results.series) AS s
+          FROM read_json(
+            'https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0?startyear=2024&endyear=2025',
+            format = 'auto'
+          )
+        ), observations AS (
+          SELECT s.seriesID AS series_id,
+                 unnest(s.data) AS obs
+          FROM series
+        )
+        SELECT count(*) > 0 AS has_rows,
+               bool_or(series_id = 'CUUR0000SA0') AS has_cpi_all_items_series,
+               max(CAST(obs.year AS INTEGER)) >= 2024 AS has_recent_data
+        FROM observations
+        WHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL;
+      examples:
+        core_cpi_recent_observations: |
+          LOAD httpfs;
+          WITH series AS (
+            SELECT unnest(Results.series) AS s
+            FROM read_json(
+              'https://api.bls.gov/publicAPI/v1/timeseries/data/CUSR0000SA0L1E?startyear=2024&endyear=2025',
+              format = 'auto'
+            )
+          ), observations AS (
+            SELECT s.seriesID AS series_id,
+                   unnest(s.data) AS obs
+            FROM series
+          )
+          SELECT series_id,
+                 CAST(obs.year AS INTEGER) AS year,
+                 obs.periodName AS period_name,
+                 TRY_CAST(obs.value AS DOUBLE) AS core_cpi
+          FROM observations
+          WHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL
+          ORDER BY year DESC, obs.period DESC
+          LIMIT 12;
+    freshness:
+      method: bls-public-data-api
+      url: https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0
+
   - id: noaa.ncei.storm-events
     name: NOAA NCEI Storm Events bulk CSV files
     description: Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.

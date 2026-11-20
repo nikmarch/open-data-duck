@@ -124,6 +124,20 @@ Official World Bank Indicators API access to World Development Indicators time-s
 - AI use cases: query country indicator histories, compare development indicators across years, pull WDI time series into DuckDB
 - Caveats: API responses use a two-element JSON envelope, some indicators can have null values, some third-party datasets or indicators may carry different metadata terms
 
+### `bls.cpi.timeseries` — BLS Consumer Price Index time series API
+
+Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Price Index time-series observations, queryable as public JSON over HTTPS with DuckDB httpfs.
+
+- Status: `candidate`
+- Authority: U.S. Bureau of Labor Statistics
+- Homepage: https://www.bls.gov/developers/home.htm
+- License: https://www.bls.gov/developers/termsOfService.htm
+- Tags: `bls`, `cpi`, `inflation`, `labor-statistics`, `json`
+- Topics: consumer price index, inflation, economic indicators, monthly time series
+- Cadence: CPI series are updated on the BLS release schedule; API responses reflect published BLS time-series data
+- AI use cases: pull recent CPI observations, compare CPI series, build inflation trend examples in DuckDB
+- Caveats: keyless public access should stay to small single-series requests, registered v2 API access is better for multi-series or heavier usage, values are returned as strings and should be cast
+
 ### `noaa.ncei.storm-events` — NOAA NCEI Storm Events bulk CSV files
 
 Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.
