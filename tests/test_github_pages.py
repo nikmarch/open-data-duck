@@ -82,12 +82,14 @@ def test_pages_plugin_api_direction_is_static() -> None:
     assert "Plugin API direction" in index
     assert "INSTALL open_data_duck;" in index
     assert "LOAD open_data_duck;" in index
-    assert "ATTACH 'open_data_duck' AS odd;" in index
+    assert "SET s3_region='us-west-2';" in index
+    assert "ATTACH ':memory:' AS odd (TYPE open_data_duck);" in index
     assert "FROM odd.index" in index
     assert "list_contains(tags, 'buildings')" in index
     assert "alaska building" not in index
     assert "FROM odd.tables" in index
     assert "replacement scan" in index
+    assert "Set the Overture S3 region" in index
     assert "FROM odd.overturemaps.latest.building" in index
     assert "odd.overturemaps.latest.buildings" not in index
     assert "No fake terminal" in index

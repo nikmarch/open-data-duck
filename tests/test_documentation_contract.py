@@ -30,3 +30,14 @@ def test_readme_links_engine_maintenance_tracker() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
 
     assert "[Engine maintenance track](docs/engine-maintenance.md)" in readme
+
+
+def test_readme_overture_facade_example_sets_region_and_uses_exact_table_refs() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "SET s3_region='us-west-2';" in readme
+    assert "ATTACH ':memory:' AS odd (TYPE open_data_duck);" in readme
+    assert "Query `odd.tables` first and copy the `table_reference` exactly" in readme
+    assert "Overture facade table names are singular" in readme
+    assert "FROM odd.overturemaps.latest.building" in readme
+    assert "odd.overturemaps.latest.buildings" not in readme

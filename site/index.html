@@ -40,14 +40,16 @@
       <div class="api-copy">
         <p class="eyebrow">Plugin API direction</p>
         <h2 id="plugin-api-title">Attach once. Search the catalog table. Query the facade table.</h2>
-        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker. The native extension resolves ODD table references with a replacement scan.</p>
+        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker. The native extension resolves ODD table references with a replacement scan. Set the Overture S3 region before querying those facade tables.</p>
       </div>
 
       <div class="api-card" aria-label="Open Data Duck plugin API example">
         <pre><code>INSTALL open_data_duck;
 LOAD open_data_duck;
 
-ATTACH 'open_data_duck' AS odd;
+SET s3_region='us-west-2';
+
+ATTACH ':memory:' AS odd (TYPE open_data_duck);
 
 SELECT *
 FROM odd.index
