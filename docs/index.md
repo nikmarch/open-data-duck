@@ -138,6 +138,20 @@ Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Pric
 - AI use cases: pull recent CPI observations, compare CPI series, build inflation trend examples in DuckDB
 - Caveats: keyless public access should stay to small single-series requests, registered v2 API access is better for multi-series or heavier usage, values are returned as strings and should be cast
 
+### `treasury.fiscaldata.debt-to-penny` — U.S. Treasury Fiscal Data Debt to the Penny API
+
+Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.
+
+- Status: `candidate`
+- Authority: U.S. Department of the Treasury, Bureau of the Fiscal Service
+- Homepage: https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/debt-to-the-penny
+- License: https://catalog.data.gov/dataset/debt-to-the-penny
+- Tags: `treasury`, `fiscal-data`, `debt`, `public-debt`, `csv`
+- Topics: federal debt, public debt outstanding, treasury, fiscal data, daily time series
+- Cadence: daily on Treasury Fiscal Data publication schedule
+- AI use cases: pull recent debt-to-the-penny observations, monitor daily public debt changes, join federal debt levels into economic time-series analysis
+- Caveats: Fiscal Data CSV responses are gzipped even though the URL has no .gz suffix, so DuckDB queries must pass compression = 'gzip'; amounts are large dollar values and should be handled as numeric fields
+
 ### `noaa.ncei.storm-events` — NOAA NCEI Storm Events bulk CSV files
 
 Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.

@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 20;
+static constexpr int REGISTRY_SOURCE_COUNT = 21;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 20,
+  "source_count": 21,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -455,6 +455,38 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "inflation",
         "labor-statistics",
         "json"
+      ],
+      "validations": []
+    },
+    {
+      "attribution": "U.S. Department of the Treasury, Bureau of the Fiscal Service, Fiscal Data / Debt to the Penny; do not imply Treasury endorsement.",
+      "authority": "U.S. Department of the Treasury, Bureau of the Fiscal Service",
+      "description": "Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.",
+      "duckdb": {
+        "example_query": "LOAD httpfs;\nSELECT record_date,\n       tot_pub_debt_out_amt\nFROM read_csv_auto(\n  'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=10&format=csv',\n  compression = 'gzip'\n)\nORDER BY record_date DESC\nLIMIT 10;",
+        "examples": {
+          "recent_public_debt_changes": "LOAD httpfs;\nSELECT record_date,\n       tot_pub_debt_out_amt,\n       tot_pub_debt_out_amt - lag(tot_pub_debt_out_amt) OVER (ORDER BY record_date) AS change_from_previous_record\nFROM read_csv_auto(\n  'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=30&format=csv',\n  compression = 'gzip'\n)\nORDER BY record_date DESC\nLIMIT 10;"
+        },
+        "extensions": [
+          "httpfs"
+        ],
+        "install": "INSTALL httpfs;",
+        "tables": {},
+        "validation_query": "LOAD httpfs;\nSELECT count(*) > 0 AS has_rows,\n       max(record_date) >= DATE '2026-01-01' AS has_recent_data\nFROM read_csv_auto(\n  'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=10&format=csv',\n  compression = 'gzip'\n);"
+      },
+      "homepage": "https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/debt-to-the-penny",
+      "id": "treasury.fiscaldata.debt-to-penny",
+      "license_url": "https://catalog.data.gov/dataset/debt-to-the-penny",
+      "name": "U.S. Treasury Fiscal Data Debt to the Penny API",
+      "release": {},
+      "source_type": "other",
+      "status": "candidate",
+      "tags": [
+        "treasury",
+        "fiscal-data",
+        "debt",
+        "public-debt",
+        "csv"
       ],
       "validations": []
     },
