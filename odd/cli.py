@@ -20,6 +20,7 @@ from odd.registry import (
     search_sources,
     validate_registry,
     write_index_artifacts,
+    write_site_index,
 )
 from odd.schema_manifest import (
     check_source_schema,
@@ -33,6 +34,7 @@ from odd.schema_manifest import (
 DEFAULT_REGISTRY = Path("registry/sources.yml")
 DEFAULT_SCHEMA = Path("schema/source.schema.json")
 DEFAULT_DOCS_DIR = Path("docs")
+DEFAULT_SITE_INDEX = Path("site/index.html")
 DEFAULT_SCHEMA_MANIFEST = Path("schema/source-manifest.json")
 
 
@@ -58,6 +60,13 @@ def main(argv: list[str] | None = None) -> int:
     docs_parser = subparsers.add_parser("generate-index", help="write generated docs/index.md from registry YAML")
     docs_parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     docs_parser.add_argument("--output-dir", type=Path, default=DEFAULT_DOCS_DIR)
+
+    site_parser = subparsers.add_parser(
+        "generate-site",
+        help="write generated site/index.html from registry YAML",
+    )
+    site_parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
+    site_parser.add_argument("--output", type=Path, default=DEFAULT_SITE_INDEX)
 
     ext_registry_parser = subparsers.add_parser(
         "generate-extension-registry",
@@ -137,6 +146,8 @@ def main(argv: list[str] | None = None) -> int:
         return _show(args.registry, args.source_id, args.format, include_sql=args.include_sql)
     if args.command == "generate-index":
         return _generate_index(args.registry, args.output_dir)
+    if args.command == "generate-site":
+        return _generate_site(args.registry, args.output)
     if args.command == "generate-extension-registry":
         return _generate_extension_registry(args.registry, args.output, check=args.check)
     if args.command == "search":
@@ -189,6 +200,11 @@ def _generate_index(registry_path: Path, output_dir: Path) -> int:
     paths = write_index_artifacts(registry_path, output_dir)
     for path in paths:
         print(path)
+    return 0
+
+
+def _generate_site(registry_path: Path, output_path: Path) -> int:
+    print(write_site_index(registry_path, output_path))
     return 0
 
 

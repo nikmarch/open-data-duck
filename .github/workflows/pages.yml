@@ -49,6 +49,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Pages build dependencies
+        run: python -m pip install .
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 

@@ -284,6 +284,7 @@ Generate derived registry artifacts after changing `registry/sources.yml`:
 uv run odd generate-extension-registry
 uv run odd generate-extension-registry --check
 uv run odd generate-index
+uv run odd generate-site
 ```
 
 Useful CLI commands:
