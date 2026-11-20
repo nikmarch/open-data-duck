@@ -434,7 +434,7 @@ def render_map(
 
     cx, cy = to_screen(lon, lat)
     r_px = radius_m / meters_per_px(lat, zoom)
-    draw.ellipse([cx - r_px, cy - r_px, cx + r_px, cy + r_px], outline=(20, 110, 255, 230), width=4, fill=(20, 110, 255, 30))
+    draw.ellipse([cx - r_px, cy - r_px, cx + r_px, cy + r_px], outline=(20, 110, 255, 230), width=4)
     draw.ellipse([cx - 9, cy - 9, cx + 9, cy + 9], fill=(20, 70, 220, 255), outline="white", width=3)
     draw.text((cx + 12, cy - 26), "query point", fill=(10, 40, 130), font=font_b, stroke_width=3, stroke_fill="white")
 
