@@ -88,10 +88,10 @@ def test_pages_workflow_publishes_custom_extension_repository() -> None:
 def test_readme_describes_unsigned_extension_artifacts() -> None:
     readme = README.read_text(encoding="utf-8")
 
-    assert "copy the install block from that release's notes" in readme
-    assert "Each release page carries its own tag" in readme
-    assert "GitHub prerelease asset" in readme
-    assert "DuckDB-version- and platform-specific" in readme
+    assert "install the latest pre-community extension" in readme
+    assert "temporary DuckDB custom extension repository" in readme
+    assert "always serves the latest published Open Data Duck build" in readme
+    assert "Manual GitHub release asset downloads remain available" in readme
     assert "not signed community" in readme
     assert "open_data_duck.duckdb_extension` on purpose" in readme
     assert "Darwin-arm64) platform=osx_arm64" in readme
@@ -106,7 +106,7 @@ def test_readme_describes_unsigned_extension_artifacts() -> None:
     assert "v2.0.0/osx_arm64/open_data_duck.duckdb_extension.gz" in readme
     assert "open_data_duck.duckdb_extension.gz" in readme
     assert "FORCE INSTALL open_data_duck FROM 'https://nikmarch.github.io/open-data-duck/extensions';" in readme
-    assert "temporary pre-community bridge" in readme
+    assert "normal pre-community installs" in readme
     assert "duckdb -unsigned :memory:" in readme
     assert "allow_unsigned_extensions" in readme
     assert "INSTALL open_data_duck FROM community" in readme
