@@ -261,10 +261,11 @@ COPY (
   ), ranked AS (
     SELECT id, coalesce(name, '(unnamed)') AS name, subtype, class, coalesce(subclass, '') AS subclass,
            ST_Distance(ST_Transform(geometry, 'EPSG:4326', '{epsg}', true), (SELECT pt_utm FROM params)) AS distance_m,
-           ST_AsText(geometry) AS wkt
+           ST_AsText(geometry) AS wkt,
+           ST_AsGeoJSON(geometry) AS geojson
     FROM candidates
   )
-  SELECT id, name, subtype, class, subclass, distance_m, wkt
+  SELECT id, name, subtype, class, subclass, distance_m, wkt, geojson
   FROM ranked
   WHERE distance_m <= {radius_m:.6f}
   ORDER BY distance_m
@@ -306,10 +307,11 @@ COPY (
   ), ranked AS (
     SELECT id, name, coalesce(subtype, '') AS subtype, coalesce(class, '') AS class,
            ST_Distance(ST_Transform(geometry, 'EPSG:4326', '{epsg}', true), (SELECT pt_utm FROM params)) AS distance_m,
+           ST_AsGeoJSON(geometry) AS geojson,
            ST_AsText(ST_PointOnSurface(geometry)) AS sample_point_wkt
     FROM candidates
   )
-  SELECT id, name, subtype, class, distance_m, sample_point_wkt
+  SELECT id, name, subtype, class, distance_m, sample_point_wkt, geojson
   FROM ranked
   WHERE distance_m <= {radius_m:.6f}
   ORDER BY distance_m
@@ -395,6 +397,53 @@ def parse_point_wkt(wkt: str) -> tuple[float, float] | None:
     return float(match.group(1)), float(match.group(2))
 
 
+def geojson_geometry(value: str) -> dict | None:
+    if not value:
+        return None
+    try:
+        geometry = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(geometry, dict):
+        return None
+    return geometry
+
+
+def iter_line_coordinates(geometry: dict | None):
+    if not geometry:
+        return
+    geometry_type = geometry.get("type")
+    coordinates = geometry.get("coordinates")
+    if geometry_type == "LineString":
+        yield coordinates
+    elif geometry_type == "MultiLineString":
+        for line in coordinates or []:
+            yield line
+
+
+def iter_polygon_exteriors(geometry: dict | None):
+    if not geometry:
+        return
+    geometry_type = geometry.get("type")
+    coordinates = geometry.get("coordinates")
+    if geometry_type == "Polygon":
+        if coordinates:
+            yield coordinates[0]
+    elif geometry_type == "MultiPolygon":
+        for polygon in coordinates or []:
+            if polygon:
+                yield polygon[0]
+
+
+def screen_path(coordinates, to_screen) -> list[tuple[float, float]]:
+    points: list[tuple[float, float]] = []
+    for pair in coordinates or []:
+        if len(pair) < 2:
+            continue
+        points.append(to_screen(float(pair[0]), float(pair[1])))
+    return points
+
+
 def render_map(
     results: dict[str, list[dict[str, str]]],
     *,
@@ -434,16 +483,48 @@ def render_map(
 
     cx, cy = to_screen(lon, lat)
     r_px = radius_m / meters_per_px(lat, zoom)
-    draw.ellipse([cx - r_px, cy - r_px, cx + r_px, cy + r_px], outline=(20, 110, 255, 230), width=4, fill=(20, 110, 255, 30))
-    draw.ellipse([cx - 9, cy - 9, cx + 9, cy + 9], fill=(20, 70, 220, 255), outline="white", width=3)
-    draw.text((cx + 12, cy - 26), "query point", fill=(10, 40, 130), font=font_b, stroke_width=3, stroke_fill="white")
+    label_limit = 10
+
+    for building in results["buildings"]:
+        geometry = geojson_geometry(building.get("geojson", ""))
+        for exterior in iter_polygon_exteriors(geometry):
+            points = screen_path(exterior, to_screen)
+            if len(points) >= 3:
+                draw.polygon(points, fill=(120, 70, 180, 72), outline=(95, 40, 150, 210))
+
+    for i, building in enumerate(results["buildings"][:label_limit], 1):
+        point = parse_point_wkt(building.get("sample_point_wkt", ""))
+        if not point:
+            continue
+        x, y = to_screen(*point)
+        draw.text((x + 8, y - 16), f"B{i}", fill=(70, 30, 120), font=font_s, stroke_width=3, stroke_fill="white")
 
     for road in results["roads"]:
-        points = [to_screen(point_lon, point_lat) for point_lon, point_lat in parse_linestring(road.get("wkt", ""))]
+        geometry = geojson_geometry(road.get("geojson", ""))
+        line_paths = list(iter_line_coordinates(geometry))
+        if not line_paths:
+            fallback = parse_linestring(road.get("wkt", ""))
+            if fallback:
+                line_paths = [fallback]
+        for coordinates in line_paths:
+            points = screen_path(coordinates, to_screen)
+            if len(points) < 2:
+                continue
+            draw.line(points, fill=(210, 90, 0, 230), width=7, joint="curve")
+            draw.line(points, fill=(255, 200, 0, 245), width=3, joint="curve")
+
+    for road in results["roads"][:label_limit]:
+        geometry = geojson_geometry(road.get("geojson", ""))
+        line_paths = list(iter_line_coordinates(geometry))
+        if not line_paths:
+            fallback = parse_linestring(road.get("wkt", ""))
+            if fallback:
+                line_paths = [fallback]
+        if not line_paths:
+            continue
+        points = screen_path(line_paths[0], to_screen)
         if len(points) < 2:
             continue
-        draw.line(points, fill=(210, 90, 0, 230), width=7, joint="curve")
-        draw.line(points, fill=(255, 200, 0, 245), width=3, joint="curve")
         mx, my = points[len(points) // 2]
         draw.text(
             (mx + 8, my + 8),
@@ -457,23 +538,21 @@ def render_map(
     for i, address in enumerate(results["addresses"], 1):
         x, y = to_screen(float(address["lon"]), float(address["lat"]))
         draw.ellipse([x - 8, y - 8, x + 8, y + 8], fill=(220, 30, 60, 255), outline="white", width=3)
-        draw.text((x + 10, y - 18), f"A{i}: {float(address['distance_m']):.1f}m", fill=(150, 0, 25), font=font_b, stroke_width=3, stroke_fill="white")
+        if i <= label_limit:
+            draw.text((x + 10, y - 18), f"A{i}: {float(address['distance_m']):.1f}m", fill=(150, 0, 25), font=font_b, stroke_width=3, stroke_fill="white")
 
     for i, place in enumerate(results["places"], 1):
         if not place.get("lat") or not place.get("lon"):
             continue
         x, y = to_screen(float(place["lon"]), float(place["lat"]))
         draw.rectangle([x - 7, y - 7, x + 7, y + 7], fill=(0, 145, 80, 255), outline="white", width=3)
-        name = place.get("name") or "place"
-        draw.text((x + 10, y - 18), f"P{i}: {name}", fill=(0, 90, 55), font=font_s, stroke_width=3, stroke_fill="white")
+        if i <= label_limit:
+            name = place.get("name") or "place"
+            draw.text((x + 10, y - 18), f"P{i}: {name}", fill=(0, 90, 55), font=font_s, stroke_width=3, stroke_fill="white")
 
-    for i, building in enumerate(results["buildings"], 1):
-        point = parse_point_wkt(building.get("sample_point_wkt", ""))
-        if not point:
-            continue
-        x, y = to_screen(*point)
-        draw.polygon([(x, y - 9), (x + 8, y + 6), (x - 8, y + 6)], fill=(120, 70, 180, 255), outline="white")
-        draw.text((x + 10, y - 18), f"B{i}: {float(building['distance_m']):.1f}m", fill=(80, 45, 130), font=font_s, stroke_width=3, stroke_fill="white")
+    draw.ellipse([cx - r_px, cy - r_px, cx + r_px, cy + r_px], outline=(20, 110, 255, 245), width=5)
+    draw.ellipse([cx - 9, cy - 9, cx + 9, cy + 9], fill=(20, 70, 220, 255), outline="white", width=3)
+    draw.text((cx + 12, cy - 26), "query point", fill=(10, 40, 130), font=font_b, stroke_width=3, stroke_fill="white")
 
     panel_width = min(width - 36, 580)
     panel = [18, 18, 18 + panel_width, 176]
