@@ -198,6 +198,25 @@ Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Pric
 - AI use cases: pull recent CPI observations, compare CPI series, build inflation trend examples in DuckDB
 - Caveats: keyless public access should stay to small single-series requests, registered v2 API access is better for multi-series or heavier usage, values are returned as strings and should be cast
 
+### `openfda.food.enforcement-reports` — FDA openFDA food enforcement recall reports
+
+Official openFDA food enforcement recall reports from FDA Recall Enterprise System records, queryable as a public JSON API with DuckDB httpfs.
+
+- Status: `candidate`
+- Authority: U.S. Food and Drug Administration openFDA
+- Homepage: https://open.fda.gov/apis/food/enforcement/
+- License: https://open.fda.gov/license/
+- Tags: `fda`, `openfda`, `recalls`, `food-safety`, `json`, `public-domain`
+- Topics: food recalls, enforcement reports, product safety, public health
+- Cadence: openFDA documents food enforcement data updates weekly
+- Tables:
+  - `food_enforcement_reports`: FDA food enforcement recall reports. One row per public recall report returned from the openFDA food enforcement endpoint after unnesting the JSON results envelope.
+    - Ask for: classification, status, date window, product or firm search term, limit
+    - Warnings: API keys are optional but keyless access can be rate-limited; responses are nested JSON envelopes, so unnest results before treating reports as rows.
+    - Columns: recall_number: FDA recall number for the enforcement report.; status: Recall status, such as Ongoing, Completed, or Terminated.; classification: Recall classification, such as Class I, Class II, or Class III.; product_description: Product description text from the recall report.; recalling_firm: Firm responsible for the recall.; report_date: FDA report date as YYYYMMDD text.
+- AI use cases: list recent food recalls, filter recalls by classification or status, search product descriptions or recalling firms
+- Caveats: openFDA warns the API is not validated for clinical or production use, keyless requests have lower rate limits, query the nested results array rather than the response envelope
+
 ### `treasury.fiscaldata.debt-to-penny` — U.S. Treasury Fiscal Data Debt to the Penny API
 
 Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.

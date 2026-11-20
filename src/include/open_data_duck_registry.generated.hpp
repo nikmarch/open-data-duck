@@ -762,6 +762,64 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "validations": []
     },
     {
+      "attribution": "Data provided by the U.S. Food and Drug Administration (https://open.fda.gov); openFDA materials are public domain / CC0 unless otherwise noted.",
+      "authority": "U.S. Food and Drug Administration openFDA",
+      "description": "Official openFDA food enforcement recall reports from FDA Recall Enterprise System records, queryable as a public JSON API with DuckDB httpfs.",
+      "duckdb": {
+        "example_query": "LOAD httpfs;\nWITH payload AS (\n  SELECT *\n  FROM read_json(\n    'https://api.fda.gov/food/enforcement.json?limit=10',\n    format = 'auto'\n  )\n), reports AS (\n  SELECT unnest(results) AS report\n  FROM payload\n)\nSELECT report.recall_number AS recall_number,\n       report.status AS status,\n       report.classification AS classification,\n       report.product_description AS product_description,\n       report.recalling_firm AS recalling_firm,\n       report.report_date AS report_date\nFROM reports\nORDER BY report_date DESC\nLIMIT 10;",
+        "examples": {
+          "class_i_recent_reports": "LOAD httpfs;\nWITH payload AS (\n  SELECT *\n  FROM read_json(\n    'https://api.fda.gov/food/enforcement.json?search=classification:%22Class%20I%22&limit=25',\n    format = 'auto'\n  )\n), reports AS (\n  SELECT unnest(results) AS report\n  FROM payload\n)\nSELECT report.recall_number AS recall_number,\n       report.status AS status,\n       report.product_description AS product_description,\n       report.recalling_firm AS recalling_firm,\n       report.report_date AS report_date\nFROM reports\nORDER BY report_date DESC\nLIMIT 25;"
+        },
+        "extensions": [
+          "httpfs"
+        ],
+        "install": "INSTALL httpfs;",
+        "tables": {},
+        "validation_query": "LOAD httpfs;\nWITH payload AS (\n  SELECT *\n  FROM read_json(\n    'https://api.fda.gov/food/enforcement.json?limit=5',\n    format = 'auto'\n  )\n), reports AS (\n  SELECT unnest(results) AS report\n  FROM payload\n)\nSELECT count(*) > 0 AS has_rows,\n       bool_and(report.recall_number IS NOT NULL) AS has_recall_numbers\nFROM reports;"
+      },
+      "homepage": "https://open.fda.gov/apis/food/enforcement/",
+      "id": "openfda.food.enforcement-reports",
+      "license_url": "https://open.fda.gov/license/",
+      "name": "FDA openFDA food enforcement recall reports",
+      "release": {},
+      "source_type": "other",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "classification",
+            "status",
+            "date window",
+            "product or firm search term",
+            "limit"
+          ],
+          "columns_hint": {
+            "classification": "Recall classification, such as Class I, Class II, or Class III.",
+            "product_description": "Product description text from the recall report.",
+            "recall_number": "FDA recall number for the enforcement report.",
+            "recalling_firm": "Firm responsible for the recall.",
+            "report_date": "FDA report date as YYYYMMDD text.",
+            "status": "Recall status, such as Ongoing, Completed, or Terminated."
+          },
+          "description": "FDA food enforcement recall reports. One row per public recall report returned from the openFDA food enforcement endpoint after unnesting the JSON results envelope.",
+          "id": "food_enforcement_reports",
+          "warnings": [
+            "API keys are optional but keyless access can be rate-limited; responses are nested JSON envelopes",
+            "so unnest results before treating reports as rows."
+          ]
+        }
+      ],
+      "tags": [
+        "fda",
+        "openfda",
+        "recalls",
+        "food-safety",
+        "json",
+        "public-domain"
+      ],
+      "validations": []
+    },
+    {
       "attribution": "U.S. Department of the Treasury, Bureau of the Fiscal Service, Fiscal Data / Debt to the Penny; do not imply Treasury endorsement.",
       "authority": "U.S. Department of the Treasury, Bureau of the Fiscal Service",
       "description": "Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.",
