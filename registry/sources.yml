@@ -32,13 +32,23 @@ sources:
             direct_sql: |
               LOAD httpfs;
               SET s3_region='us-west-2';
-              SET VARIABLE overture_release = '2026-10-21.0';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+              SET VARIABLE overture_latest_release_url = (
+                SELECT l.href
+                FROM (SELECT unnest(links) AS l FROM read_json('https://stac.overturemaps.org/catalog.json'))
+                WHERE l.rel = 'child' AND l.latest
+              );
+              SET VARIABLE s3_uri = (
+                SELECT regexp_replace(
+                         regexp_replace(min(assets.aws.href), '^https://([^.]+)\\.s3\\.[^/]+/', 's3://\\1/'),
+                         '/part-[^/]+$',
+                         '/*'
+                       )
+                FROM read_parquet(replace(getvariable('overture_latest_release_url'), '/catalog.json', '/collections.parquet'))
+                WHERE collection = 'place'
+              );
 
               SELECT id, names, bbox
-              FROM read_parquet(
-                getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*'
-              )
+              FROM read_parquet(getvariable('s3_uri'))
               WHERE bbox.xmin <= 66.981
                 AND bbox.xmax >= 66.976
                 AND bbox.ymin <= 39.657
@@ -48,8 +58,6 @@ sources:
             odd_sql: |
               LOAD open_data_duck;
               ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE overture_release = '2026-10-21.0';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
               SELECT id, names, bbox
               FROM odd.overturemaps.latest.place
               WHERE bbox.xmin <= 66.981
