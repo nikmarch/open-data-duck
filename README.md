@@ -321,6 +321,7 @@ ODD_SOCRATA_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_socrata_engine.
 
 - Source lifecycle: `candidate -> verified -> deprecated`; `connector-blocked` means the source is authoritative but the DuckDB engine path still needs work.
 - Engine work is tracked in the [Engine maintenance track](docs/engine-maintenance.md).
+- Source-controlled discovery SQL runs inside the [source SQL security boundary](docs/plugin-sql-security.md), isolated from the caller's session secrets and attached databases.
 - Community submission notes live in [`docs/community-extension-submission.md`](docs/community-extension-submission.md), with the descriptor at [`docs/community-extensions/open_data_duck/description.yml`](docs/community-extensions/open_data_duck/description.yml).
 - MCP server for AI clients: `uv sync --extra mcp && uv run python -m odd.mcp_server`.
 

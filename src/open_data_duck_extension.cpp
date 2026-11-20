@@ -31,6 +31,7 @@
 #include "duckdb/transaction/duck_transaction_manager.hpp"
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
+#include <cctype>
 #include <mutex>
 #include <unordered_map>
 
@@ -92,6 +93,82 @@ static vector<string> JsonStringArray(const JSONValue &object, const string &key
 static string Stripped(string value) {
 	StringUtil::Trim(value);
 	return value;
+}
+
+//===--------------------------------------------------------------------===//
+// Source-controlled SQL sandbox
+//===--------------------------------------------------------------------===//
+
+static vector<string> TokenizeSourceSql(const string &sql) {
+	vector<string> tokens;
+	string current;
+	for (auto c : sql) {
+		if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+			current.push_back(char(std::tolower(static_cast<unsigned char>(c))));
+			continue;
+		}
+		if (!current.empty()) {
+			tokens.push_back(current);
+			current.clear();
+		}
+	}
+	if (!current.empty()) {
+		tokens.push_back(current);
+	}
+	return tokens;
+}
+
+static bool SourceSqlHasToken(const vector<string> &tokens, const string &needle) {
+	for (auto &token : tokens) {
+		if (token == needle) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static void ValidateSourceControlledSql(const string &source_id, const string &purpose, const string &sql) {
+	auto stripped = Stripped(sql);
+	while (!stripped.empty() && stripped.back() == ';') {
+		stripped.pop_back();
+		stripped = Stripped(stripped);
+	}
+	if (stripped.empty()) {
+		throw InvalidInputException("open_data_duck: source '%s' has empty %s SQL", source_id, purpose);
+	}
+	if (StringUtil::Contains(stripped, ";")) {
+		throw InvalidInputException("open_data_duck: source '%s' %s SQL must be a single statement", source_id,
+		                            purpose);
+	}
+
+	auto tokens = TokenizeSourceSql(stripped);
+	if (!SourceSqlHasToken(tokens, "select") && !SourceSqlHasToken(tokens, "with")) {
+		throw InvalidInputException("open_data_duck: source '%s' %s SQL must be a SELECT query", source_id,
+		                            purpose);
+	}
+	const char *blocked_tokens[] = {"attach", "detach", "load",   "install", "create", "drop",  "alter",
+	                                "insert", "update", "delete", "copy",    "export", "import", "call",
+	                                "pragma", "set",    "reset",  "vacuum",  "checkpoint"};
+	for (auto token : blocked_tokens) {
+		if (SourceSqlHasToken(tokens, token)) {
+			throw InvalidInputException("open_data_duck: source '%s' %s SQL uses blocked token '%s'", source_id,
+			                            purpose, token);
+		}
+	}
+	const char *secret_tokens[] = {"getvariable", "current_setting", "duckdb_settings", "duckdb_secrets"};
+	for (auto token : secret_tokens) {
+		if (SourceSqlHasToken(tokens, token)) {
+			throw InvalidInputException("open_data_duck: source '%s' %s SQL may not inspect session state via '%s'",
+			                            source_id, purpose, token);
+		}
+	}
+}
+
+static unique_ptr<QueryResult> RunSourceControlledSql(const OpenDataSource &source, const string &purpose, const string &sql) {
+	ValidateSourceControlledSql(source.id, purpose, sql);
+	DuckDB database(nullptr);
+	Connection connection(database);
+	return connection.Query(sql);
 }
 
 static void JsonTables(const JSONValue &duckdb_value, OpenDataSource &source) {
@@ -244,8 +321,7 @@ static string ResolveRelease(ClientContext &context, const OpenDataSource &sourc
 		}
 	}
 
-	Connection connection(DatabaseInstance::GetDatabase(context));
-	auto result = connection.Query(source.latest_resolve_sql);
+	auto result = RunSourceControlledSql(source, "release resolution", source.latest_resolve_sql);
 	string release;
 	if (!result->HasError()) {
 		for (auto &row : *result) {
@@ -307,8 +383,7 @@ static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSou
 		}
 	}
 
-	Connection connection(DatabaseInstance::GetDatabase(context));
-	auto query_result = connection.Query(sql);
+	auto query_result = RunSourceControlledSql(source, "table discovery", sql);
 	if (query_result->HasError()) {
 		throw InvalidInputException("open_data_duck: could not discover tables for '%s': %s", source.id,
 		                            query_result->GetError());
