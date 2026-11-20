@@ -162,6 +162,28 @@ Table namespaces today, each discovered from the source at first use. Readers ar
 | `odd.census.latest` | `county_20m`, `county_5m`, `county_500k`, `tract_5m`, `tract_500k`, ... | `st_read` (needs `LOAD spatial`) | `census_cartographic_year` |
 | `odd.noaa.latest` | `ghcn_daily`, `storm_events_details`, `storm_events_fatalities`, `storm_events_locations` | `read_csv` | `noaa_ghcn_year`, `noaa_storm_events_year` |
 
+### Registry validation pairs
+
+The registry contract is moving toward proof instead of brochure metadata. A table-like entry can carry `validations` where each validation `id` is the canonical ODD table reference:
+
+```yaml
+validations:
+  - id: odd.overturemaps.latest.place
+    direct_sql: |
+      SELECT ... FROM read_parquet('s3://.../theme=places/type=place/*')
+    odd_sql: |
+      SELECT ... FROM odd.overturemaps.latest.place
+    compare: exact
+```
+
+For pinned releases, keep the ODD path SQL-safe. Use `x` separators instead of punctuation:
+
+```sql
+SELECT * FROM odd.overturemaps.x2026x10x21.place;
+```
+
+The same validation should select the same columns, filters, ordering, and limit in direct SQL and ODD SQL so the result sets can be compared.
+
 ## Temporary custom extension repository
 
 GitHub Pages publishes the primary pre-community DuckDB custom repository:
