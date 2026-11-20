@@ -39,8 +39,12 @@ This is the product shape Open Data Duck is moving toward:
 INSTALL open_data_duck;
 LOAD open_data_duck;
 
+-- Overture Maps public S3 data lives in us-west-2.
+-- Set this before the first Overture query to avoid S3 region retry warnings.
+SET s3_region='us-west-2';
+
 -- Attach the virtual ODD catalog.
-ATTACH 'odd' AS odd (TYPE open_data_duck);
+ATTACH ':memory:' AS odd (TYPE open_data_duck);
 
 -- Search the attached index view.
 SELECT *
@@ -63,7 +67,7 @@ WHERE bbox.xmin <= -149
 LIMIT 10;
 ```
 
-`odd.index` is the SQL-searchable catalog view. Each source that exposes data tables carries a `namespace` such as `odd.overturemaps.latest`. The native extension exposes the catalog through `ATTACH ... (TYPE open_data_duck)` and keeps resolving `namespace.<table>` references with replacement scans into DuckDB readers. Keep bbox filters tight; Overture tables are large.
+`odd.index` is the SQL-searchable catalog view. Each source that exposes data tables carries a `namespace` such as `odd.overturemaps.latest`. The native extension exposes the catalog through `ATTACH ... (TYPE open_data_duck)` and keeps resolving `namespace.<table>` references with replacement scans into DuckDB readers. Query `odd.tables` first and copy the `table_reference` exactly; Overture facade table names are singular, for example `place`, `building`, `address`, and `segment`. Keep bbox filters tight; Overture tables are large.
 
 ### How `latest` tables are discovered
 
