@@ -54,6 +54,7 @@ VALID_REGISTRY = {
                     "id": "rows",
                     "ref": "odd.example.latest.rows",
                     "description": "Example rows. One row per fixture record.",
+                    "columns_hint": {"id": "Stable fixture row id."},
                     "ask_for": ["limit"],
                     "warnings": ["Fixture only."],
                 }
@@ -213,6 +214,17 @@ def test_validate_registry_rejects_duplicate_validation_ids(tmp_path: Path) -> N
     errors = validate_registry(registry_path, schema_path)
 
     assert any("duplicate validation id" == error.message for error in errors)
+
+
+def test_validate_registry_rejects_duplicate_validation_ids_across_table_metadata(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
+    source = registry["sources"][0]
+    source["tables"][0]["validations"] = [source["validations"][0].copy()]
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    errors = validate_registry(registry_path, schema_path)
+
+    assert any("duplicate validation id odd.example.latest.rows" == error.message for error in errors)
 
 
 def test_validate_registry_rejects_non_odd_validation_sql(tmp_path: Path) -> None:
@@ -736,6 +748,8 @@ def test_render_index_outputs_pretty_text_markdown_and_json(tmp_path: Path) -> N
     assert "Open Data Duck source index" in text
     assert "Example source description" in text
     assert "### `example.source`" in markdown
+    assert "Ask for: limit" in markdown
+    assert "Warnings: Fixture only." in markdown
     assert '\"source_count\": 1' in json_output
 
 
@@ -748,6 +762,23 @@ def test_render_source_detail_includes_ai_usage(tmp_path: Path) -> None:
 
     assert "AI usage:" in detail
     assert "Use for registry tests" in detail
+    assert "Ask for: limit" in detail
+    assert "Warnings: Fixture only." in detail
+    assert "Columns: id: Stable fixture row id." in detail
+
+
+def test_table_level_validations_drive_rendered_sql(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(MINIMAL_REGISTRY))
+    source = registry["sources"][0]
+    table_validation = source.pop("validations")[0]
+    source["tables"][0]["validations"] = [table_validation]
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    assert validate_registry(registry_path, schema_path) == []
+    source_obj = find_source(registry_path, "minimal.source")
+
+    assert source_obj is not None
+    assert render_source_sql(source_obj) == "SELECT id FROM odd.minimal.latest.rows ORDER BY id LIMIT 5;\n"
 
 
 def test_write_index_artifacts_creates_markdown_and_json(tmp_path: Path) -> None:

@@ -6,7 +6,7 @@ Hard rules:
 
 - Create GitHub issues only. Do not auto-merge sources.
 - Do not add private, paid, key-gated, or gray-area scraped sources.
-- Every candidate must include publisher, authority URL, license/terms URL, attribution requirement, source type, and a proposed DuckDB query path.
+- Every candidate must include publisher, authority URL, license/terms URL, attribution requirement, source type, at least one proposed table, and a proposed DuckDB query path.
 - Prefer official catalog/API endpoints over blog posts or mirrors.
 - If license is unclear, create a `needs-license-review` issue and mark it blocked.
 - If an engine is missing or immature, search for an existing `engine` issue first.
@@ -38,6 +38,14 @@ Issue shape:
 - Existing engine/extension:
 - Example query:
 - Validation query:
+
+## Tables
+- Table id:
+- Table ref (if queryable as an ODD facade):
+- One row means:
+- Ask for before writing SQL:
+- Warnings / caveats:
+- Validation id linked to this table ref:
 
 ## Review notes
 - Why authoritative:
