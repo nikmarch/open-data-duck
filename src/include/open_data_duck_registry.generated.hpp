@@ -75,10 +75,10 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             {
               "compare": "exact",
               "description": "Compare the latest Overture places facade with the direct public S3 parquet recipe over a sampled tiny bbox.",
-              "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, names, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "direct_sql": "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_latest_release_url = (\n  SELECT l.href\n  FROM (SELECT unnest(links) AS l FROM read_json('https://stac.overturemaps.org/catalog.json'))\n  WHERE l.rel = 'child' AND l.latest\n);\nSET VARIABLE s3_uri = (\n  SELECT regexp_replace(\n           regexp_replace(min(assets.aws.href), '^https://([^.]+)\\\\.s3\\\\.[^/]+/', 's3://\\\\1/'),\n           '/part-[^/]+$',\n           '/*'\n         )\n  FROM read_parquet(replace(getvariable('overture_latest_release_url'), '/catalog.json', '/collections.parquet'))\n  WHERE collection = 'place'\n);\n\nSELECT id, names, bbox\nFROM read_parquet(getvariable('s3_uri'))\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
               "id": "odd.overturemaps.latest.place",
               "limit": 10,
-              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, names, bbox\nFROM odd.overturemaps.latest.place\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT id, names, bbox\nFROM odd.overturemaps.latest.place\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n",
               "order_by": [
                 "id"
               ],
