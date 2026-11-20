@@ -873,6 +873,66 @@ sources:
       method: bls-public-data-api
       url: https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0
 
+  - id: treasury.fiscaldata.debt-to-penny
+    name: U.S. Treasury Fiscal Data Debt to the Penny API
+    description: Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.
+    status: candidate
+    source_type: other
+    authority: U.S. Department of the Treasury, Bureau of the Fiscal Service
+    homepage: https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/debt-to-the-penny
+    license_url: https://catalog.data.gov/dataset/debt-to-the-penny
+    attribution: U.S. Department of the Treasury, Bureau of the Fiscal Service, Fiscal Data / Debt to the Penny; do not imply Treasury endorsement.
+    tags: [treasury, fiscal-data, debt, public-debt, csv]
+    topics: [federal debt, public debt outstanding, treasury, fiscal data, daily time series]
+    coverage:
+      spatial: United States federal government fiscal accounts
+      temporal: daily public debt outstanding records exposed by the Fiscal Data API
+      grain: one record date with total public debt outstanding amounts
+    cadence: daily on Treasury Fiscal Data publication schedule
+    ai:
+      summary: Official source for daily U.S. total public debt outstanding time-series queries.
+      use_cases: [pull recent debt-to-the-penny observations, monitor daily public debt changes, join federal debt levels into economic time-series analysis]
+      caveats: [Fiscal Data CSV responses are gzipped even though the URL has no .gz suffix, so DuckDB queries must pass compression = 'gzip'; amounts are large dollar values and should be handled as numeric fields]
+      prompt_hints: [Ask for the date window and whether the user wants total public debt or intragovernmental/publicly held debt fields before generating SQL.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT record_date,
+               tot_pub_debt_out_amt
+        FROM read_csv_auto(
+          'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=10&format=csv',
+          compression = 'gzip'
+        )
+        ORDER BY record_date DESC
+        LIMIT 10;
+      validation_query: |
+        LOAD httpfs;
+        SELECT count(*) > 0 AS has_rows,
+               max(record_date) >= DATE '2026-01-01' AS has_recent_data
+        FROM read_csv_auto(
+          'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=10&format=csv',
+          compression = 'gzip'
+        );
+      examples:
+        recent_public_debt_changes: |
+          LOAD httpfs;
+          SELECT record_date,
+                 tot_pub_debt_out_amt,
+                 tot_pub_debt_out_amt - lag(tot_pub_debt_out_amt) OVER (ORDER BY record_date) AS change_from_previous_record
+          FROM read_csv_auto(
+            'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=30&format=csv',
+            compression = 'gzip'
+          )
+          ORDER BY record_date DESC
+          LIMIT 10;
+    freshness:
+      method: fiscal-data-api
+      url: https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date&sort=-record_date&page%5Bsize%5D=1&format=json
+
   - id: noaa.ncei.storm-events
     name: NOAA NCEI Storm Events bulk CSV files
     description: Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.

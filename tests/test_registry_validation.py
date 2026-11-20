@@ -449,6 +449,33 @@ def test_project_bls_cpi_timeseries_uses_public_json_api_recipe() -> None:
     assert "install bls" not in rendered_sql
 
 
+def test_project_treasury_debt_to_penny_uses_gzipped_fiscal_data_csv_recipe() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "treasury.fiscaldata.debt-to-penny")
+
+    rendered_sql = "\n".join(
+        (
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            "\n".join(source["duckdb"].get("examples", {}).values()),
+        )
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "U.S. Department of the Treasury, Bureau of the Fiscal Service"
+    assert "httpfs" in source["duckdb"]["extensions"]
+    assert "api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny" in rendered_sql
+    assert "format=csv" in rendered_sql
+    assert "compression = 'gzip'" in rendered_sql
+    assert "tot_pub_debt_out_amt" in rendered_sql
+    assert "max(record_date) >= date '2026-01-01'" in rendered_sql
+    assert "treasury" in source["attribution"].casefold()
+    assert "load treasury" not in rendered_sql
+    assert "install treasury" not in rendered_sql
+
+
 def test_arcgis_feature_server_pagination_acceptance_uses_multiple_pages() -> None:
     layer_url = (
         "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/"
