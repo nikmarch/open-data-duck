@@ -217,6 +217,8 @@ def query_spatial_results(paths: RuntimePaths, lat: float, lon: float, radius_m:
 FORCE INSTALL open_data_duck FROM '{paths.extension_repo.as_posix()}';
 LOAD open_data_duck;
 ATTACH ':memory:' AS odd (TYPE open_data_duck);
+INSTALL httpfs;
+INSTALL spatial;
 LOAD httpfs;
 LOAD spatial;
 SET s3_region='us-west-2';
