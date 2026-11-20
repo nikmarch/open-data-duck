@@ -8,36 +8,16 @@ Open Data Duck is a DuckDB-friendly index of public data tables.
 The goal is simple: install the plugin, search for a table, then query that table from DuckDB.
 It does not mirror datasets; it maps friendly table names to authoritative public data.
 
-## Quick start: install the pre-community extension
+## Quick start: install the latest pre-community extension
 
-Open Data Duck is not in DuckDB community extensions yet. For normal use, open the [latest GitHub release](https://github.com/nikmarch/open-data-duck/releases) and copy the install block from that release's notes. Each release page carries its own tag, so the command installs the release you are reading.
+Open Data Duck is not in DuckDB community extensions yet. For normal use, install from the temporary DuckDB custom extension repository published by GitHub Pages. It always serves the latest published Open Data Duck build for the current DuckDB version and platform.
 
-Current public prerelease:
-
-```bash
-bash <<BASH
-set -euo pipefail
-
-release_tag=v0.1.0
-case \$(uname -s)-\$(uname -m) in
-  Darwin-arm64) platform=osx_arm64 ;;
-  Linux-x86_64) platform=linux_amd64 ;;
-  *) echo unsupported platform: \$(uname -s)-\$(uname -m) >&2; exit 1 ;;
-esac
-
-curl --fail --location --show-error \
-  --output open_data_duck.duckdb_extension \
-  h""ttps://git""hub"".com/nikmarch/open-data-duck/releases/download/\${release_tag}/open_data_duck-v2.0.0-\${platform}.duckdb_extension
-
-xattr -dr com.apple.quarantine open_data_duck.duckdb_extension 2>/dev/null || true
-codesign --force --deep --sign - open_data_duck.duckdb_extension 2>/dev/null || true
-
-duckdb -unsigned :memory: <<SQL
-LOAD './open_data_duck.duckdb_extension';
+```sql
+-- Start DuckDB as: duckdb -unsigned :memory:
+FORCE INSTALL open_data_duck FROM 'https://nikmarch.github.io/open-data-duck/extensions';
+LOAD open_data_duck;
 SELECT open_data_duck_ping();
 SELECT count(*) > 0 FROM open_data_sources();
-SQL
-BASH
 ```
 
 Expected output includes:
@@ -47,9 +27,9 @@ open_data_duck: pong
 true
 ```
 
-The downloaded file is saved as `open_data_duck.duckdb_extension` on purpose. DuckDB derives the extension entrypoint name from the local filename; loading the versioned asset filename directly can fail.
+These are temporary unsigned builds, not signed community artifacts. Start DuckDB with unsigned extensions enabled until Open Data Duck is accepted into DuckDB community extensions. Use `INSTALL open_data_duck FROM community;` only after that acceptance.
 
-Each GitHub prerelease asset is DuckDB-version- and platform-specific. These are temporary unsigned builds, not signed community artifacts. Newer prereleases replace older ones as the recommended test build; older prereleases remain for comparison or rollback. Use `INSTALL open_data_duck FROM community;` only after the extension is accepted into DuckDB community extensions.
+Manual GitHub release asset downloads remain available for debugging, rollback, and checksum verification, but they are not the normal install path.
 
 ## Intended plugin flow
 
@@ -184,7 +164,7 @@ Table namespaces today, each discovered from the source at first use. Readers ar
 
 ## Temporary custom extension repository
 
-GitHub Pages also publishes a DuckDB custom repository:
+GitHub Pages publishes the primary pre-community DuckDB custom repository:
 
 ```text
 https://nikmarch.github.io/open-data-duck/extensions/v2.0.0/linux_amd64/open_data_duck.duckdb_extension.gz
@@ -198,7 +178,37 @@ LOAD open_data_duck;
 SELECT open_data_duck_ping();
 ```
 
-This is a temporary pre-community bridge. Use `INSTALL open_data_duck FROM community;` only after the community extension is accepted.
+Use this path for normal pre-community installs. It fetches the latest GitHub Pages-published build for the current DuckDB version and platform. This is still a temporary unsigned bridge; use `INSTALL open_data_duck FROM community;` only after the community extension is accepted.
+
+Manual release-asset install example:
+
+```bash
+bash <<BASH
+set -euo pipefail
+
+release_tag=v0.1.0
+case \$(uname -s)-\$(uname -m) in
+  Darwin-arm64) platform=osx_arm64 ;;
+  Linux-x86_64) platform=linux_amd64 ;;
+  *) echo unsupported platform: \$(uname -s)-\$(uname -m) >&2; exit 1 ;;
+esac
+
+curl --fail --location --show-error \
+  --output open_data_duck.duckdb_extension \
+  h""ttps://git""hub"".com/nikmarch/open-data-duck/releases/download/\${release_tag}/open_data_duck-v2.0.0-\${platform}.duckdb_extension
+
+xattr -dr com.apple.quarantine open_data_duck.duckdb_extension 2>/dev/null || true
+codesign --force --deep --sign - open_data_duck.duckdb_extension 2>/dev/null || true
+
+duckdb -unsigned :memory: <<SQL
+LOAD './open_data_duck.duckdb_extension';
+SELECT open_data_duck_ping();
+SELECT count(*) > 0 FROM open_data_sources();
+SQL
+BASH
+```
+
+The downloaded file is saved as `open_data_duck.duckdb_extension` on purpose. DuckDB derives the extension entrypoint name from the local filename; loading the versioned asset filename directly can fail.
 
 Python load example:
 
