@@ -651,6 +651,110 @@ sources:
       validation_query: |
         SELECT count(*) > 0 AS ok
         FROM arcgis_query('https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2');
+  - id: nhtsa.vehicle-safety
+    name: NHTSA vehicle safety recalls and ratings APIs
+    description: Official National Highway Traffic Safety Administration vehicle recall campaigns and safety-rating lookup APIs, queryable as public JSON over HTTPS with DuckDB httpfs.
+    status: candidate
+    source_type: other
+    authority: National Highway Traffic Safety Administration, U.S. Department of Transportation
+    homepage: https://www.nhtsa.gov/nhtsa-datasets-and-apis
+    license_url: https://www.nhtsa.gov/about-nhtsa/terms-use
+    attribution: National Highway Traffic Safety Administration (NHTSA), U.S. Department of Transportation; credit NHTSA/DOT and do not imply endorsement.
+    tables:
+      - id: recalls_by_vehicle
+        description: NHTSA recall campaign results for a requested model year, make, and model. One row per recall campaign result.
+        columns_hint:
+          NHTSACampaignNumber: NHTSA recall campaign identifier.
+          ReportReceivedDate: Date NHTSA received the campaign report.
+          Component: Vehicle component affected by the recall.
+          Summary: Long recall summary text.
+        ask_for: [model year, make, model, limit]
+        warnings: [Parameterized API endpoint; preserve model year, make, and model filters instead of treating it as a full-table scan.]
+      - id: safety_rating_variants
+        description: NHTSA safety-rating vehicle variants for a requested model year, make, and model. One row per returned vehicle variant.
+        columns_hint:
+          VehicleId: Identifier used by NHTSA rating-detail lookups.
+          VehicleDescription: Human-readable vehicle variant description.
+        ask_for: [model year, make, model, limit]
+        warnings: [Parameterized API endpoint; use the returned VehicleId for rating-detail lookups.]
+    tags: [nhtsa, vehicle-safety, recalls, safety-ratings, json]
+    topics: [vehicle recalls, crash-test ratings, automotive safety, campaign lookup, model-year lookup]
+    coverage:
+      spatial: United States vehicle safety programs and vehicles sold or recalled under NHTSA authority
+      temporal: current NHTSA API data for the requested vehicle/campaign parameters
+      grain: one recall campaign or safety-rating vehicle variant per requested vehicle lookup
+    cadence: NHTSA APIs reflect current agency recall and safety-rating records as published
+    ai:
+      summary: Best official source for vehicle recall campaign lookups and NHTSA safety-rating variant discovery.
+      use_cases: [look up recalls for a year make model, find NHTSA safety-rating vehicle ids, inspect affected components and recall summaries]
+      caveats: [APIs are parameterized rather than full dataset scans, response field names use NHTSA casing, recall text fields can be long]
+      prompt_hints: [Ask for model year, make, and model before generating SQL; use VehicleId from safety_rating_variants before requesting rating details.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        SELECT NHTSACampaignNumber,
+               Component,
+               ReportReceivedDate,
+               Summary
+        FROM (
+          SELECT unnest(Results, recursive := true)
+          FROM read_json_auto(
+            'https://api.nhtsa.gov/recalls/recallsByVehicle?make=acura&model=rdx&modelYear=2012'
+          )
+        )
+        ORDER BY NHTSACampaignNumber
+        LIMIT 10;
+      validation_query: |
+        LOAD httpfs;
+        SELECT (
+                 SELECT count(*) = 2
+                 FROM (
+                   SELECT unnest(Results, recursive := true)
+                   FROM read_json_auto(
+                     'https://api.nhtsa.gov/recalls/recallsByVehicle?make=acura&model=rdx&modelYear=2012'
+                   )
+                 )
+               ) AS recalls_fixture_ok,
+               (
+                 SELECT count(*) = 2
+                 FROM (
+                   SELECT unnest(Results, recursive := true)
+                   FROM read_json_auto(
+                     'https://api.nhtsa.gov/SafetyRatings/modelyear/2012/make/Acura/model/RDX'
+                   )
+                 )
+               ) AS safety_rating_variants_fixture_ok;
+      examples:
+        safety_rating_variants_by_vehicle: |
+          LOAD httpfs;
+          SELECT VehicleId,
+                 VehicleDescription
+          FROM (
+            SELECT unnest(Results, recursive := true)
+            FROM read_json_auto(
+              'https://api.nhtsa.gov/SafetyRatings/modelyear/2012/make/Acura/model/RDX'
+            )
+          )
+          ORDER BY VehicleId
+          LIMIT 10;
+        recalls_by_campaign: |
+          LOAD httpfs;
+          SELECT NHTSACampaignNumber,
+                 Component,
+                 ReportReceivedDate,
+                 Summary
+          FROM (
+            SELECT unnest(Results, recursive := true)
+            FROM read_json_auto(
+              'https://api.nhtsa.gov/recalls/recallsByVehicle?make=honda&model=accord&modelYear=2018'
+            )
+          )
+          ORDER BY NHTSACampaignNumber
+          LIMIT 25;
   - id: usgs.earthquake.realtime-geojson
     name: USGS realtime earthquake GeoJSON feeds
     description: Official U.S. Geological Survey realtime earthquake summary feeds for recent seismic events, queryable directly from GeoJSON over HTTPS with DuckDB read_json_auto.
