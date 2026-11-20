@@ -18,6 +18,7 @@
 #include "duckdb/main/config.hpp"
 #include "duckdb/main/connection.hpp"
 #include "duckdb/main/database.hpp"
+
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/parser/parser.hpp"
@@ -164,10 +165,40 @@ static void ValidateSourceControlledSql(const string &source_id, const string &p
 	}
 }
 
-static unique_ptr<QueryResult> RunSourceControlledSql(const OpenDataSource &source, const string &purpose, const string &sql) {
+static string ValidateSourceExtensionName(const string &source_id, const string &extension) {
+	auto stripped = Stripped(extension);
+	if (stripped.empty()) {
+		return stripped;
+	}
+	for (auto c : stripped) {
+		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) {
+			throw InvalidInputException("open_data_duck: source '%s' declares invalid DuckDB extension '%s'", source_id,
+			                            extension);
+		}
+	}
+	return stripped;
+}
+
+static unique_ptr<QueryResult> RunSourceControlledSql(ClientContext &context, const OpenDataSource &source,
+                                                     const string &purpose, const string &sql) {
 	ValidateSourceControlledSql(source.id, purpose, sql);
-	DuckDB database(nullptr);
-	Connection connection(database);
+	Connection connection(DatabaseInstance::GetDatabase(context));
+	for (auto &extension : source.extensions) {
+		auto extension_name = ValidateSourceExtensionName(source.id, extension);
+		if (extension_name.empty()) {
+			continue;
+		}
+		auto install_result = connection.Query("INSTALL " + extension_name);
+		if (install_result->HasError()) {
+			throw InvalidInputException("open_data_duck: could not install DuckDB extension '%s' for source '%s': %s",
+			                            extension_name, source.id, install_result->GetError());
+		}
+		auto load_result = connection.Query("LOAD " + extension_name);
+		if (load_result->HasError()) {
+			throw InvalidInputException("open_data_duck: could not load DuckDB extension '%s' for source '%s': %s",
+			                            extension_name, source.id, load_result->GetError());
+		}
+	}
 	return connection.Query(sql);
 }
 
@@ -321,7 +352,7 @@ static string ResolveRelease(ClientContext &context, const OpenDataSource &sourc
 		}
 	}
 
-	auto result = RunSourceControlledSql(source, "release resolution", source.latest_resolve_sql);
+	auto result = RunSourceControlledSql(context, source, "release resolution", source.latest_resolve_sql);
 	string release;
 	if (!result->HasError()) {
 		for (auto &row : *result) {
@@ -383,7 +414,7 @@ static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSou
 		}
 	}
 
-	auto query_result = RunSourceControlledSql(source, "table discovery", sql);
+	auto query_result = RunSourceControlledSql(context, source, "table discovery", sql);
 	if (query_result->HasError()) {
 		throw InvalidInputException("open_data_duck: could not discover tables for '%s': %s", source.id,
 		                            query_result->GetError());
