@@ -38,7 +38,6 @@ class Source:
     cadence: str | None
     ai: dict[str, Any]
     release: dict[str, Any]
-    validations: list[dict[str, Any]]
 
     @classmethod
     def from_mapping(cls, source: dict[str, Any]) -> Source:
@@ -60,7 +59,6 @@ class Source:
             cadence=str(source["cadence"]) if source.get("cadence") is not None else None,
             ai=dict(source.get("ai", {})),
             release=dict(source.get("release", {})),
-            validations=_mapping_list(source.get("validations")),
         )
 
     def search_text(self) -> str:
@@ -84,7 +82,6 @@ class Source:
                 _flatten_text(self.duckdb.get("extensions", [])),
                 _flatten_text(self.duckdb.get("tables", {})),
                 _flatten_text(self.tables),
-                _flatten_text(self.validations),
                 self.duckdb.get("example_query", ""),
             )
         ).casefold()
@@ -117,7 +114,6 @@ class Source:
             "release": self.release,
             "tables": self.tables,
             "duckdb": duckdb,
-            "validations": self.validations,
         }
         return {key: value for key, value in data.items() if value not in (None, [], {})}
 
@@ -218,9 +214,6 @@ def _first_validation_pair(source: Source) -> dict[str, Any] | None:
         for validation in _mapping_list(table.get("validations")):
             if isinstance(validation.get("direct_sql"), str) and isinstance(validation.get("odd_sql"), str):
                 return validation
-    for validation in source.validations:
-        if isinstance(validation.get("direct_sql"), str) and isinstance(validation.get("odd_sql"), str):
-            return validation
     return None
 
 
@@ -588,8 +581,7 @@ def _validate_hygiene(registry: dict[str, Any]) -> list[ValidationError]:
             for table in _mapping_list(source.get("tables"))
             for validation in _mapping_list(table.get("validations"))
         ]
-        validations = source.get("validations")
-        has_validation_pairs = bool(table_validations) or (isinstance(validations, list) and any(isinstance(item, dict) for item in validations))
+        has_validation_pairs = bool(table_validations)
         errors.extend(_validate_tables(source, source_path))
         if not has_validation_pairs:
             for field_path in LEGACY_QUERY_TEXT_FIELDS:
@@ -602,7 +594,6 @@ def _validate_hygiene(registry: dict[str, Any]) -> list[ValidationError]:
                         )
                     )
 
-        errors.extend(_validate_validation_pairs(source, source_path))
         for table_index, table in enumerate(_mapping_list(source.get("tables"))):
             table_id = table.get("id", table_index)
             errors.extend(_validate_validation_pairs(table, f"{source_path}.tables[{table_index}]({table_id})"))
@@ -618,7 +609,6 @@ def _validate_tables(source: dict[str, Any], source_path: str) -> list[Validatio
 
     errors: list[ValidationError] = []
     seen_ids: set[str] = set()
-    table_refs: set[str] = set()
     for index, table in enumerate(tables):
         table_path = f"{source_path}.tables[{index}]"
         if not isinstance(table, dict):
@@ -632,30 +622,19 @@ def _validate_tables(source: dict[str, Any], source_path: str) -> list[Validatio
         description = table.get("description")
         if not isinstance(description, str) or not description.strip():
             errors.append(ValidationError(f"{table_path}.description", "must be present and non-blank"))
-        table_ref = table.get("ref")
-        if isinstance(table_ref, str) and table_ref.strip():
-            table_refs.add(table_ref)
 
-    validation_ids: set[str] = set()
     seen_validation_ids: set[str] = set()
-    for validation in _mapping_list(source.get("validations")):
-        validation_id = validation.get("id")
-        if isinstance(validation_id, str):
-            if validation_id in seen_validation_ids:
-                errors.append(ValidationError(source_path, f"duplicate validation id {validation_id}"))
-            seen_validation_ids.add(validation_id)
-            validation_ids.add(validation_id)
     for table in _mapping_list(source.get("tables")):
+        table_ref = table.get("ref")
         for validation in _mapping_list(table.get("validations")):
             validation_id = validation.get("id")
             if isinstance(validation_id, str):
                 if validation_id in seen_validation_ids:
                     errors.append(ValidationError(source_path, f"duplicate validation id {validation_id}"))
                 seen_validation_ids.add(validation_id)
-                validation_ids.add(validation_id)
-    for validation_id in validation_ids:
-        if isinstance(validation_id, str) and validation_id.startswith("odd.") and not _validation_matches_table_ref(validation_id, table_refs):
-            errors.append(ValidationError(source_path, f"validation id {validation_id} must match a table ref"))
+                if validation_id.startswith("odd.") and not _validation_matches_table_ref(validation_id, {str(table_ref)} if table_ref else set()):
+                    table_id = table.get("id", "unknown")
+                    errors.append(ValidationError(source_path, f"validation id {validation_id} must match table {table_id} ref"))
 
     return errors
 

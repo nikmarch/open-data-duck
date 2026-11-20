@@ -172,16 +172,20 @@ The registry contract is moving toward proof instead of brochure metadata. The o
 
 There is no separate `freshness` contract. If a source needs update logic, keep it in release discovery or a validation pair.
 
-For queryable facade work, prefer validation pairs over extra prose. A table-like entry can carry `validations` where each validation `id` is the canonical ODD table reference. The `odd_sql` side is also the user-facing example snippet; the `direct_sql` side is only the control query used to prove ODD returns the same data:
+For queryable facade work, prefer table-level validation pairs over extra prose. Each `tables[]` entry can carry `validations` where every validation `id` is the canonical ODD table reference for that table, or a SQL-safe pinned-release version of the same table. The `odd_sql` side is the user-facing example snippet; the `direct_sql` side is only the control query used to prove ODD returns the same data:
 
 ```yaml
-validations:
-  - id: odd.overturemaps.latest.place
-    direct_sql: |
-      SELECT ... FROM read_parquet('s3://.../theme=places/type=place/*')
-    odd_sql: |
-      SELECT ... FROM odd.overturemaps.latest.place
-    compare: exact
+tables:
+  - id: place
+    ref: odd.overturemaps.latest.place
+    description: Places and points of interest. One row per Overture place feature.
+    validations:
+      - id: odd.overturemaps.latest.place
+        direct_sql: |
+          SELECT ... FROM read_parquet('s3://.../theme=places/type=place/*')
+        odd_sql: |
+          SELECT ... FROM odd.overturemaps.latest.place
+        compare: exact
 ```
 
 For pinned releases, keep the ODD path SQL-safe. Use `x` separators instead of punctuation:
