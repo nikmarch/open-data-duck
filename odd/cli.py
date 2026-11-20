@@ -227,7 +227,8 @@ def _search(
 
     for source in matches:
         print(f"{source.id}\t{source.source_type}\t{source.status}\t{source.name}")
-        print(f"  {source.description}")
+        if source.description:
+            print(f"  {source.description}")
     return 0
 
 

@@ -168,7 +168,11 @@ Table namespaces today, each discovered from the source at first use. Readers ar
 
 ### Registry validation pairs
 
-The registry contract is moving toward proof instead of brochure metadata. A table-like entry can carry `validations` where each validation `id` is the canonical ODD table reference:
+The registry contract is moving toward proof instead of brochure metadata. The old registry shape required descriptive fields such as `description` and `homepage`; those are now optional. The required source fields are the smaller legal/execution core: `id`, `name`, `status`, `source_type`, `authority`, `license_url`, `attribution`, and `duckdb`.
+
+There is no separate `freshness` contract. If a source needs update logic, keep it in release discovery or a validation pair.
+
+For queryable facade work, prefer validation pairs over extra prose. A table-like entry can carry `validations` where each validation `id` is the canonical ODD table reference. The `odd_sql` side is also the user-facing example snippet; the `direct_sql` side is only the control query used to prove ODD returns the same data:
 
 ```yaml
 validations:

@@ -55,6 +55,66 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       },
       "source_type": "overture",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "bbox or area",
+            "release or latest",
+            "limit"
+          ],
+          "columns_hint": {
+            "bbox": "Bounding box for fast spatial prefilters.",
+            "geometry": "Place geometry.",
+            "id": "Stable Overture feature id.",
+            "names": "Nested names object; primary/common/local names are not plain text columns."
+          },
+          "description": "Places and points of interest. One row per Overture place feature.",
+          "id": "place",
+          "ref": "odd.overturemaps.latest.place",
+          "warnings": [
+            "Large global table; always use tight bbox filters."
+          ]
+        },
+        {
+          "ask_for": [
+            "bbox or area",
+            "release or latest",
+            "limit"
+          ],
+          "description": "Building footprint polygons. One row per Overture building feature.",
+          "id": "building",
+          "ref": "odd.overturemaps.latest.building",
+          "warnings": [
+            "Large global table; always use tight bbox filters."
+          ]
+        },
+        {
+          "ask_for": [
+            "bbox or area",
+            "release or latest",
+            "limit"
+          ],
+          "description": "Transportation road/path segments. One row per Overture segment feature.",
+          "id": "segment",
+          "ref": "odd.overturemaps.latest.segment",
+          "warnings": [
+            "Large global table; always use tight bbox filters."
+          ]
+        },
+        {
+          "ask_for": [
+            "bbox or area",
+            "release or latest",
+            "limit"
+          ],
+          "description": "Address point/record features. One row per Overture address feature.",
+          "id": "address",
+          "ref": "odd.overturemaps.latest.address",
+          "warnings": [
+            "Large global table; always use tight bbox filters."
+          ]
+        }
+      ],
       "tags": [
         "maps",
         "geospatial",
@@ -114,6 +174,22 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "stac",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "collection",
+            "bbox",
+            "date range",
+            "cloud cover",
+            "limit"
+          ],
+          "description": "STAC item search results from Earth Search. One row per imagery item returned by the STAC API.",
+          "id": "stac_items",
+          "warnings": [
+            "Assets can be large; inspect metadata before reading imagery assets."
+          ]
+        }
+      ],
       "tags": [
         "stac",
         "imagery",
@@ -145,6 +221,21 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "stac",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "collection",
+            "bbox",
+            "date range",
+            "limit"
+          ],
+          "description": "STAC item search results from Microsoft Planetary Computer. One row per catalog item returned by the STAC API.",
+          "id": "stac_items",
+          "warnings": [
+            "Some assets require Planetary Computer signing or access patterns."
+          ]
+        }
+      ],
       "tags": [
         "stac",
         "imagery",
@@ -176,6 +267,21 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "stac",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "product or collection",
+            "bbox or area",
+            "date range",
+            "limit"
+          ],
+          "description": "NASA LP DAAC STAC item metadata. One row per land-processes product item returned by the STAC API.",
+          "id": "stac_items",
+          "warnings": [
+            "Some downstream assets may require Earthdata access workflows."
+          ]
+        }
+      ],
       "tags": [
         "stac",
         "nasa",
@@ -205,6 +311,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "arcgis",
       "status": "connector-blocked",
+      "tables": [
+        {
+          "ask_for": [
+            "state or county",
+            "fields",
+            "whether geometry is needed"
+          ],
+          "description": "TIGERweb state/county boundary layer features. One row per ArcGIS boundary feature.",
+          "id": "county_boundaries",
+          "warnings": [
+            "Connector is blocked; use REST pagination until ArcGIS support is stable."
+          ]
+        }
+      ],
       "tags": [
         "arcgis",
         "census",
@@ -249,6 +369,23 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       },
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "year",
+            "scale",
+            "state filter",
+            "GEOID join key"
+          ],
+          "description": "Generalized U.S. county polygons at 20m scale. One row per county or county-equivalent feature.",
+          "id": "county_20m",
+          "ref": "odd.census.latest.county_20m",
+          "warnings": [
+            "Generalized for thematic mapping",
+            "not surveying."
+          ]
+        }
+      ],
       "tags": [
         "census",
         "boundaries",
@@ -294,6 +431,22 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       },
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "year",
+            "scale",
+            "state filter",
+            "tract GEOID join key"
+          ],
+          "description": "Generalized U.S. census tract polygons at 5m scale. One row per census tract feature.",
+          "id": "tract_5m",
+          "ref": "odd.census.latest.tract_5m",
+          "warnings": [
+            "National tract files are larger; filter by state when possible."
+          ]
+        }
+      ],
       "tags": [
         "census",
         "boundaries",
@@ -324,6 +477,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "arcgis",
       "status": "connector-blocked",
+      "tables": [
+        {
+          "ask_for": [
+            "bbox or jurisdiction",
+            "fields",
+            "whether geometry is needed"
+          ],
+          "description": "FEMA NFHL flood hazard zone features. One row per flood hazard zone feature.",
+          "id": "flood_hazard_zones",
+          "warnings": [
+            "Not a substitute for official determinations; connector path is not stable yet."
+          ]
+        }
+      ],
       "tags": [
         "arcgis",
         "fema",
@@ -353,6 +520,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "arcgis",
       "status": "connector-blocked",
+      "tables": [
+        {
+          "ask_for": [
+            "bbox",
+            "contour interval or elevation need",
+            "fields"
+          ],
+          "description": "USGS National Map elevation contour line features. One row per contour segment feature.",
+          "id": "contours",
+          "warnings": [
+            "Connector is blocked; large geometry layers need paging."
+          ]
+        }
+      ],
       "tags": [
         "arcgis",
         "usgs",
@@ -385,6 +566,27 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "feed window",
+            "magnitude threshold",
+            "bbox or region",
+            "limit"
+          ],
+          "columns_hint": {
+            "geometry": "GeoJSON point with longitude, latitude, and depth.",
+            "mag": "Earthquake magnitude.",
+            "place": "Human-readable event location.",
+            "time": "Event time in epoch milliseconds."
+          },
+          "description": "Recent USGS earthquake event features. One row per reported seismic event in the selected rolling feed.",
+          "id": "earthquake_events",
+          "warnings": [
+            "Rolling feeds are not stable historical snapshots."
+          ]
+        }
+      ],
       "tags": [
         "usgs",
         "earthquakes",
@@ -417,6 +619,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "country code",
+            "indicator id",
+            "year range"
+          ],
+          "description": "World Bank indicator observations. One row per country, indicator, and year.",
+          "id": "indicators",
+          "warnings": [
+            "Values may be null; API responses use a JSON envelope."
+          ]
+        }
+      ],
       "tags": [
         "world-bank",
         "wdi",
@@ -449,6 +665,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "series id",
+            "start year",
+            "end year"
+          ],
+          "description": "BLS CPI time-series observations. One row per BLS series and period.",
+          "id": "cpi_observations",
+          "warnings": [
+            "Values are returned as strings and should be cast before numeric analysis."
+          ]
+        }
+      ],
       "tags": [
         "bls",
         "cpi",
@@ -481,6 +711,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "date window",
+            "debt field",
+            "limit"
+          ],
+          "description": "U.S. Treasury daily public debt outstanding records. One row per record date.",
+          "id": "debt_observations",
+          "warnings": [
+            "Fiscal Data CSV responses are gzipped; use compression = 'gzip'."
+          ]
+        }
+      ],
       "tags": [
         "treasury",
         "fiscal-data",
@@ -527,6 +771,48 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       },
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "year",
+            "state",
+            "event type",
+            "limit"
+          ],
+          "description": "NOAA Storm Events detail rows. One row per reported storm event.",
+          "id": "storm_events_details",
+          "ref": "odd.noaa.latest.storm_events_details",
+          "warnings": [
+            "Files are revised with creation-date suffixes; pin year for reproducible examples."
+          ]
+        },
+        {
+          "ask_for": [
+            "year",
+            "state or event id",
+            "limit"
+          ],
+          "description": "NOAA Storm Events fatality rows. One row per fatality associated with a storm event.",
+          "id": "storm_events_fatalities",
+          "ref": "odd.noaa.latest.storm_events_fatalities",
+          "warnings": [
+            "Join to details by event_id for event context."
+          ]
+        },
+        {
+          "ask_for": [
+            "year",
+            "state or event id",
+            "limit"
+          ],
+          "description": "NOAA Storm Events location rows. One row per location attached to a storm event.",
+          "id": "storm_events_locations",
+          "ref": "odd.noaa.latest.storm_events_locations",
+          "warnings": [
+            "Join to details by event_id for event context."
+          ]
+        }
+      ],
       "tags": [
         "noaa",
         "ncei",
@@ -584,6 +870,21 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       },
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "year",
+            "station id",
+            "climate element"
+          ],
+          "description": "GHCN Daily station observations. One row per station, date, and observed climate element.",
+          "id": "ghcn_daily",
+          "ref": "odd.noaa.latest.ghcn_daily",
+          "warnings": [
+            "CSV files are large; filter by year/station/element early."
+          ]
+        }
+      ],
       "tags": [
         "aws",
         "noaa",
@@ -614,6 +915,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "station id",
+            "year",
+            "weather fields"
+          ],
+          "description": "NOAA GSOD daily station weather summaries. One row per station-day summary.",
+          "id": "daily_summaries",
+          "warnings": [
+            "Station files are split by year and station."
+          ]
+        }
+      ],
       "tags": [
         "aws",
         "noaa",
@@ -644,6 +959,21 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "other",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "country",
+            "state",
+            "station name",
+            "nearby place"
+          ],
+          "description": "NOAA ISD station metadata. One row per weather station history record.",
+          "id": "station_history",
+          "warnings": [
+            "Metadata lookup only; use observation datasets for measurements."
+          ]
+        }
+      ],
       "tags": [
         "aws",
         "noaa",
@@ -674,6 +1004,18 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "ckan",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "suburb or animal type"
+          ],
+          "description": "Wyndham registered dog and cat counts. One row per suburb/count record in the public CSV distribution.",
+          "id": "wyndham_pet_registrations",
+          "warnings": [
+            "CKAN is discovery metadata; query the direct readable CSV distribution."
+          ]
+        }
+      ],
       "tags": [
         "ckan",
         "dcat",
@@ -706,6 +1048,21 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "socrata",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "date range",
+            "borough",
+            "complaint type",
+            "limit"
+          ],
+          "description": "NYC 311 service request records. One row per 311 request.",
+          "id": "service_requests",
+          "warnings": [
+            "Large table requires bounded SODA queries with select/order/limit."
+          ]
+        }
+      ],
       "tags": [
         "socrata",
         "nyc",
@@ -738,6 +1095,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "socrata",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "state",
+            "measure id",
+            "age-adjusted or crude prevalence"
+          ],
+          "description": "CDC PLACES county health estimate rows. One row per county, measure, and data-value type.",
+          "id": "county_health_estimates",
+          "warnings": [
+            "Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows."
+          ]
+        }
+      ],
       "tags": [
         "socrata",
         "cdc",
@@ -772,6 +1143,20 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "release": {},
       "source_type": "parquet",
       "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "ISO3 country code",
+            "bbox",
+            "limit"
+          ],
+          "description": "Combined Google/Microsoft building footprint polygons. One row per building footprint.",
+          "id": "building_footprints",
+          "warnings": [
+            "Large countries are partitioned; use country and S2 paths to avoid huge scans."
+          ]
+        }
+      ],
       "tags": [
         "source-cooperative",
         "buildings",

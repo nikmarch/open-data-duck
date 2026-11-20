@@ -30,12 +30,12 @@ class Source:
     license_url: str
     attribution: str
     duckdb: dict[str, Any]
+    tables: list[dict[str, Any]]
     tags: list[str]
     topics: list[str]
     coverage: dict[str, Any]
     cadence: str | None
     ai: dict[str, Any]
-    freshness: dict[str, Any]
     release: dict[str, Any]
     validations: list[dict[str, Any]]
 
@@ -44,20 +44,20 @@ class Source:
         return cls(
             id=str(source["id"]),
             name=str(source["name"]),
-            description=str(source["description"]),
+            description=str(source.get("description", "")),
             status=str(source["status"]),
             source_type=str(source["source_type"]),
             authority=str(source["authority"]),
-            homepage=str(source["homepage"]),
+            homepage=str(source.get("homepage", "")),
             license_url=str(source["license_url"]),
             attribution=str(source["attribution"]),
-            duckdb=dict(source["duckdb"]),
+            duckdb=dict(source.get("duckdb", {})),
+            tables=_mapping_list(source.get("tables")),
             tags=_string_list(source.get("tags")),
             topics=_string_list(source.get("topics")),
             coverage=dict(source.get("coverage", {})),
             cadence=str(source["cadence"]) if source.get("cadence") is not None else None,
             ai=dict(source.get("ai", {})),
-            freshness=dict(source.get("freshness", {})),
             release=dict(source.get("release", {})),
             validations=_mapping_list(source.get("validations")),
         )
@@ -82,6 +82,7 @@ class Source:
                 _flatten_text(self.ai),
                 _flatten_text(self.duckdb.get("extensions", [])),
                 _flatten_text(self.duckdb.get("tables", {})),
+                _flatten_text(self.tables),
                 _flatten_text(self.validations),
                 self.duckdb.get("example_query", ""),
             )
@@ -112,8 +113,8 @@ class Source:
             "coverage": self.coverage,
             "cadence": self.cadence,
             "ai": self.ai,
-            "freshness": self.freshness,
             "release": self.release,
+            "tables": self.tables,
             "duckdb": duckdb,
             "validations": self.validations,
         }
@@ -121,10 +122,12 @@ class Source:
 
 
 REQUIRED_TEXT_FIELDS = (
-    ("description",),
     ("authority",),
     ("license_url",),
     ("attribution",),
+)
+
+LEGACY_QUERY_TEXT_FIELDS = (
     ("duckdb", "example_query"),
     ("duckdb", "validation_query"),
 )
@@ -188,6 +191,14 @@ def find_source(registry_path: Path, source_id: str) -> Source | None:
 
 
 def render_source_sql(source: Source, *, validation: bool = False, include_install: bool = True) -> str:
+    validation_pair = _first_validation_pair(source)
+    if validation_pair is not None:
+        if validation:
+            return _render_validation_pair_sql(source, validation_pair)
+        odd_sql = validation_pair.get("odd_sql")
+        if isinstance(odd_sql, str) and odd_sql.strip():
+            return odd_sql.strip() + "\n"
+
     statements: list[str] = []
     install = source.duckdb.get("install")
     if include_install and isinstance(install, str) and install.strip():
@@ -201,6 +212,29 @@ def render_source_sql(source: Source, *, validation: bool = False, include_insta
     return "\n\n".join(statements) + "\n"
 
 
+def _first_validation_pair(source: Source) -> dict[str, Any] | None:
+    for table in source.tables:
+        for validation in _mapping_list(table.get("validations")):
+            if isinstance(validation.get("direct_sql"), str) and isinstance(validation.get("odd_sql"), str):
+                return validation
+    for validation in source.validations:
+        if isinstance(validation.get("direct_sql"), str) and isinstance(validation.get("odd_sql"), str):
+            return validation
+    return None
+
+
+def _render_validation_pair_sql(source: Source, validation_pair: dict[str, Any]) -> str:
+    direct_sql = str(validation_pair["direct_sql"]).strip()
+    odd_sql = str(validation_pair["odd_sql"]).strip()
+    validation_id = str(validation_pair.get("id", source.id))
+    return (
+        f"-- direct DuckDB control for {validation_id}\n"
+        f"{direct_sql}\n\n"
+        f"-- ODD facade example for {validation_id}\n"
+        f"{odd_sql}\n"
+    )
+
+
 def render_index_text(sources: list[Source]) -> str:
     lines = ["Open Data Duck source index", "===========================", ""]
     for source_type in sorted({source.source_type for source in sources}):
@@ -210,13 +244,18 @@ def render_index_text(sources: list[Source]) -> str:
         for source in group:
             tags = f" [{', '.join(source.tags)}]" if source.tags else ""
             lines.append(f"- {source.id} — {source.name} ({source.status}){tags}")
-            lines.append(f"  {source.description}")
+            if source.description:
+                lines.append(f"  {source.description}")
+            for table in source.tables:
+                lines.append(f"  - {table.get('id')}: {table.get('description')}")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
 def render_source_detail(source: Source) -> str:
-    lines = [source.name, "=" * len(source.name), "", source.description, ""]
+    lines = [source.name, "=" * len(source.name), ""]
+    if source.description:
+        lines.extend(("", source.description, ""))
     fields = [
         ("ID", source.id),
         ("Status", source.status),
@@ -234,6 +273,11 @@ def render_source_detail(source: Source) -> str:
             lines.append(f"{label}: {value}")
     if source.coverage:
         lines.append(f"Coverage: {_inline_mapping(source.coverage)}")
+    if source.tables:
+        lines.extend(("", "Tables:"))
+        for table in source.tables:
+            ref = f" ({table['ref']})" if table.get("ref") else ""
+            lines.append(f"- {table.get('id')}{ref}: {table.get('description')}")
     if source.ai:
         lines.extend(("", "AI usage:"))
         for key, value in source.ai.items():
@@ -259,11 +303,13 @@ def render_index_markdown(sources: list[Source]) -> str:
         for source in [source for source in sources if source.source_type == source_type]:
             lines.append(f"### `{source.id}` — {source.name}")
             lines.append("")
-            lines.append(source.description)
-            lines.append("")
+            if source.description:
+                lines.append(source.description)
+                lines.append("")
             lines.append(f"- Status: `{source.status}`")
             lines.append(f"- Authority: {source.authority}")
-            lines.append(f"- Homepage: {source.homepage}")
+            if source.homepage:
+                lines.append(f"- Homepage: {source.homepage}")
             lines.append(f"- License: {source.license_url}")
             if source.tags:
                 lines.append(f"- Tags: {', '.join(f'`{tag}`' for tag in source.tags)}")
@@ -271,6 +317,11 @@ def render_index_markdown(sources: list[Source]) -> str:
                 lines.append(f"- Topics: {', '.join(source.topics)}")
             if source.cadence:
                 lines.append(f"- Cadence: {source.cadence}")
+            if source.tables:
+                lines.append("- Tables:")
+                for table in source.tables:
+                    ref = f" (`{table['ref']}`)" if table.get("ref") else ""
+                    lines.append(f"  - `{table.get('id')}`{ref}: {table.get('description')}")
             if source.ai.get("use_cases"):
                 lines.append(f"- AI use cases: {_inline_value(source.ai['use_cases'])}")
             if source.ai.get("caveats"):
@@ -339,10 +390,85 @@ def _validate_hygiene(registry: dict[str, Any]) -> list[ValidationError]:
                     )
                 )
 
+        table_validations = [
+            validation
+            for table in _mapping_list(source.get("tables"))
+            for validation in _mapping_list(table.get("validations"))
+        ]
+        validations = source.get("validations")
+        has_validation_pairs = bool(table_validations) or (isinstance(validations, list) and any(isinstance(item, dict) for item in validations))
+        errors.extend(_validate_tables(source, source_path))
+        if not has_validation_pairs:
+            for field_path in LEGACY_QUERY_TEXT_FIELDS:
+                value = _nested_get(source, field_path)
+                if not isinstance(value, str) or not value.strip():
+                    errors.append(
+                        ValidationError(
+                            f"{source_path}.{'.'.join(field_path)}",
+                            "must be present and non-blank unless validations are present",
+                        )
+                    )
+
         errors.extend(_validate_validation_pairs(source, source_path))
+        for table_index, table in enumerate(_mapping_list(source.get("tables"))):
+            table_id = table.get("id", table_index)
+            errors.extend(_validate_validation_pairs(table, f"{source_path}.tables[{table_index}]({table_id})"))
 
     return errors
 
+
+
+def _validate_tables(source: dict[str, Any], source_path: str) -> list[ValidationError]:
+    tables = source.get("tables")
+    if not isinstance(tables, list):
+        return []
+
+    errors: list[ValidationError] = []
+    seen_ids: set[str] = set()
+    table_refs: set[str] = set()
+    for index, table in enumerate(tables):
+        table_path = f"{source_path}.tables[{index}]"
+        if not isinstance(table, dict):
+            continue
+        table_id = table.get("id")
+        if isinstance(table_id, str) and table_id.strip():
+            table_path = f"{table_path}({table_id})"
+            if table_id in seen_ids:
+                errors.append(ValidationError(table_path, "duplicate table id"))
+            seen_ids.add(table_id)
+        description = table.get("description")
+        if not isinstance(description, str) or not description.strip():
+            errors.append(ValidationError(f"{table_path}.description", "must be present and non-blank"))
+        table_ref = table.get("ref")
+        if isinstance(table_ref, str) and table_ref.strip():
+            table_refs.add(table_ref)
+
+    validation_ids = {
+        validation.get("id")
+        for validation in _mapping_list(source.get("validations"))
+        if isinstance(validation.get("id"), str)
+    }
+    validation_ids.update(
+        validation.get("id")
+        for table in _mapping_list(source.get("tables"))
+        for validation in _mapping_list(table.get("validations"))
+        if isinstance(validation.get("id"), str)
+    )
+    for validation_id in validation_ids:
+        if isinstance(validation_id, str) and validation_id.startswith("odd.") and not _validation_matches_table_ref(validation_id, table_refs):
+            errors.append(ValidationError(source_path, f"validation id {validation_id} must match a table ref"))
+
+    return errors
+
+
+def _validation_matches_table_ref(validation_id: str, table_refs: set[str]) -> bool:
+    if validation_id in table_refs:
+        return True
+    parts = validation_id.split(".")
+    if len(parts) != 4:
+        return False
+    _odd, provider, _release, table = parts
+    return f"odd.{provider}.latest.{table}" in table_refs
 
 def _validate_validation_pairs(source: dict[str, Any], source_path: str) -> list[ValidationError]:
     validations = source.get("validations", [])
