@@ -37,6 +37,7 @@ class Source:
     ai: dict[str, Any]
     freshness: dict[str, Any]
     release: dict[str, Any]
+    validations: list[dict[str, Any]]
 
     @classmethod
     def from_mapping(cls, source: dict[str, Any]) -> Source:
@@ -58,6 +59,7 @@ class Source:
             ai=dict(source.get("ai", {})),
             freshness=dict(source.get("freshness", {})),
             release=dict(source.get("release", {})),
+            validations=_mapping_list(source.get("validations")),
         )
 
     def search_text(self) -> str:
@@ -80,6 +82,7 @@ class Source:
                 _flatten_text(self.ai),
                 _flatten_text(self.duckdb.get("extensions", [])),
                 _flatten_text(self.duckdb.get("tables", {})),
+                _flatten_text(self.validations),
                 self.duckdb.get("example_query", ""),
             )
         ).casefold()
@@ -112,6 +115,7 @@ class Source:
             "freshness": self.freshness,
             "release": self.release,
             "duckdb": duckdb,
+            "validations": self.validations,
         }
         return {key: value for key, value in data.items() if value not in (None, [], {})}
 
@@ -335,13 +339,76 @@ def _validate_hygiene(registry: dict[str, Any]) -> list[ValidationError]:
                     )
                 )
 
+        errors.extend(_validate_validation_pairs(source, source_path))
+
     return errors
+
+
+def _validate_validation_pairs(source: dict[str, Any], source_path: str) -> list[ValidationError]:
+    validations = source.get("validations", [])
+    if validations is None:
+        return []
+    if not isinstance(validations, list):
+        return []
+
+    errors: list[ValidationError] = []
+    seen_ids: set[str] = set()
+    for index, validation in enumerate(validations):
+        validation_path = f"{source_path}.validations[{index}]"
+        if not isinstance(validation, dict):
+            continue
+
+        validation_id = validation.get("id")
+        if isinstance(validation_id, str) and validation_id.strip():
+            validation_path = f"{validation_path}({validation_id})"
+            if validation_id in seen_ids:
+                errors.append(ValidationError(validation_path, "duplicate validation id"))
+            seen_ids.add(validation_id)
+            if not validation_id.startswith("odd."):
+                errors.append(ValidationError(f"{validation_path}.id", "must be an ODD table reference"))
+            if not _is_sql_safe_table_reference(validation_id):
+                errors.append(
+                    ValidationError(
+                        f"{validation_path}.id",
+                        "must use SQL-safe odd.<provider>.<release>.<table> identifiers",
+                    )
+                )
+
+        for field in ("direct_sql", "odd_sql"):
+            value = validation.get(field)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(ValidationError(f"{validation_path}.{field}", "must be present and non-blank"))
+
+        odd_sql = validation.get("odd_sql")
+        if isinstance(odd_sql, str) and "odd." not in odd_sql.casefold():
+            errors.append(ValidationError(f"{validation_path}.odd_sql", "must query an odd.* facade"))
+
+        release = validation.get("release")
+        if isinstance(release, str) and release.strip() and not _is_sql_safe_identifier(release):
+            errors.append(ValidationError(f"{validation_path}.release", "must be SQL-safe; use x instead of punctuation"))
+
+    return errors
+
+
+def _is_sql_safe_table_reference(value: str) -> bool:
+    parts = value.split(".")
+    return len(parts) == 4 and parts[0] == "odd" and all(_is_sql_safe_identifier(part) for part in parts[1:])
+
+
+def _is_sql_safe_identifier(value: str) -> bool:
+    return bool(value) and all(char.isalnum() or char == "_" for char in value) and not value[0].isdigit()
 
 
 def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value if str(item).strip()]
+
+
+def _mapping_list(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [dict(item) for item in value if isinstance(item, dict)]
 
 
 def _flatten_text(value: Any) -> str:

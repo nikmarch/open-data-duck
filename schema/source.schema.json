@@ -68,6 +68,10 @@
             }
           }
         },
+        "validations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation" }
+        },
         "release": { "$ref": "#/$defs/release" },
         "freshness": {
           "type": "object",
@@ -77,6 +81,27 @@
           }
         }
       }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["id", "direct_sql", "odd_sql"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^odd\\.[a-z0-9_]+\\.[a-z0-9x_]+\\.[a-z0-9_]+$" },
+        "description": { "type": "string" },
+        "release": { "type": "string", "pattern": "^[a-z0-9x_]+$" },
+        "source_release": { "type": "string" },
+        "direct_sql": { "type": "string" },
+        "odd_sql": { "type": "string" },
+        "compare": { "enum": ["exact", "set", "count"] },
+        "order_by": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "limit": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
     },
     "release": {
       "type": "object",

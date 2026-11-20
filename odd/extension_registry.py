@@ -34,6 +34,7 @@ _SOURCE_FIELDS = (
     "attribution",
     "tags",
     "release",
+    "validations",
 )
 _DUCKDB_FIELDS = ("extensions", "install", "example_query", "validation_query", "examples", "tables")
 

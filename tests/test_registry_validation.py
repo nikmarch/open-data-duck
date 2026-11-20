@@ -49,6 +49,18 @@ VALID_REGISTRY = {
                 "example_query": "SELECT * FROM read_parquet('https://example.com/data.parquet');",
                 "validation_query": "SELECT 1;",
             },
+            "validations": [
+                {
+                    "id": "odd.example.latest.rows",
+                    "description": "Compare the ODD facade against the direct reader.",
+                    "release": "latest",
+                    "direct_sql": "SELECT id FROM read_parquet('https://example.com/data.parquet') ORDER BY id LIMIT 5;",
+                    "odd_sql": "SELECT id FROM odd.example.latest.rows ORDER BY id LIMIT 5;",
+                    "compare": "exact",
+                    "order_by": ["id"],
+                    "limit": 5,
+                }
+            ],
         }
     ]
 }
@@ -85,6 +97,8 @@ def test_validate_registry_accepts_connector_blocked_status(tmp_path: Path) -> N
         (("attribution",), "attribution"),
         (("duckdb", "example_query"), "duckdb.example_query"),
         (("duckdb", "validation_query"), "duckdb.validation_query"),
+        (("validations", 0, "direct_sql"), "validations[0](odd.example.latest.rows).direct_sql"),
+        (("validations", 0, "odd_sql"), "validations[0](odd.example.latest.rows).odd_sql"),
     ],
 )
 def test_validate_registry_rejects_blank_required_text(
@@ -113,6 +127,39 @@ def test_validate_registry_rejects_duplicate_ids(tmp_path: Path) -> None:
     errors = validate_registry(registry_path, schema_path)
 
     assert any("duplicate source id" == error.message for error in errors)
+
+
+def test_validate_registry_rejects_duplicate_validation_ids(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
+    source = registry["sources"][0]
+    source["validations"].append(source["validations"][0].copy())
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    errors = validate_registry(registry_path, schema_path)
+
+    assert any("duplicate validation id" == error.message for error in errors)
+
+
+def test_validate_registry_rejects_non_odd_validation_sql(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
+    registry["sources"][0]["validations"][0]["odd_sql"] = "SELECT id FROM direct_table;"
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    errors = validate_registry(registry_path, schema_path)
+
+    assert any("must query an odd.* facade" == error.message for error in errors)
+
+
+def test_validate_registry_rejects_non_sql_safe_release_ids(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
+    validation = registry["sources"][0]["validations"][0]
+    validation["id"] = "odd.example.2026-10-21.rows"
+    validation["release"] = "2026-10-21"
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    errors = validate_registry(registry_path, schema_path)
+
+    assert any("SQL-safe" in error.message for error in errors)
 
 
 def test_validate_registry_reports_schema_errors(tmp_path: Path) -> None:
@@ -503,6 +550,34 @@ def test_seed_sources_include_required_query_metadata() -> None:
         assert source["duckdb"]["validation_query"].strip(), source["id"]
 
 
+def test_seed_validation_pairs_use_odd_ids_and_direct_sql_contract() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    validations = [validation for source in registry["sources"] for validation in source.get("validations", [])]
+
+    assert "odd.overturemaps.latest.place" in {validation["id"] for validation in validations}
+    assert "odd.overturemaps.x2026x10x21.place" in {validation["id"] for validation in validations}
+    assert "odd.noaa.latest.storm_events_details" in {validation["id"] for validation in validations}
+
+    for validation in validations:
+        assert re.fullmatch(r"odd\.[a-z0-9_]+\.[a-z0-9x_]+\.[a-z0-9_]+", validation["id"]), validation["id"]
+        assert validation["direct_sql"].strip(), validation["id"]
+        assert validation["odd_sql"].strip(), validation["id"]
+        assert validation["id"] in validation["odd_sql"], validation["id"]
+        assert "odd." not in validation["direct_sql"].casefold(), validation["id"]
+        assert validation.get("compare") == "exact", validation["id"]
+
+    overture_place_validations = [
+        validation for validation in validations if validation["id"].startswith("odd.overturemaps.")
+    ]
+    for validation in overture_place_validations:
+        combined_sql = f"{validation['direct_sql']}\n{validation['odd_sql']}"
+        assert "bbox.xmin <= 66.981" in combined_sql, validation["id"]
+        assert "bbox.xmax >= 66.976" in combined_sql, validation["id"]
+        assert "bbox.ymin <= 39.657" in combined_sql, validation["id"]
+        assert "bbox.ymax >= 39.652" in combined_sql, validation["id"]
+        assert "bbox.xmin <= -149" not in combined_sql, validation["id"]
+
+
 def test_search_sources_matches_terms_and_filters(tmp_path: Path) -> None:
     registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
 
@@ -529,6 +604,7 @@ def test_source_ai_dict_exposes_metadata_without_sql_by_default(tmp_path: Path) 
     assert payload["description"] == "Example source description for humans and AI agents."
     assert payload["tags"] == ["example", "parquet"]
     assert payload["ai"]["summary"] == "Use for registry tests."
+    assert payload["validations"][0]["id"] == "odd.example.latest.rows"
     assert "example_query" not in payload["duckdb"]
 
 

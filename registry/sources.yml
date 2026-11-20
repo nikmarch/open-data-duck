@@ -151,6 +151,75 @@ sources:
                  regexp_replace(regexp_replace(min(assets.aws.href), '^https://([^.]+)\.s3\.[^/]+/', 's3://\1/'), '/part-[^/]+$', '/*') AS path
           FROM read_parquet('https://stac.overturemaps.org/{release}/collections.parquet')
           GROUP BY collection;
+    validations:
+      - id: odd.overturemaps.latest.place
+        description: Compare the latest Overture places facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+        release: latest
+        compare: exact
+        order_by: [id]
+        limit: 10
+        direct_sql: |
+          LOAD httpfs;
+          SET s3_region='us-west-2';
+          SET VARIABLE overture_release = '2026-10-21.0';
+          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+          SELECT id, names, bbox
+          FROM read_parquet(
+            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*'
+          )
+          WHERE bbox.xmin <= 66.981
+            AND bbox.xmax >= 66.976
+            AND bbox.ymin <= 39.657
+            AND bbox.ymax >= 39.652
+          ORDER BY id
+          LIMIT 10;
+        odd_sql: |
+          LOAD open_data_duck;
+          ATTACH ':memory:' AS odd (TYPE open_data_duck);
+          SET VARIABLE overture_release = '2026-10-21.0';
+          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+          SELECT id, names, bbox
+          FROM odd.overturemaps.latest.place
+          WHERE bbox.xmin <= 66.981
+            AND bbox.xmax >= 66.976
+            AND bbox.ymin <= 39.657
+            AND bbox.ymax >= 39.652
+          ORDER BY id
+          LIMIT 10;
+      - id: odd.overturemaps.x2026x10x21.place
+        description: Compare a pinned, SQL-safe Overture release facade with the same direct release path over a sampled tiny bbox.
+        release: x2026x10x21
+        source_release: 2026-10-21.0
+        compare: exact
+        order_by: [id]
+        limit: 10
+        direct_sql: |
+          LOAD httpfs;
+          SET s3_region='us-west-2';
+          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+
+          SELECT id, names, bbox
+          FROM read_parquet(
+            getvariable('overture_s3_base') || '/release/2026-10-21.0/theme=places/type=place/*'
+          )
+          WHERE bbox.xmin <= 66.981
+            AND bbox.xmax >= 66.976
+            AND bbox.ymin <= 39.657
+            AND bbox.ymax >= 39.652
+          ORDER BY id
+          LIMIT 10;
+        odd_sql: |
+          LOAD open_data_duck;
+          ATTACH ':memory:' AS odd (TYPE open_data_duck);
+          SELECT id, names, bbox
+          FROM odd.overturemaps.x2026x10x21.place
+          WHERE bbox.xmin <= 66.981
+            AND bbox.xmax >= 66.976
+            AND bbox.ymin <= 39.657
+            AND bbox.ymax >= 39.652
+          ORDER BY id
+          LIMIT 10;
     freshness:
       method: release-calendar
       url: https://docs.overturemaps.org/release-calendar/
@@ -890,6 +959,32 @@ sources:
           FROM files
           JOIN latest USING (table_kind, created)
           ORDER BY name;
+    validations:
+      - id: odd.noaa.latest.storm_events_details
+        description: Compare NOAA Storm Events details facade with the direct bulk CSV recipe.
+        release: latest
+        compare: exact
+        order_by: [event_id]
+        limit: 10
+        direct_sql: |
+          LOAD httpfs;
+          SELECT event_id, state, event_type, begin_date_time, cz_name
+          FROM read_csv_auto(
+            'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261118.csv.gz',
+            sample_size = 20000
+          )
+          WHERE event_type IS NOT NULL
+          ORDER BY event_id
+          LIMIT 10;
+        odd_sql: |
+          LOAD open_data_duck;
+          ATTACH ':memory:' AS odd (TYPE open_data_duck);
+          SET VARIABLE noaa_storm_events_year = '2024';
+          SELECT event_id, state, event_type, begin_date_time, cz_name
+          FROM odd.noaa.latest.storm_events_details
+          WHERE event_type IS NOT NULL
+          ORDER BY event_id
+          LIMIT 10;
     release:
       latest:
         method: html-listing
