@@ -376,6 +376,32 @@ def test_project_world_bank_wdi_uses_api_json_envelope_recipe() -> None:
     assert "install worldbank" not in rendered_sql
 
 
+def test_project_bls_cpi_timeseries_uses_public_json_api_recipe() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "bls.cpi.timeseries")
+
+    rendered_sql = "\n".join(
+        (
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            "\n".join(source["duckdb"].get("examples", {}).values()),
+        )
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "U.S. Bureau of Labor Statistics"
+    assert "httpfs" in source["duckdb"]["extensions"]
+    assert "api.bls.gov/publicapi/v1/timeseries/data/cuur0000sa0" in rendered_sql
+    assert "results.series" in rendered_sql
+    assert "cuur0000sa0" in source["duckdb"]["validation_query"].casefold()
+    assert "try_cast(obs.value as double)" in rendered_sql
+    assert "bls.gov" in source["attribution"].casefold()
+    assert "load bls" not in rendered_sql
+    assert "install bls" not in rendered_sql
+
+
 def test_arcgis_feature_server_pagination_acceptance_uses_multiple_pages() -> None:
     layer_url = (
         "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/"
