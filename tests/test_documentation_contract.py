@@ -40,6 +40,17 @@ def test_readme_links_engine_maintenance_tracker() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
 
     assert "[Engine maintenance track](docs/engine-maintenance.md)" in readme
+    assert "[docs/architecture](docs/architecture/README.md)" in readme
+
+
+def test_readme_uses_current_facade_first_language() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "## Query with the ODD catalog" in readme
+    assert "## Inspect sources and generated SQL" in readme
+    assert "## Current pre-community behavior" not in readme
+    assert "This is the product shape Open Data Duck is moving toward" not in readme
+    assert "hive_partitioning = true" not in readme
 
 
 def test_readme_overture_facade_example_sets_region_and_uses_exact_table_refs() -> None:
