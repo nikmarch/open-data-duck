@@ -36,7 +36,7 @@ DEFAULT_SITE_INDEX = Path("site/index.html")
 DEFAULT_SCHEMA_MANIFEST = Path("schema/source-manifest.json")
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="odd", description="Open Data Duck tools")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -133,9 +133,16 @@ def main(argv: list[str] | None = None) -> int:
         help="inspect validation SQL instead of example SQL",
     )
     schema_check_parser.add_argument("--no-install", action="store_true", help="omit installation/setup statements")
+    return parser
 
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv)
+    return _dispatch(args, parser)
 
+
+def _dispatch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.command == "validate":
         return _validate(args.registry, args.schema)
     if args.command == "index":
