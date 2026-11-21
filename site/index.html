@@ -126,7 +126,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">23 sources across arcgis (3), ckan (1), other (12), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">24 sources across arcgis (3), ckan (1), other (13), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header">
@@ -292,6 +292,21 @@ LIMIT 10;</code></pre>
           <ul class="tag-list"><li>usgs</li><li>earthquakes</li><li>hazards</li><li>geojson</li><li>realtime</li></ul>
           <ul class="table-list"><li><strong>earthquake_events</strong>: Recent USGS earthquake event features. One row per reported seismic event in the selected rolling feed. <span>Ask for: feed window, magnitude threshold, bbox or region, limit</span> <span>Warnings: Rolling feeds are not stable historical snapshots.</span></li></ul>
           <a href="https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php">Homepage</a>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header">
+            <span class="status">candidate</span>
+            <span>other</span>
+          </div>
+          <h3><code>usgs.nwis.instantaneous-values</code></h3>
+          <p>Official U.S. Geological Survey Water Data for the Nation instantaneous values time-series observations for monitoring sites, queryable as nested public JSON over HTTPS with DuckDB httpfs.</p>
+          <dl>
+            <dt>Authority</dt><dd>U.S. Geological Survey Water Data for the Nation</dd>
+            <dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd>
+          </dl>
+          <ul class="tag-list"><li>usgs</li><li>nwis</li><li>water</li><li>streamflow</li><li>hydrology</li><li>json</li></ul>
+          <ul class="table-list"><li><strong>instantaneous_values</strong>: USGS NWIS instantaneous observations. One row per timestamped monitoring-site and parameter observation after flattening the WaterML JSON timeSeries payload. <span>Ask for: site number, parameter code, start datetime, end datetime, site status, whether provisional operational values are acceptable</span> <span>Warnings: Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows., Large multi-site or multi-parameter requests should be bounded by date range., Instantaneous operational values can be provisional and not fully quality-assured.</span></li></ul>
+          <a href="https://waterservices.usgs.gov/docs/instantaneous-values/instantaneous-values-details/">Homepage</a>
         </article>
         <article class="source-card">
           <div class="source-card-header">

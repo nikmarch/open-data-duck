@@ -998,6 +998,121 @@ sources:
           )
           ORDER BY sig DESC
           LIMIT 25;
+  - id: usgs.nwis.instantaneous-values
+    name: USGS NWIS instantaneous water values API
+    description: Official U.S. Geological Survey Water Data for the Nation instantaneous values time-series observations for monitoring sites, queryable as nested public JSON over HTTPS with DuckDB httpfs.
+    status: candidate
+    source_type: other
+    authority: U.S. Geological Survey Water Data for the Nation
+    homepage: https://waterservices.usgs.gov/docs/instantaneous-values/instantaneous-values-details/
+    license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+    attribution: Credit U.S. Geological Survey / USGS Water Data for the Nation; cite the site, parameter, time range, and retrieval endpoint used.
+    tables:
+      - id: instantaneous_values
+        description: USGS NWIS instantaneous observations. One row per timestamped monitoring-site and parameter observation after flattening the WaterML JSON timeSeries payload.
+        columns_hint:
+          site_no: USGS monitoring site number such as 01646500.
+          parameter_cd: USGS parameter code such as 00060 for streamflow.
+          observed_at: Observation timestamp returned by the service, generally UTC when date ranges are supplied without local timezone offsets.
+          observed_value: Observation value cast to DOUBLE from the nested JSON string value.
+          qualifiers: USGS value qualifiers such as approved or provisional status flags.
+        ask_for: [site number, parameter code, start datetime, end datetime, site status, whether provisional operational values are acceptable]
+        warnings: [Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows., Large multi-site or multi-parameter requests should be bounded by date range., Instantaneous operational values can be provisional and not fully quality-assured.]
+    tags: [usgs, nwis, water, streamflow, hydrology, json, public-domain]
+    topics: [streamflow, water monitoring, river gauges, hydrology, instantaneous values, time series]
+    coverage:
+      spatial: United States monitoring sites available through USGS Water Data for the Nation
+      temporal: recent and historical instantaneous observations for requested sites and parameters
+      grain: one timestamped site-parameter observation after flattening the NWIS JSON timeSeries response
+    cadence: operational service; cadence varies by monitoring site, sensor, and parameter
+    ai:
+      summary: Official USGS source for gauge observations such as streamflow, stage, temperature, and other instantaneous water values.
+      use_cases: [pull streamflow observations for a gauge, inspect river conditions over a bounded time range, build hydrology examples in DuckDB]
+      caveats: [ask for site and parameter codes before writing SQL, keep date windows narrow for multi-site requests, quality flags and provisional status matter for analysis]
+      prompt_hints: [Ask for the USGS site number, parameter code, time range, site status, and whether provisional data are acceptable.]
+    duckdb:
+      extensions:
+        - httpfs
+      install: |
+        INSTALL httpfs;
+      example_query: |
+        LOAD httpfs;
+        WITH raw AS (
+          SELECT value
+          FROM read_json_auto(
+            'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'
+          )
+        ), series AS (
+          SELECT unnest(value.timeSeries) AS ts
+          FROM raw
+        ), observations AS (
+          SELECT ts.sourceInfo.siteName AS site_name,
+                 ts.sourceInfo.siteCode[1].value AS site_no,
+                 ts.variable.variableCode[1].value AS parameter_cd,
+                 ts.variable.variableName AS parameter_name,
+                 unnest(ts.values[1].value) AS obs
+          FROM series
+        )
+        SELECT site_no,
+               site_name,
+               parameter_cd,
+               parameter_name,
+               obs.dateTime AS observed_at,
+               TRY_CAST(obs.value AS DOUBLE) AS observed_value,
+               obs.qualifiers AS qualifiers
+        FROM observations
+        ORDER BY observed_at
+        LIMIT 25;
+      validation_query: |
+        LOAD httpfs;
+        WITH raw AS (
+          SELECT value
+          FROM read_json_auto(
+            'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'
+          )
+        ), series AS (
+          SELECT unnest(value.timeSeries) AS ts
+          FROM raw
+        ), observations AS (
+          SELECT ts.sourceInfo.siteCode[1].value AS site_no,
+                 ts.variable.variableCode[1].value AS parameter_cd,
+                 unnest(ts.values[1].value) AS obs
+          FROM series
+        )
+        SELECT site_no = '01646500' AS expected_site,
+               parameter_cd = '00060' AS expected_parameter,
+               count(*) = 192 AS expected_15_minute_rows
+        FROM observations
+        GROUP BY site_no, parameter_cd;
+      examples:
+        potomac_streamflow_15_minute_values: |
+          LOAD httpfs;
+          WITH raw AS (
+            SELECT value
+            FROM read_json_auto(
+              'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'
+            )
+          ), series AS (
+            SELECT unnest(value.timeSeries) AS ts
+            FROM raw
+          ), observations AS (
+            SELECT ts.sourceInfo.siteName AS site_name,
+                   ts.sourceInfo.siteCode[1].value AS site_no,
+                   ts.variable.variableCode[1].value AS parameter_cd,
+                   ts.variable.variableName AS parameter_name,
+                   unnest(ts.values[1].value) AS obs
+            FROM series
+          )
+          SELECT site_no,
+                 site_name,
+                 parameter_cd,
+                 parameter_name,
+                 obs.dateTime AS observed_at,
+                 TRY_CAST(obs.value AS DOUBLE) AS observed_value,
+                 obs.qualifiers AS qualifiers
+          FROM observations
+          ORDER BY observed_at
+          LIMIT 25;
   - id: worldbank.wdi.indicators
     name: World Bank World Development Indicators API
     description: Official World Bank Indicators API access to World Development Indicators time-series development data, queryable as public JSON over HTTPS with DuckDB httpfs and JSON functions.

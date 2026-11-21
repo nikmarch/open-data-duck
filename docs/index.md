@@ -162,6 +162,25 @@ Official U.S. Geological Survey realtime earthquake summary feeds for recent sei
 - AI use cases: list recent earthquakes by magnitude, monitor significant events, map recent seismic activity
 - Caveats: rolling feeds are not stable historical snapshots, all_day can be empty during unusually quiet periods, event coordinates are GeoJSON point arrays with longitude latitude depth
 
+### `usgs.nwis.instantaneous-values` — USGS NWIS instantaneous water values API
+
+Official U.S. Geological Survey Water Data for the Nation instantaneous values time-series observations for monitoring sites, queryable as nested public JSON over HTTPS with DuckDB httpfs.
+
+- Status: `candidate`
+- Authority: U.S. Geological Survey Water Data for the Nation
+- Homepage: https://waterservices.usgs.gov/docs/instantaneous-values/instantaneous-values-details/
+- License: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+- Tags: `usgs`, `nwis`, `water`, `streamflow`, `hydrology`, `json`, `public-domain`
+- Topics: streamflow, water monitoring, river gauges, hydrology, instantaneous values, time series
+- Cadence: operational service; cadence varies by monitoring site, sensor, and parameter
+- Tables:
+  - `instantaneous_values`: USGS NWIS instantaneous observations. One row per timestamped monitoring-site and parameter observation after flattening the WaterML JSON timeSeries payload.
+    - Ask for: site number, parameter code, start datetime, end datetime, site status, whether provisional operational values are acceptable
+    - Warnings: Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows., Large multi-site or multi-parameter requests should be bounded by date range., Instantaneous operational values can be provisional and not fully quality-assured.
+    - Columns: site_no: USGS monitoring site number such as 01646500.; parameter_cd: USGS parameter code such as 00060 for streamflow.; observed_at: Observation timestamp returned by the service, generally UTC when date ranges are supplied without local timezone offsets.; observed_value: Observation value cast to DOUBLE from the nested JSON string value.; qualifiers: USGS value qualifiers such as approved or provisional status flags.
+- AI use cases: pull streamflow observations for a gauge, inspect river conditions over a bounded time range, build hydrology examples in DuckDB
+- Caveats: ask for site and parameter codes before writing SQL, keep date windows narrow for multi-site requests, quality flags and provisional status matter for analysis
+
 ### `worldbank.wdi.indicators` — World Bank World Development Indicators API
 
 Official World Bank Indicators API access to World Development Indicators time-series development data, queryable as public JSON over HTTPS with DuckDB httpfs and JSON functions.
