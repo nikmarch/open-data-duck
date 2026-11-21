@@ -30,22 +30,14 @@ Follow-up watchpoint:
 
 - Keep the facade only as a compatibility boundary. New internal code should depend on the focused modules.
 
-## Slice 2: Extract CLI parser construction from command execution
+## Slice 2: Extract CLI parser construction from command execution — done
 
-Problem visible in diagram:
+Result:
 
-- The CLI sequence diagram shows `odd.cli.main()` doing parser construction, dispatch, and path defaults for every domain. That function is already the front door for registry, docs, generated header, and schema manifest commands.
-
-Files touched:
-
-- `odd/cli.py`
-- Existing CLI tests in `tests/test_registry_validation.py` and schema tests.
-
-New/renamed responsibility:
-
-- Extract parser creation into `build_parser()`.
-- Keep command handlers as small functions.
-- Optionally group schema subcommands under a small `schema_cli` helper only if the function stays large after `build_parser()` extraction.
+- `odd.cli.build_parser()` now owns the `argparse` command tree.
+- `odd.cli.main()` parses arguments only, then calls `_dispatch()`.
+- `_dispatch()` owns top-level command routing to the existing small handlers.
+- Schema subcommand dispatch remains in `_schema()` because it is still small and behavior-specific.
 
 Behavior expected to stay the same:
 
@@ -53,15 +45,9 @@ Behavior expected to stay the same:
 - Exit codes.
 - Printed output.
 
-Tests/verification:
+Follow-up watchpoint:
 
-- Existing CLI tests that call `main()`.
-- `uv run odd validate`
-- representative commands: `uv run odd search overture --limit 1`, `uv run odd sql overture.maps.release --no-install`.
-
-Risk:
-
-- Low. Parser extraction should be mostly mechanical.
+- If schema subcommands grow, move them into a small schema CLI module later.
 
 ## Slice 3: Name the generated extension registry contract
 
@@ -190,13 +176,51 @@ Risk:
 
 - Low if deferred. High if abstracted prematurely.
 
+## Slice 7: Refresh README after refactor slices settle
+
+Problem visible in docs:
+
+- `README.md` still carries transitional project history and examples that can drift from the preferred ODD facade flow.
+- The README should describe the final post-refactor shape, not every intermediate architecture step.
+
+Tracking issue:
+
+- [#133 Refresh README after architecture refactor slices](https://github.com/nikmarch/open-data-duck/issues/133)
+
+Files touched:
+
+- `README.md`
+- Possibly `docs/architecture/README.md` if the README should link to architecture docs.
+
+New/renamed responsibility:
+
+- Make the README the concise product/user entry point.
+- Keep architecture internals in `docs/architecture/`.
+- Keep generated catalog/source detail in generated docs/site outputs.
+
+Behavior expected to stay the same:
+
+- No code behavior changes.
+- README examples should match real CLI/native extension behavior.
+
+Tests/verification:
+
+- Run the README-mentioned commands that are practical locally.
+- Keep install/query snippets copy-pasteable.
+- Run docs/site/generated checks when links or generated references are touched.
+
+Risk:
+
+- Low technically, but high review value. Do it after the refactor shape settles so stale text does not get rewritten twice.
+
 ## Recommended order
 
 1. Slice 1: split registry rendering/validation/model. Done.
-2. Slice 2: extract CLI parser construction.
+2. Slice 2: extract CLI parser construction. Done.
 3. Slice 3: name/test generated extension registry contract.
 4. Slice 4: extract native registry parser/lookup from `src/open_data_duck_extension.cpp`.
 5. Slice 5: extract native release/table discovery boundary.
 6. Slice 6: revisit engine helper abstraction only after a concrete need.
+7. Slice 7: refresh README after the architecture/refactor slices settle.
 
-This keeps the first PRs low-risk Python cleanup before touching DuckDB C++ runtime behavior.
+This keeps the first PRs low-risk Python cleanup before touching DuckDB C++ runtime behavior, then finishes with a README that reflects the stable shape.

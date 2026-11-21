@@ -19,18 +19,20 @@ Responsibility: command-line entrypoint for registry and docs operations.
 
 Key symbols:
 
-- `main(argv)` builds the `argparse` command tree and dispatches each subcommand.
-- `_validate()` calls `odd.registry.validate_registry()`.
-- `_index()`, `_show()`, `_search()`, and `_sql()` call registry render/search helpers.
-- `_generate_index()` calls `odd.registry.write_index_artifacts()`.
-- `_generate_site()` calls `odd.registry.write_site_index()`.
+- `build_parser()` builds the `argparse` command tree and default paths.
+- `main(argv)` parses arguments and passes them to `_dispatch()`.
+- `_dispatch()` maps the top-level command to small command handlers.
+- `_validate()` calls `odd.registry_validation.validate_registry()`.
+- `_index()`, `_show()`, `_search()`, and `_sql()` call registry model/render helpers.
+- `_generate_index()` calls `odd.registry_renderers.write_index_artifacts()`.
+- `_generate_site()` calls `odd.registry_renderers.write_site_index()`.
 - `_generate_extension_registry()` calls `odd.extension_registry.write_extension_registry_header()` or `check_extension_registry_header()`.
 - `_schema()` dispatches to schema inspection/check/refresh helpers in `odd.schema_manifest`.
 
-Current pain points:
+Current state:
 
-- One `main()` function owns parser construction and command dispatch for every domain.
-- Command names, default paths, and behavior all live in one file.
+- Parser construction is separated from command execution.
+- Schema subcommand dispatch still lives in `odd/cli.py`; it is small enough to keep there for now.
 
 ### `odd/registry.py`
 

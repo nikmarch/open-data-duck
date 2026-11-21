@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import argparse
 import importlib
 import re
 
@@ -8,7 +9,7 @@ import pytest
 import yaml
 
 from odd.arcgis import plan_offset_pages
-from odd.cli import main
+from odd.cli import build_parser, main
 from odd.registry import (
     find_source,
     render_index_json,
@@ -278,6 +279,23 @@ def test_validate_registry_reports_schema_errors(tmp_path: Path) -> None:
     errors = validate_registry(registry_path, schema_path)
 
     assert any("name" in error.message for error in errors)
+
+
+def test_build_parser_exposes_expected_top_level_commands() -> None:
+    parser = build_parser()
+    subparser_action = next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction))
+
+    assert set(subparser_action.choices) >= {
+        "validate",
+        "index",
+        "show",
+        "generate-index",
+        "generate-site",
+        "generate-extension-registry",
+        "search",
+        "sql",
+        "schema",
+    }
 
 
 def test_cli_validate_exits_zero_for_valid_registry(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
