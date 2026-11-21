@@ -20,42 +20,30 @@ class ValidationError:
 class Source:
     id: str
     name: str
-    description: str
     status: str
     source_type: str
     authority: str
-    homepage: str
     license_url: str
     attribution: str
-    duckdb: dict[str, Any]
     tables: list[dict[str, Any]]
-    tags: list[str]
-    topics: list[str]
-    coverage: dict[str, Any]
-    cadence: str | None
-    ai: dict[str, Any]
+    requirements: dict[str, Any]
     release: dict[str, Any]
+    discovery: dict[str, Any]
 
     @classmethod
     def from_mapping(cls, source: dict[str, Any]) -> Source:
         return cls(
             id=str(source["id"]),
             name=str(source["name"]),
-            description=str(source.get("description", "")),
             status=str(source["status"]),
             source_type=str(source["source_type"]),
             authority=str(source["authority"]),
-            homepage=str(source.get("homepage", "")),
             license_url=str(source["license_url"]),
             attribution=str(source["attribution"]),
-            duckdb=dict(source.get("duckdb", {})),
             tables=_mapping_list(source.get("tables")),
-            tags=_string_list(source.get("tags")),
-            topics=_string_list(source.get("topics")),
-            coverage=dict(source.get("coverage", {})),
-            cadence=str(source["cadence"]) if source.get("cadence") is not None else None,
-            ai=dict(source.get("ai", {})),
+            requirements=dict(source.get("requirements", {})),
             release=dict(source.get("release", {})),
+            discovery=dict(source.get("discovery", {})),
         )
 
     def search_text(self) -> str:
@@ -64,53 +52,40 @@ class Source:
             for item in (
                 self.id,
                 self.name,
-                self.description,
                 self.status,
                 self.source_type,
                 self.authority,
-                self.homepage,
                 self.license_url,
                 self.attribution,
-                self.cadence or "",
-                _flatten_text(self.tags),
-                _flatten_text(self.topics),
-                _flatten_text(self.coverage),
-                _flatten_text(self.ai),
-                _flatten_text(self.duckdb.get("extensions", [])),
-                _flatten_text(self.duckdb.get("tables", {})),
+                _flatten_text(self.requirements),
+                _flatten_text(self.release),
+                _flatten_text(self.discovery),
                 _flatten_text(self.tables),
-                self.duckdb.get("example_query", ""),
             )
         ).casefold()
 
     def to_ai_dict(self, *, include_sql: bool = True) -> dict[str, Any]:
-        duckdb: dict[str, Any] = {
-            "extensions": self.duckdb.get("extensions", []),
-            "has_install": bool(str(self.duckdb.get("install", "")).strip()),
-        }
-        if include_sql:
-            for key in ("install", "example_query", "validation_query", "examples"):
-                if key in self.duckdb:
-                    duckdb[key] = self.duckdb[key]
-
+        tables: list[dict[str, Any]] = []
+        for table in self.tables:
+            table_data = dict(table)
+            if not include_sql:
+                table_data["validations"] = [
+                    {key: value for key, value in validation.items() if key not in {"direct_sql", "odd_sql"}}
+                    for validation in _mapping_list(table.get("validations"))
+                ]
+            tables.append(table_data)
         data: dict[str, Any] = {
             "id": self.id,
             "name": self.name,
-            "description": self.description,
             "status": self.status,
             "source_type": self.source_type,
             "authority": self.authority,
-            "homepage": self.homepage,
             "license_url": self.license_url,
             "attribution": self.attribution,
-            "tags": self.tags,
-            "topics": self.topics,
-            "coverage": self.coverage,
-            "cadence": self.cadence,
-            "ai": self.ai,
+            "requirements": self.requirements,
             "release": self.release,
-            "tables": self.tables,
-            "duckdb": duckdb,
+            "discovery": self.discovery,
+            "tables": tables,
         }
         return {key: value for key, value in data.items() if value not in (None, [], {})}
 
@@ -149,7 +124,6 @@ def search_sources(
 ) -> list[Source]:
     terms = [term.casefold() for term in query.split() if term.strip()]
     matches: list[Source] = []
-
     for source in load_sources(registry_path):
         if source_type and source.source_type != source_type:
             continue
@@ -161,7 +135,6 @@ def search_sources(
         matches.append(source)
         if limit is not None and len(matches) >= limit:
             break
-
     return matches
 
 
@@ -170,6 +143,7 @@ def find_source(registry_path: Path, source_id: str) -> Source | None:
         if source.id == source_id:
             return source
     return None
+
 
 def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):

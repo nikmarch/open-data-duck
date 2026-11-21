@@ -36,7 +36,7 @@ true
 query I
 SELECT open_data_duck_registry_json()->>'$.schema_version';
 ----
-1
+2
 
 query I
 SELECT json_array_length(open_data_duck_registry_json(), '$.sources') = open_data_duck_registry_source_count();
@@ -54,16 +54,10 @@ id	VARCHAR
 name	VARCHAR
 source_type	VARCHAR
 status	VARCHAR
-description	VARCHAR
 authority	VARCHAR
-homepage	VARCHAR
 license_url	VARCHAR
 attribution	VARCHAR
-tags	VARCHAR[]
-extensions	VARCHAR[]
-install	VARCHAR
-example_query	VARCHAR
-validation_query	VARCHAR
+duckdb_extensions	VARCHAR[]
 namespace	VARCHAR
 
 query I
@@ -96,7 +90,7 @@ SELECT id FROM open_data_search('overture');
 overture.maps.release
 
 query I
-SELECT namespace FROM open_data_search('building') WHERE id = 'overture.maps.release';
+SELECT namespace FROM open_data_search('overture') WHERE id = 'overture.maps.release';
 ----
 odd.overturemaps.latest
 
@@ -138,9 +132,9 @@ SELECT * FROM open_data_search(NULL);
 ----
 Binder Error: open_data_search(query) requires a non-NULL search string
 
-# open_data_sql() returns install statements, a blank line, then the example query.
+# open_data_sql() returns the first table validation's ODD facade query.
 query I
-SELECT open_data_sql('overture.maps.release') LIKE 'INSTALL httpfs;' || chr(10) || chr(10) || 'LOAD httpfs;%';
+SELECT open_data_sql('overture.maps.release') LIKE 'LOAD open_data_duck;%';
 ----
 true
 
@@ -150,7 +144,7 @@ SELECT open_data_sql('overture.maps.release') LIKE '%LIMIT 10;' || chr(10);
 true
 
 query I
-SELECT open_data_validation_sql('overture.maps.release') LIKE '%small_bbox_query_ok%';
+SELECT open_data_validation_sql('overture.maps.release') LIKE '%direct DuckDB control for odd.overturemaps.latest.place%';
 ----
 true
 
@@ -209,7 +203,7 @@ open_data_duck: source 'stac.earth-search.aws' has no release.latest.resolve_sql
 
 # Issue #79: attached ODD namespace exposes discovery as tables.
 query I
-SELECT id FROM odd.index WHERE list_contains(tags, 'buildings') AND id = 'overture.maps.release';
+SELECT id FROM odd.index WHERE name ILIKE '%Overture%' AND id = 'overture.maps.release';
 ----
 overture.maps.release
 
@@ -219,7 +213,7 @@ statement ok
 ATTACH 'odd' AS odd_catalog (TYPE open_data_duck);
 
 query I
-SELECT id FROM odd_catalog.index WHERE list_contains(tags, 'buildings') AND id = 'overture.maps.release';
+SELECT id FROM odd_catalog.index WHERE name ILIKE '%Overture%' AND id = 'overture.maps.release';
 ----
 overture.maps.release
 
@@ -236,9 +230,9 @@ SELECT * FROM odd.nothing.here.at_all;
 ----
 does not exist
 
-# The recipe text matches what the embedded registry carries for that source.
+# The recipe text comes from the first table validation's ODD facade SQL.
 query I
-SELECT open_data_sql(id) = install || chr(10) || chr(10) || example_query || chr(10)
+SELECT open_data_sql(id) LIKE '%FROM odd.overturemaps.latest.place%'
 FROM open_data_sources() WHERE id = 'overture.maps.release';
 ----
 true

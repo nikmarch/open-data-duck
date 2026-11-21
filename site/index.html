@@ -28,7 +28,7 @@
       <img class="wordmark" src="assets/brand/odd-wordmark.svg" alt="Open Data Duck">
       <p class="eyebrow">DuckDB-friendly public data index</p>
       <h1 id="site-title">Find authoritative open data sources and query them safely with DuckDB.</h1>
-      <p class="lede">Open Data Duck does not mirror datasets. It stores source metadata, licenses, attribution, and executable query recipes so people and AI workers can plug in public datasets quickly, without Googling, configuring, or remembering every source.</p>
+      <p class="lede">Open Data Duck stores table metadata, licenses, attribution, and executable validation pairs so ODD facade queries can be checked against direct DuckDB controls.</p>
       <div class="actions" aria-label="Primary links">
         <a class="button primary" href="#plugin-api">Plugin API direction</a>
         <a class="button" href="#source-catalog">Browse generated catalog</a>
@@ -41,9 +41,8 @@
       <div class="api-copy">
         <p class="eyebrow">Plugin API direction</p>
         <h2 id="plugin-api-title">Attach once. Search the catalog table. Query the facade table.</h2>
-        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker. The native extension resolves ODD table references with a replacement scan. Set the Overture S3 region before querying those facade tables.</p>
+        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker. The native extension resolves ODD table references with a replacement scan. Set the Overture S3 region before querying those facade tables. Registry validations keep each facade query paired with a direct DuckDB control.</p>
       </div>
-
       <div class="api-card" aria-label="Open Data Duck plugin API example">
         <pre><code>INSTALL open_data_duck;
 LOAD open_data_duck;
@@ -54,8 +53,8 @@ ATTACH ':memory:' AS odd (TYPE open_data_duck);
 
 SELECT *
 FROM odd.index
-WHERE list_contains(tags, 'buildings')
-   OR name ILIKE '%building%';
+WHERE name ILIKE '%building%'
+   OR source_type = 'overture';
 
 SELECT table_reference, reader, path
 FROM odd.tables
@@ -70,13 +69,7 @@ WHERE bbox.xmin <= -149
 LIMIT 10;</code></pre>
         <table>
           <caption>Generated queryable table refs from registry/sources.yml</caption>
-          <thead>
-            <tr>
-              <th>source</th>
-              <th>table</th>
-              <th>table_reference</th>
-            </tr>
-          </thead>
+          <thead><tr><th>source</th><th>table</th><th>table_reference</th></tr></thead>
           <tbody>
             <tr>
               <td>Overture Maps source family</td>
@@ -122,406 +115,192 @@ LIMIT 10;</code></pre>
         </table>
       </div>
     </section>
-
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">25 sources across arcgis (3), ckan (1), other (14), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">25 sources across arcgis (3), ckan (1), other (14), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>overture</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
           <h3><code>overture.maps.release</code></h3>
-          <p>Global open map data releases for places, buildings, transportation, addresses, divisions, and base layers queryable from public S3 with DuckDB httpfs.</p>
-          <dl>
-            <dt>Authority</dt><dd>Overture Maps Foundation</dd>
-            <dt>License</dt><dd><a href="https://docs.overturemaps.org/attribution/">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>maps</li><li>geospatial</li><li>places</li><li>buildings</li><li>transportation</li><li>addresses</li></ul>
+          <p>Overture Maps source family</p>
+          <dl><dt>Authority</dt><dd>Overture Maps Foundation</dd><dt>License</dt><dd><a href="https://docs.overturemaps.org/attribution/">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>place</strong> <code>odd.overturemaps.latest.place</code>: Places and points of interest. One row per Overture place feature. <span>Ask for: bbox or area, release or latest, limit</span> <span>Warnings: Large global table; always use tight bbox filters.</span></li><li><strong>building</strong> <code>odd.overturemaps.latest.building</code>: Building footprint polygons. One row per Overture building feature. <span>Ask for: bbox or area, release or latest, limit</span> <span>Warnings: Large global table; always use tight bbox filters.</span></li><li><strong>segment</strong> <code>odd.overturemaps.latest.segment</code>: Transportation road/path segments. One row per Overture segment feature. <span>Ask for: bbox or area, release or latest, limit</span> <span>Warnings: Large global table; always use tight bbox filters.</span></li><li><strong>address</strong> <code>odd.overturemaps.latest.address</code>: Address point/record features. One row per Overture address feature. <span>Ask for: bbox or area, release or latest, limit</span> <span>Warnings: Large global table; always use tight bbox filters.</span></li></ul>
-          <a href="https://docs.overturemaps.org/getting-data/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>naturalearth.admin0-countries</code></h3>
-          <p>Public-domain generalized country and sovereignty polygons from Natural Earth&#x27;s 1:110m Admin 0 countries layer, queryable directly from the zipped shapefile with DuckDB spatial/GDAL virtual file paths.</p>
-          <dl>
-            <dt>Authority</dt><dd>Natural Earth</dd>
-            <dt>License</dt><dd><a href="https://www.naturalearthdata.com/about/terms-of-use/">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>natural-earth</li><li>countries</li><li>boundaries</li><li>shapefile</li><li>geospatial</li></ul>
+          <p>Natural Earth Admin 0 countries</p>
+          <dl><dt>Authority</dt><dd>Natural Earth</dd><dt>License</dt><dd><a href="https://www.naturalearthdata.com/about/terms-of-use/">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>countries_110m</strong> <code>odd.naturalearth.latest.countries_110m</code>: Generalized Admin 0 country polygons at 1:110m scale. One row per country or country-like map unit in the Natural Earth countries layer. <span>Ask for: scale, whether de facto boundaries are acceptable, country or sovereignty fields, limit</span> <span>Warnings: Natural Earth is cartographic generalized data for small-scale maps, not legal or survey boundaries., The Admin 0 countries layer uses de facto boundaries by default; choose a different Natural Earth Admin 0 product if map units, sovereignty, or disputed areas matter.</span></li></ul>
-          <a href="https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>stac</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>stac</span></div>
           <h3><code>stac.earth-search.aws</code></h3>
-          <p>Element 84 STAC API for cloud-optimized geospatial imagery, especially Sentinel collections hosted in the AWS open data ecosystem.</p>
-          <dl>
-            <dt>Authority</dt><dd>Element 84 / AWS Open Data ecosystem</dd>
-            <dt>License</dt><dd><a href="https://registry.opendata.aws/sentinel-2-l2a-cogs/">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>stac</li><li>imagery</li><li>aws</li><li>sentinel</li></ul>
+          <p>Earth Search STAC API</p>
+          <dl><dt>Authority</dt><dd>Element 84 / AWS Open Data ecosystem</dd><dt>License</dt><dd><a href="https://registry.opendata.aws/sentinel-2-l2a-cogs/">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>stac_items</strong>: STAC item search results from Earth Search. One row per imagery item returned by the STAC API. <span>Ask for: collection, bbox, date range, cloud cover, limit</span> <span>Warnings: Assets can be large; inspect metadata before reading imagery assets.</span></li></ul>
-          <a href="https://earth-search.aws.element84.com/v1">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>stac</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>stac</span></div>
           <h3><code>stac.microsoft.planetary-computer</code></h3>
-          <p>Microsoft Planetary Computer STAC catalog for environmental, climate, and satellite datasets exposed through a STAC API.</p>
-          <dl>
-            <dt>Authority</dt><dd>Microsoft Planetary Computer</dd>
-            <dt>License</dt><dd><a href="https://planetarycomputer.microsoft.com/terms">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>stac</li><li>imagery</li><li>climate</li><li>microsoft</li></ul>
+          <p>Microsoft Planetary Computer STAC API</p>
+          <dl><dt>Authority</dt><dd>Microsoft Planetary Computer</dd><dt>License</dt><dd><a href="https://planetarycomputer.microsoft.com/terms">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>stac_items</strong>: STAC item search results from Microsoft Planetary Computer. One row per catalog item returned by the STAC API. <span>Ask for: collection, bbox, date range, limit</span> <span>Warnings: Some assets require Planetary Computer signing or access patterns.</span></li></ul>
-          <a href="https://planetarycomputer.microsoft.com/catalog">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>stac</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>stac</span></div>
           <h3><code>stac.nasa.lpcloud</code></h3>
-          <p>NASA LP DAAC STAC catalog for land processes data products served through Earthdata/CMR endpoints.</p>
-          <dl>
-            <dt>Authority</dt><dd>NASA Land Processes Distributed Active Archive Center</dd>
-            <dt>License</dt><dd><a href="https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>stac</li><li>nasa</li><li>land</li><li>earthdata</li></ul>
+          <p>NASA LP DAAC LPCLOUD STAC catalog</p>
+          <dl><dt>Authority</dt><dd>NASA Land Processes Distributed Active Archive Center</dd><dt>License</dt><dd><a href="https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>stac_items</strong>: NASA LP DAAC STAC item metadata. One row per land-processes product item returned by the STAC API. <span>Ask for: product or collection, bbox or area, date range, limit</span> <span>Warnings: Some downstream assets may require Earthdata access workflows.</span></li></ul>
-          <a href="https://cmr.earthdata.nasa.gov/stac/LPCLOUD/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">connector-blocked</span>
-            <span>arcgis</span>
-          </div>
+          <div class="source-card-header"><span class="status">connector-blocked</span><span>arcgis</span></div>
           <h3><code>arcgis.census.tigerweb.state-county</code></h3>
-          <p>Census TIGERweb ArcGIS layers for U.S. state and county boundaries, useful once ArcGIS paging is available in the DuckDB path.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Census Bureau</dd>
-            <dt>License</dt><dd><a href="https://www.census.gov/data/developers/about/terms-of-service.html">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>arcgis</li><li>census</li><li>boundaries</li><li>us</li></ul>
+          <p>U.S. Census TIGERweb state and county layers</p>
+          <dl><dt>Authority</dt><dd>U.S. Census Bureau</dd><dt>License</dt><dd><a href="https://www.census.gov/data/developers/about/terms-of-service.html">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>county_boundaries</strong>: TIGERweb state/county boundary layer features. One row per ArcGIS boundary feature. <span>Ask for: state or county, fields, whether geometry is needed</span> <span>Warnings: Connector is blocked; use REST pagination until ArcGIS support is stable.</span></li></ul>
-          <a href="https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>census.cartographic.county-boundaries</code></h3>
-          <p>Official generalized U.S. county boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Census Bureau Geography Program</dd>
-            <dt>License</dt><dd><a href="https://www.census.gov/data/developers/about/terms-of-service.html">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>census</li><li>boundaries</li><li>counties</li><li>shapefile</li><li>geospatial</li></ul>
+          <p>U.S. Census cartographic county boundary files</p>
+          <dl><dt>Authority</dt><dd>U.S. Census Bureau Geography Program</dd><dt>License</dt><dd><a href="https://www.census.gov/data/developers/about/terms-of-service.html">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>county_20m</strong> <code>odd.census.latest.county_20m</code>: Generalized U.S. county polygons at 20m scale. One row per county or county-equivalent feature. <span>Ask for: year, scale, state filter, GEOID join key</span> <span>Warnings: Generalized for thematic mapping, not surveying.</span></li></ul>
-          <a href="https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>census.cartographic.tract-boundaries</code></h3>
-          <p>Official generalized U.S. census tract boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Census Bureau Geography Program</dd>
-            <dt>License</dt><dd><a href="https://www.census.gov/data/developers/about/terms-of-service.html">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>census</li><li>boundaries</li><li>tracts</li><li>shapefile</li><li>geospatial</li></ul>
+          <p>U.S. Census cartographic tract boundary files</p>
+          <dl><dt>Authority</dt><dd>U.S. Census Bureau Geography Program</dd><dt>License</dt><dd><a href="https://www.census.gov/data/developers/about/terms-of-service.html">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>tract_5m</strong> <code>odd.census.latest.tract_5m</code>: Generalized U.S. census tract polygons at 5m scale. One row per census tract feature. <span>Ask for: year, scale, state filter, tract GEOID join key</span> <span>Warnings: National tract files are larger; filter by state when possible.</span></li></ul>
-          <a href="https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">connector-blocked</span>
-            <span>arcgis</span>
-          </div>
+          <div class="source-card-header"><span class="status">connector-blocked</span><span>arcgis</span></div>
           <h3><code>arcgis.fema.nfhl.flood-hazard-zones</code></h3>
-          <p>FEMA NFHL ArcGIS layer for flood hazard zones, intended for risk and property-context queries after ArcGIS paging support is stable.</p>
-          <dl>
-            <dt>Authority</dt><dd>Federal Emergency Management Agency</dd>
-            <dt>License</dt><dd><a href="https://www.fema.gov/about/openfema/terms-conditions">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>arcgis</li><li>fema</li><li>flood</li><li>hazards</li></ul>
+          <p>FEMA National Flood Hazard Layer flood hazard zones</p>
+          <dl><dt>Authority</dt><dd>Federal Emergency Management Agency</dd><dt>License</dt><dd><a href="https://www.fema.gov/about/openfema/terms-conditions">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>flood_hazard_zones</strong>: FEMA NFHL flood hazard zone features. One row per flood hazard zone feature. <span>Ask for: bbox or jurisdiction, fields, whether geometry is needed</span> <span>Warnings: Not a substitute for official determinations; connector path is not stable yet.</span></li></ul>
-          <a href="https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">connector-blocked</span>
-            <span>arcgis</span>
-          </div>
+          <div class="source-card-header"><span class="status">connector-blocked</span><span>arcgis</span></div>
           <h3><code>arcgis.usgs.national-map-contours</code></h3>
-          <p>USGS National Map ArcGIS contour layer for elevation-line features and terrain context, pending stable ArcGIS support.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Geological Survey</dd>
-            <dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>arcgis</li><li>usgs</li><li>elevation</li><li>contours</li></ul>
+          <p>USGS National Map elevation contours</p>
+          <dl><dt>Authority</dt><dd>U.S. Geological Survey</dd><dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>contours</strong>: USGS National Map elevation contour line features. One row per contour segment feature. <span>Ask for: bbox, contour interval or elevation need, fields</span> <span>Warnings: Connector is blocked; large geometry layers need paging.</span></li></ul>
-          <a href="https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>nhtsa.vehicle-safety</code></h3>
-          <p>Official National Highway Traffic Safety Administration vehicle recall campaigns and safety-rating lookup APIs, queryable as public JSON over HTTPS with DuckDB httpfs.</p>
-          <dl>
-            <dt>Authority</dt><dd>National Highway Traffic Safety Administration, U.S. Department of Transportation</dd>
-            <dt>License</dt><dd><a href="https://www.nhtsa.gov/about-nhtsa/terms-use">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>nhtsa</li><li>vehicle-safety</li><li>recalls</li><li>safety-ratings</li><li>json</li></ul>
+          <p>NHTSA vehicle safety recalls and ratings APIs</p>
+          <dl><dt>Authority</dt><dd>National Highway Traffic Safety Administration, U.S. Department of Transportation</dd><dt>License</dt><dd><a href="https://www.nhtsa.gov/about-nhtsa/terms-use">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>recalls_by_vehicle</strong>: NHTSA recall campaign results for a requested model year, make, and model. One row per recall campaign result. <span>Ask for: model year, make, model, limit</span> <span>Warnings: Parameterized API endpoint; preserve model year, make, and model filters instead of treating it as a full-table scan.</span></li><li><strong>safety_rating_variants</strong>: NHTSA safety-rating vehicle variants for a requested model year, make, and model. One row per returned vehicle variant. <span>Ask for: model year, make, model, limit</span> <span>Warnings: Parameterized API endpoint; use the returned VehicleId for rating-detail lookups.</span></li></ul>
-          <a href="https://www.nhtsa.gov/nhtsa-datasets-and-apis">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>usgs.earthquake.realtime-geojson</code></h3>
-          <p>Official U.S. Geological Survey realtime earthquake summary feeds for recent seismic events, queryable directly from GeoJSON over HTTPS with DuckDB read_json_auto.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Geological Survey Earthquake Hazards Program</dd>
-            <dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>usgs</li><li>earthquakes</li><li>hazards</li><li>geojson</li><li>realtime</li></ul>
+          <p>USGS realtime earthquake GeoJSON feeds</p>
+          <dl><dt>Authority</dt><dd>U.S. Geological Survey Earthquake Hazards Program</dd><dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>earthquake_events</strong>: Recent USGS earthquake event features. One row per reported seismic event in the selected rolling feed. <span>Ask for: feed window, magnitude threshold, bbox or region, limit</span> <span>Warnings: Rolling feeds are not stable historical snapshots.</span></li></ul>
-          <a href="https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>usgs.nwis.instantaneous-values</code></h3>
-          <p>Official U.S. Geological Survey Water Data for the Nation instantaneous values time-series observations for monitoring sites, queryable as nested public JSON over HTTPS with DuckDB httpfs.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Geological Survey Water Data for the Nation</dd>
-            <dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>usgs</li><li>nwis</li><li>water</li><li>streamflow</li><li>hydrology</li><li>json</li></ul>
+          <p>USGS NWIS instantaneous water values API</p>
+          <dl><dt>Authority</dt><dd>U.S. Geological Survey Water Data for the Nation</dd><dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>instantaneous_values</strong>: USGS NWIS instantaneous observations. One row per timestamped monitoring-site and parameter observation after flattening the WaterML JSON timeSeries payload. <span>Ask for: site number, parameter code, start datetime, end datetime, site status, whether provisional operational values are acceptable</span> <span>Warnings: Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows., Large multi-site or multi-parameter requests should be bounded by date range., Instantaneous operational values can be provisional and not fully quality-assured.</span></li></ul>
-          <a href="https://waterservices.usgs.gov/docs/instantaneous-values/instantaneous-values-details/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>worldbank.wdi.indicators</code></h3>
-          <p>Official World Bank Indicators API access to World Development Indicators time-series development data, queryable as public JSON over HTTPS with DuckDB httpfs and JSON functions.</p>
-          <dl>
-            <dt>Authority</dt><dd>World Bank Group</dd>
-            <dt>License</dt><dd><a href="https://www.worldbank.org/ext/en/legal/terms-conditions/datasets">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>world-bank</li><li>wdi</li><li>indicators</li><li>development</li><li>json</li></ul>
+          <p>World Bank World Development Indicators API</p>
+          <dl><dt>Authority</dt><dd>World Bank Group</dd><dt>License</dt><dd><a href="https://www.worldbank.org/ext/en/legal/terms-conditions/datasets">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>indicators</strong>: World Bank indicator observations. One row per country, indicator, and year. <span>Ask for: country code, indicator id, year range</span> <span>Warnings: Values may be null; API responses use a JSON envelope.</span></li></ul>
-          <a href="https://api.worldbank.org/v2/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>bls.cpi.timeseries</code></h3>
-          <p>Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Price Index time-series observations, queryable as public JSON over HTTPS with DuckDB httpfs.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Bureau of Labor Statistics</dd>
-            <dt>License</dt><dd><a href="https://www.bls.gov/developers/termsOfService.htm">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>bls</li><li>cpi</li><li>inflation</li><li>labor-statistics</li><li>json</li></ul>
+          <p>BLS Consumer Price Index time series API</p>
+          <dl><dt>Authority</dt><dd>U.S. Bureau of Labor Statistics</dd><dt>License</dt><dd><a href="https://www.bls.gov/developers/termsOfService.htm">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>cpi_observations</strong>: BLS CPI time-series observations. One row per BLS series and period. <span>Ask for: series id, start year, end year</span> <span>Warnings: Values are returned as strings and should be cast before numeric analysis.</span></li></ul>
-          <a href="https://www.bls.gov/developers/home.htm">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>openfda.food.enforcement-reports</code></h3>
-          <p>Official openFDA food enforcement recall reports from FDA Recall Enterprise System records, queryable as a public JSON API with DuckDB httpfs.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Food and Drug Administration openFDA</dd>
-            <dt>License</dt><dd><a href="https://open.fda.gov/license/">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>fda</li><li>openfda</li><li>recalls</li><li>food-safety</li><li>json</li><li>public-domain</li></ul>
+          <p>FDA openFDA food enforcement recall reports</p>
+          <dl><dt>Authority</dt><dd>U.S. Food and Drug Administration openFDA</dd><dt>License</dt><dd><a href="https://open.fda.gov/license/">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>food_enforcement_reports</strong>: FDA food enforcement recall reports. One row per public recall report returned from the openFDA food enforcement endpoint after unnesting the JSON results envelope. <span>Ask for: classification, status, date window, product or firm search term, limit</span> <span>Warnings: API keys are optional but keyless access can be rate-limited; responses are nested JSON envelopes, so unnest results before treating reports as rows.</span></li></ul>
-          <a href="https://open.fda.gov/apis/food/enforcement/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>treasury.fiscaldata.debt-to-penny</code></h3>
-          <p>Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.</p>
-          <dl>
-            <dt>Authority</dt><dd>U.S. Department of the Treasury, Bureau of the Fiscal Service</dd>
-            <dt>License</dt><dd><a href="https://catalog.data.gov/dataset/debt-to-the-penny">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>treasury</li><li>fiscal-data</li><li>debt</li><li>public-debt</li><li>csv</li></ul>
+          <p>U.S. Treasury Fiscal Data Debt to the Penny API</p>
+          <dl><dt>Authority</dt><dd>U.S. Department of the Treasury, Bureau of the Fiscal Service</dd><dt>License</dt><dd><a href="https://catalog.data.gov/dataset/debt-to-the-penny">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>debt_observations</strong>: U.S. Treasury daily public debt outstanding records. One row per record date. <span>Ask for: date window, debt field, limit</span> <span>Warnings: Fiscal Data CSV responses are gzipped; use compression = &#x27;gzip&#x27;.</span></li></ul>
-          <a href="https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/debt-to-the-penny">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>noaa.ncei.storm-events</code></h3>
-          <p>Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.</p>
-          <dl>
-            <dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd>
-            <dt>License</dt><dd><a href="https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>noaa</li><li>ncei</li><li>storms</li><li>weather</li><li>hazards</li><li>csv</li></ul>
+          <p>NOAA NCEI Storm Events bulk CSV files</p>
+          <dl><dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd><dt>License</dt><dd><a href="https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>storm_events_details</strong> <code>odd.noaa.latest.storm_events_details</code>: NOAA Storm Events detail rows. One row per reported storm event. <span>Ask for: year, state, event type, limit</span> <span>Warnings: Files are revised with creation-date suffixes; pin year for reproducible examples.</span></li><li><strong>storm_events_fatalities</strong> <code>odd.noaa.latest.storm_events_fatalities</code>: NOAA Storm Events fatality rows. One row per fatality associated with a storm event. <span>Ask for: year, state or event id, limit</span> <span>Warnings: Join to details by event_id for event context.</span></li><li><strong>storm_events_locations</strong> <code>odd.noaa.latest.storm_events_locations</code>: NOAA Storm Events location rows. One row per location attached to a storm event. <span>Ask for: year, state or event id, limit</span> <span>Warnings: Join to details by event_id for event context.</span></li></ul>
-          <a href="https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>aws.noaa-ghcn-daily</code></h3>
-          <p>NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.</p>
-          <dl>
-            <dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd>
-            <dt>License</dt><dd><a href="https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>aws</li><li>noaa</li><li>climate</li><li>weather</li><li>csv</li></ul>
+          <p>NOAA Global Historical Climatology Network Daily</p>
+          <dl><dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd><dt>License</dt><dd><a href="https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>ghcn_daily</strong> <code>odd.noaa.latest.ghcn_daily</code>: GHCN Daily station observations. One row per station, date, and observed climate element. <span>Ask for: year, station id, climate element</span> <span>Warnings: CSV files are large; filter by year/station/element early.</span></li></ul>
-          <a href="https://registry.opendata.aws/noaa-ghcn/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>aws.noaa-gsod</code></h3>
-          <p>NOAA GSOD daily weather summaries by station, exposed as public S3 CSV objects queryable with DuckDB httpfs.</p>
-          <dl>
-            <dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd>
-            <dt>License</dt><dd><a href="https://www.ncei.noaa.gov/products/land-based-weather-stations">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>aws</li><li>noaa</li><li>weather</li><li>daily</li><li>csv</li></ul>
+          <p>NOAA Global Surface Summary of the Day</p>
+          <dl><dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd><dt>License</dt><dd><a href="https://www.ncei.noaa.gov/products/land-based-weather-stations">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>daily_summaries</strong>: NOAA GSOD daily station weather summaries. One row per station-day summary. <span>Ask for: station id, year, weather fields</span> <span>Warnings: Station files are split by year and station.</span></li></ul>
-          <a href="https://registry.opendata.aws/noaa-gsod/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>other</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>aws.noaa-isd-history</code></h3>
-          <p>NOAA ISD station-history lookup table with station identifiers, names, country/state, and coordinates.</p>
-          <dl>
-            <dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd>
-            <dt>License</dt><dd><a href="https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>aws</li><li>noaa</li><li>stations</li><li>lookup</li><li>csv</li></ul>
+          <p>NOAA Integrated Surface Database station history</p>
+          <dl><dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd><dt>License</dt><dd><a href="https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>station_history</strong>: NOAA ISD station metadata. One row per weather station history record. <span>Ask for: country, state, station name, nearby place</span> <span>Warnings: Metadata lookup only; use observation datasets for measurements.</span></li></ul>
-          <a href="https://registry.opendata.aws/noaa-isd/">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>ckan</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>ckan</span></div>
           <h3><code>ckan.data-gov-au.wyndham-pets</code></h3>
-          <p>Australian Government CKAN catalog package with a public CSV distribution of Wyndham registered dog and cat counts by suburb.</p>
-          <dl>
-            <dt>Authority</dt><dd>Wyndham City Council via data.gov.au</dd>
-            <dt>License</dt><dd><a href="https://creativecommons.org/licenses/by/3.0/au/">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>ckan</li><li>dcat</li><li>australia</li><li>csv</li><li>animals</li></ul>
+          <p>Data.gov.au Wyndham registered dogs and cats</p>
+          <dl><dt>Authority</dt><dd>Wyndham City Council via data.gov.au</dd><dt>License</dt><dd><a href="https://creativecommons.org/licenses/by/3.0/au/">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>wyndham_pet_registrations</strong>: Wyndham registered dog and cat counts. One row per suburb/count record in the public CSV distribution. <span>Ask for: suburb or animal type</span> <span>Warnings: CKAN is discovery metadata; query the direct readable CSV distribution.</span></li></ul>
-          <a href="https://data.gov.au/data/dataset/wyndham-registered-dogs-catscsv">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>socrata</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>socrata</span></div>
           <h3><code>socrata.nyc.311-service-requests</code></h3>
-          <p>New York City 311 service-request records from 2020 to present, exposed through the official NYC Open Data Socrata portal with bounded SODA export queries.</p>
-          <dl>
-            <dt>Authority</dt><dd>City of New York Office of Technology and Innovation via NYC Open Data</dd>
-            <dt>License</dt><dd><a href="https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-216807">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>socrata</li><li>nyc</li><li>311</li><li>service-requests</li><li>csv</li></ul>
+          <p>NYC Open Data 311 Service Requests</p>
+          <dl><dt>Authority</dt><dd>City of New York Office of Technology and Innovation via NYC Open Data</dd><dt>License</dt><dd><a href="https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-216807">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>service_requests</strong>: NYC 311 service request records. One row per 311 request. <span>Ask for: date range, borough, complaint type, limit</span> <span>Warnings: Large table requires bounded SODA queries with select/order/limit.</span></li></ul>
-          <a href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2020-to-Present/erm2-nwe9">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>socrata</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>socrata</span></div>
           <h3><code>socrata.cdc.places-county-2025</code></h3>
-          <p>CDC PLACES model-based county-level estimates for chronic disease outcomes, prevention measures, risk behaviors, disabilities, health status, and health-related social needs, published on the official CDC Socrata portal with bounded SODA export queries.</p>
-          <dl>
-            <dt>Authority</dt><dd>Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health</dd>
-            <dt>License</dt><dd><a href="https://data.cdc.gov/api/views/metadata/v1/swc5-untb">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>socrata</li><li>cdc</li><li>health</li><li>counties</li><li>public-domain</li><li>csv</li></ul>
+          <p>CDC PLACES county health estimates, 2025 release</p>
+          <dl><dt>Authority</dt><dd>Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health</dd><dt>License</dt><dd><a href="https://data.cdc.gov/api/views/metadata/v1/swc5-untb">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>county_health_estimates</strong>: CDC PLACES county health estimate rows. One row per county, measure, and data-value type. <span>Ask for: state, measure id, age-adjusted or crude prevalence</span> <span>Warnings: Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.</span></li></ul>
-          <a href="https://data.cdc.gov/d/swc5-untb">Homepage</a>
         </article>
         <article class="source-card">
-          <div class="source-card-header">
-            <span class="status">candidate</span>
-            <span>parquet</span>
-          </div>
+          <div class="source-card-header"><span class="status">candidate</span><span>parquet</span></div>
           <h3><code>sourcecoop.vida.google-microsoft-open-buildings</code></h3>
-          <p>VIDA&#x27;s combined Google and Microsoft global building-footprint dataset, partitioned as public GeoParquet on Source Cooperative for direct DuckDB scans.</p>
-          <dl>
-            <dt>Authority</dt><dd>VIDA, combining Google Open Buildings V3 and Microsoft GlobalMLBuildingFootprints</dd>
-            <dt>License</dt><dd><a href="https://data.source.coop/vida/google-microsoft-open-buildings/README.md">Terms</a></dd>
-          </dl>
-          <ul class="tag-list"><li>source-cooperative</li><li>buildings</li><li>geospatial</li><li>geoparquet</li><li>footprints</li></ul>
+          <p>VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)</p>
+          <dl><dt>Authority</dt><dd>VIDA, combining Google Open Buildings V3 and Microsoft GlobalMLBuildingFootprints</dd><dt>License</dt><dd><a href="https://data.source.coop/vida/google-microsoft-open-buildings/README.md">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>building_footprints</strong>: Combined Google/Microsoft building footprint polygons. One row per building footprint. <span>Ask for: ISO3 country code, bbox, limit</span> <span>Warnings: Large countries are partitioned; use country and S2 paths to avoid huge scans.</span></li></ul>
-          <a href="https://source.coop/repositories/vida/google-microsoft-open-buildings/description">Homepage</a>
         </article>
       </div>
     </section>
-
     <section class="grid" aria-label="Project documentation">
-      <article>
-        <h2>Source index</h2>
-        <p>Human- and AI-friendly catalog entries for public data sources, DuckDB recipes, licenses, usage hints, and validation queries.</p>
-        <a href="https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md">Read the generated index</a>
-      </article>
-      <article>
-        <h2>Engine track</h2>
-        <p>Connector status for ArcGIS, CKAN/DCAT, Socrata, Overture, STAC, and public object-storage paths.</p>
-        <a href="https://github.com/nikmarch/open-data-duck/blob/main/docs/engine-maintenance.md">See engine maintenance</a>
-      </article>
-      <article>
-        <h2>Brand assets</h2>
-        <p>The project wordmark and icon are checked into the repo and reused here by the Pages build.</p>
-        <a href="https://github.com/nikmarch/open-data-duck/blob/main/docs/brand-assets.md">View brand assets</a>
-      </article>
+      <article><h2>Source index</h2><p>Human- and AI-friendly catalog entries for public data sources, licenses, table hints, and executable validation pairs.</p><a href="https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md">Read the generated index</a></article>
+      <article><h2>Engine track</h2><p>Connector status for ArcGIS, CKAN/DCAT, Socrata, Overture, STAC, and public object-storage paths.</p><a href="https://github.com/nikmarch/open-data-duck/blob/main/docs/engine-maintenance.md">See engine maintenance</a></article>
+      <article><h2>Brand assets</h2><p>The project wordmark and icon are checked into the repo and reused here by the Pages build.</p><a href="https://github.com/nikmarch/open-data-duck/blob/main/docs/brand-assets.md">View brand assets</a></article>
     </section>
   </main>
 </body>

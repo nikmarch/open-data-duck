@@ -3,115 +3,216 @@
   "$id": "https://github.com/nikmarch/open-data-duck/schema/source.schema.json",
   "title": "Open Data Duck source registry",
   "type": "object",
-  "required": ["sources"],
+  "required": [
+    "sources"
+  ],
   "properties": {
     "sources": {
       "type": "array",
-      "items": { "$ref": "#/$defs/source" }
+      "items": {
+        "$ref": "#/$defs/source"
+      }
     }
   },
   "$defs": {
     "source": {
       "type": "object",
-      "required": ["id", "name", "status", "source_type", "authority", "license_url", "attribution", "duckdb", "tables"],
+      "required": [
+        "id",
+        "name",
+        "status",
+        "source_type",
+        "authority",
+        "license_url",
+        "attribution",
+        "tables"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "status": { "enum": ["candidate", "connector-blocked", "verified", "deprecated"] },
-        "source_type": { "enum": ["overture", "stac", "arcgis", "parquet", "ckan", "dcat", "socrata", "iceberg", "ducklake", "other"] },
-        "authority": { "type": "string" },
-        "homepage": { "type": "string", "format": "uri" },
-        "license_url": { "type": "string", "format": "uri" },
-        "attribution": { "type": "string" },
-        "tags": { "type": "array", "items": { "type": "string" } },
-        "topics": { "type": "array", "items": { "type": "string" } },
-        "coverage": {
-          "type": "object",
-          "properties": {
-            "spatial": { "type": "string" },
-            "temporal": { "type": "string" },
-            "grain": { "type": "string" }
-          },
-          "additionalProperties": { "type": "string" }
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]+$"
         },
-        "cadence": { "type": "string" },
-        "ai": {
-          "type": "object",
-          "properties": {
-            "summary": { "type": "string" },
-            "use_cases": { "type": "array", "items": { "type": "string" } },
-            "caveats": { "type": "array", "items": { "type": "string" } },
-            "prompt_hints": { "type": "array", "items": { "type": "string" } }
-          },
-          "additionalProperties": true
+        "name": {
+          "type": "string"
         },
-        "duckdb": {
-          "type": "object",
-          "required": ["extensions"],
-          "properties": {
-            "extensions": { "type": "array", "items": { "type": "string" } },
-            "install": { "type": "string" },
-            "example_query": { "type": "string" },
-            "validation_query": { "type": "string" },
-            "examples": {
-              "type": "object",
-              "additionalProperties": { "type": "string" }
-            },
-            "tables": {
-              "type": "object",
-              "required": ["namespace", "discover_sql"],
-              "properties": {
-                "namespace": { "type": "string", "pattern": "^odd\\.[a-z0-9_]+\\.[a-z0-9_]+$" },
-                "discover_sql": { "type": "string" }
-              }
-            }
-          }
+        "status": {
+          "enum": [
+            "candidate",
+            "connector-blocked",
+            "verified",
+            "deprecated"
+          ]
+        },
+        "source_type": {
+          "enum": [
+            "overture",
+            "stac",
+            "arcgis",
+            "parquet",
+            "ckan",
+            "dcat",
+            "socrata",
+            "iceberg",
+            "ducklake",
+            "other"
+          ]
+        },
+        "authority": {
+          "type": "string"
+        },
+        "license_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "attribution": {
+          "type": "string"
+        },
+        "requirements": {
+          "$ref": "#/$defs/requirements"
+        },
+        "discovery": {
+          "$ref": "#/$defs/discovery"
         },
         "tables": {
           "type": "array",
-          "items": { "$ref": "#/$defs/table" },
+          "items": {
+            "$ref": "#/$defs/table"
+          },
           "minItems": 1
         },
-        "release": { "$ref": "#/$defs/release" }
+        "release": {
+          "$ref": "#/$defs/release"
+        }
+      },
+      "additionalProperties": false
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "duckdb_extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "discovery": {
+      "type": "object",
+      "required": [
+        "namespace",
+        "discover_sql"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "pattern": "^odd\\.[a-z0-9_]+\\.[a-z0-9_]+$"
+        },
+        "discover_sql": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "table": {
       "type": "object",
-      "required": ["id", "description"],
+      "required": [
+        "id",
+        "description"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_]*$" },
-        "ref": { "type": "string", "pattern": "^odd\\.[a-z0-9_]+\\.[a-z0-9x_]+\\.[a-z0-9_]+$" },
-        "description": { "type": "string" },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_]*$"
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^odd\\.[a-z0-9_]+\\.[a-z0-9x_]+\\.[a-z0-9_]+$"
+        },
+        "description": {
+          "type": "string"
+        },
         "columns_hint": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
-        "ask_for": { "type": "array", "items": { "type": "string" } },
-        "warnings": { "type": "array", "items": { "type": "string" } },
-        "validations": { "type": "array", "items": { "$ref": "#/$defs/validation" } }
+        "ask_for": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "validations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validation"
+          },
+          "minItems": 1
+        }
       },
       "additionalProperties": false
     },
     "validation": {
       "type": "object",
-      "required": ["id", "direct_sql", "odd_sql"],
+      "required": [
+        "id",
+        "direct_sql",
+        "odd_sql"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^odd\\.[a-z0-9_]+\\.[a-z0-9x_]+\\.[a-z0-9_]+$" },
-        "description": { "type": "string" },
-        "release": { "type": "string", "pattern": "^[a-z0-9x_]+$" },
-        "source_release": { "type": "string" },
-        "direct_sql": { "type": "string" },
-        "odd_sql": { "type": "string" },
-        "compare": { "enum": ["exact", "set", "count"] },
-        "order_by": {
-          "oneOf": [
-            { "type": "string" },
-            { "type": "array", "items": { "type": "string" } }
+        "id": {
+          "type": "string",
+          "pattern": "^odd\\.[a-z0-9_]+\\.[a-z0-9x_]+\\.[a-z0-9_]+$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "release": {
+          "type": "string",
+          "pattern": "^[a-z0-9x_]+$"
+        },
+        "source_release": {
+          "type": "string"
+        },
+        "direct_sql": {
+          "type": "string"
+        },
+        "odd_sql": {
+          "type": "string"
+        },
+        "compare": {
+          "enum": [
+            "exact",
+            "set",
+            "count"
           ]
         },
-        "limit": { "type": "integer", "minimum": 1 }
+        "order_by": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1
+        }
       },
       "additionalProperties": false
     },
@@ -120,23 +221,42 @@
       "properties": {
         "latest": {
           "type": "object",
-          "required": ["url"],
+          "required": [
+            "url"
+          ],
           "properties": {
-            "url": { "type": "string", "format": "uri" },
-            "method": { "type": "string" },
-            "resolve_sql": { "type": "string" }
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "method": {
+              "type": "string"
+            },
+            "resolve_sql": {
+              "type": "string"
+            }
           }
         },
         "pinned": {
           "type": "object",
-          "required": ["duckdb_setting", "example"],
+          "required": [
+            "duckdb_setting",
+            "example"
+          ],
           "properties": {
-            "duckdb_setting": { "type": "string" },
-            "example": { "type": "string" },
-            "s3_base_setting": { "type": "string" }
+            "duckdb_setting": {
+              "type": "string"
+            },
+            "example": {
+              "type": "string"
+            },
+            "s3_base_setting": {
+              "type": "string"
+            }
           }
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }

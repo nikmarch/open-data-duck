@@ -7,26 +7,17 @@ from typing import Any
 
 from odd.registry_model import Source, load_sources, _mapping_list
 
+
 def render_source_sql(source: Source, *, validation: bool = False, include_install: bool = True) -> str:
     validation_pair = _first_validation_pair(source)
-    if validation_pair is not None:
-        if validation:
-            return _render_validation_pair_sql(source, validation_pair)
-        odd_sql = validation_pair.get("odd_sql")
-        if isinstance(odd_sql, str) and odd_sql.strip():
-            return odd_sql.strip() + "\n"
-
-    statements: list[str] = []
-    install = source.duckdb.get("install")
-    if include_install and isinstance(install, str) and install.strip():
-        statements.append(install.strip())
-
-    query_key = "validation_query" if validation else "example_query"
-    query = source.duckdb.get(query_key)
-    if not isinstance(query, str) or not query.strip():
-        raise ValueError(f"{source.id} has no duckdb.{query_key}")
-    statements.append(query.strip())
-    return "\n\n".join(statements) + "\n"
+    if validation_pair is None:
+        raise ValueError(f"{source.id} has no table validation pair")
+    if validation:
+        return _render_validation_pair_sql(source, validation_pair)
+    odd_sql = validation_pair.get("odd_sql")
+    if not isinstance(odd_sql, str) or not odd_sql.strip():
+        raise ValueError(f"{source.id} has no validation odd_sql")
+    return odd_sql.strip() + "\n"
 
 
 def _first_validation_pair(source: Source) -> dict[str, Any] | None:
@@ -38,14 +29,12 @@ def _first_validation_pair(source: Source) -> dict[str, Any] | None:
 
 
 def _render_validation_pair_sql(source: Source, validation_pair: dict[str, Any]) -> str:
-    direct_sql = str(validation_pair["direct_sql"]).strip()
-    odd_sql = str(validation_pair["odd_sql"]).strip()
     validation_id = str(validation_pair.get("id", source.id))
     return (
         f"-- direct DuckDB control for {validation_id}\n"
-        f"{direct_sql}\n\n"
+        f"{str(validation_pair['direct_sql']).strip()}\n\n"
         f"-- ODD facade example for {validation_id}\n"
-        f"{odd_sql}\n"
+        f"{str(validation_pair['odd_sql']).strip()}\n"
     )
 
 
@@ -56,37 +45,32 @@ def render_index_text(sources: list[Source]) -> str:
         lines.append(f"{source_type} ({len(group)})")
         lines.append("-" * (len(source_type) + len(str(len(group))) + 3))
         for source in group:
-            tags = f" [{', '.join(source.tags)}]" if source.tags else ""
-            lines.append(f"- {source.id} — {source.name} ({source.status}){tags}")
-            if source.description:
-                lines.append(f"  {source.description}")
+            lines.append(f"- {source.id} — {source.name} ({source.status})")
             for table in source.tables:
-                lines.append(f"  - {table.get('id')}: {table.get('description')}")
+                ref = f" ({table['ref']})" if table.get("ref") else ""
+                lines.append(f"  - {table.get('id')}{ref}: {table.get('description')}")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
 def render_source_detail(source: Source) -> str:
     lines = [source.name, "=" * len(source.name), ""]
-    if source.description:
-        lines.extend(("", source.description, ""))
     fields = [
         ("ID", source.id),
         ("Status", source.status),
         ("Type", source.source_type),
         ("Authority", source.authority),
-        ("Homepage", source.homepage),
         ("License", source.license_url),
         ("Attribution", source.attribution),
-        ("Cadence", source.cadence),
-        ("Tags", ", ".join(source.tags)),
-        ("Topics", ", ".join(source.topics)),
     ]
     for label, value in fields:
         if value:
             lines.append(f"{label}: {value}")
-    if source.coverage:
-        lines.append(f"Coverage: {_inline_mapping(source.coverage)}")
+    extensions = source.requirements.get("duckdb_extensions", [])
+    if extensions:
+        lines.append(f"DuckDB extensions: {_inline_value(extensions)}")
+    if source.discovery:
+        lines.append(f"Discovery namespace: {source.discovery.get('namespace', '')}")
     if source.tables:
         lines.extend(("", "Tables:"))
         for table in source.tables:
@@ -98,11 +82,12 @@ def render_source_detail(source: Source) -> str:
                 lines.append(f"  Warnings: {_inline_value(table['warnings'])}")
             if table.get("columns_hint"):
                 lines.append(f"  Columns: {_inline_mapping(table['columns_hint'])}")
-    if source.ai:
-        lines.extend(("", "AI usage:"))
-        for key, value in source.ai.items():
-            lines.append(f"- {key}: {_inline_value(value)}")
-    lines.extend(("", "DuckDB extensions: " + ", ".join(source.duckdb.get("extensions", []))))
+            for validation in _mapping_list(table.get("validations")):
+                lines.append(f"  Validation: {validation.get('id')}")
+                odd_sql = validation.get("odd_sql")
+                if isinstance(odd_sql, str) and odd_sql.strip():
+                    lines.append("  ODD SQL:")
+                    lines.extend(f"    {line}" for line in odd_sql.strip().splitlines())
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -114,29 +99,21 @@ def render_index_markdown(sources: list[Source]) -> str:
         "",
         "# Open Data Duck source index",
         "",
+        "Table-first catalog of public data sources with legal metadata and executable ODD-vs-direct validation pairs.",
+        "",
     ]
-    lines.append("AI-friendly catalog of public data sources with DuckDB recipes, licenses, and usage hints.")
-    lines.append("")
     for source_type in sorted({source.source_type for source in sources}):
-        lines.append(f"## {source_type}")
-        lines.append("")
+        lines.extend((f"## {source_type}", ""))
         for source in [source for source in sources if source.source_type == source_type]:
-            lines.append(f"### `{source.id}` — {source.name}")
-            lines.append("")
-            if source.description:
-                lines.append(source.description)
-                lines.append("")
+            lines.extend((f"### `{source.id}` — {source.name}", ""))
             lines.append(f"- Status: `{source.status}`")
             lines.append(f"- Authority: {source.authority}")
-            if source.homepage:
-                lines.append(f"- Homepage: {source.homepage}")
             lines.append(f"- License: {source.license_url}")
-            if source.tags:
-                lines.append(f"- Tags: {', '.join(f'`{tag}`' for tag in source.tags)}")
-            if source.topics:
-                lines.append(f"- Topics: {', '.join(source.topics)}")
-            if source.cadence:
-                lines.append(f"- Cadence: {source.cadence}")
+            extensions = source.requirements.get("duckdb_extensions", [])
+            if extensions:
+                lines.append(f"- DuckDB extensions: {_inline_value(extensions)}")
+            if source.discovery:
+                lines.append(f"- Discovery namespace: `{source.discovery.get('namespace')}`")
             if source.tables:
                 lines.append("- Tables:")
                 for table in source.tables:
@@ -148,36 +125,27 @@ def render_index_markdown(sources: list[Source]) -> str:
                         lines.append(f"    - Warnings: {_inline_value(table['warnings'])}")
                     if table.get("columns_hint"):
                         lines.append(f"    - Columns: {_inline_mapping(table['columns_hint'])}")
-            if source.ai.get("use_cases"):
-                lines.append(f"- AI use cases: {_inline_value(source.ai['use_cases'])}")
-            if source.ai.get("caveats"):
-                lines.append(f"- Caveats: {_inline_value(source.ai['caveats'])}")
+                    for validation in _mapping_list(table.get("validations")):
+                        lines.append(f"    - Validation: `{validation.get('id')}`")
+                        odd_sql = validation.get("odd_sql")
+                        if isinstance(odd_sql, str) and odd_sql.strip():
+                            lines.append("      ```")
+                            lines.extend(f"      {line}" for line in odd_sql.strip().splitlines())
+                            lines.append("      ```")
             lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
 def render_index_json(sources: list[Source], *, include_sql: bool = False) -> str:
-    payload = {
-        "name": "Open Data Duck source index",
-        "source_count": len(sources),
-        "sources": [source.to_ai_dict(include_sql=include_sql) for source in sources],
-    }
+    payload = {"name": "Open Data Duck source index", "source_count": len(sources), "sources": [source.to_ai_dict(include_sql=include_sql) for source in sources]}
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
 def render_site_index_html(sources: list[Source]) -> str:
-    queryable_tables = [
-        (source, table)
-        for source in sources
-        for table in source.tables
-        if isinstance(table.get("ref"), str) and str(table.get("ref")).startswith("odd.")
-    ]
+    queryable_tables = [(source, table) for source in sources for table in source.tables if isinstance(table.get("ref"), str) and str(table.get("ref")).startswith("odd.")]
     source_cards = "\n".join(_render_site_source_card(source) for source in sources)
     table_rows = "\n".join(_render_site_table_row(source, table) for source, table in queryable_tables[:8])
-    source_type_counts = ", ".join(
-        f"{_html(source_type)} ({sum(1 for source in sources if source.source_type == source_type)})"
-        for source_type in sorted({source.source_type for source in sources})
-    )
+    source_type_counts = ", ".join(f"{_html(source_type)} ({sum(1 for source in sources if source.source_type == source_type)})" for source_type in sorted({source.source_type for source in sources}))
     return f"""<!doctype html>
 <html lang=\"en\">
 <head>
@@ -208,7 +176,7 @@ def render_site_index_html(sources: list[Source]) -> str:
       <img class=\"wordmark\" src=\"assets/brand/odd-wordmark.svg\" alt=\"Open Data Duck\">
       <p class=\"eyebrow\">DuckDB-friendly public data index</p>
       <h1 id=\"site-title\">Find authoritative open data sources and query them safely with DuckDB.</h1>
-      <p class=\"lede\">Open Data Duck does not mirror datasets. It stores source metadata, licenses, attribution, and executable query recipes so people and AI workers can plug in public datasets quickly, without Googling, configuring, or remembering every source.</p>
+      <p class=\"lede\">Open Data Duck stores table metadata, licenses, attribution, and executable validation pairs so ODD facade queries can be checked against direct DuckDB controls.</p>
       <div class=\"actions\" aria-label=\"Primary links\">
         <a class=\"button primary\" href=\"#plugin-api\">Plugin API direction</a>
         <a class=\"button\" href=\"#source-catalog\">Browse generated catalog</a>
@@ -221,9 +189,8 @@ def render_site_index_html(sources: list[Source]) -> str:
       <div class=\"api-copy\">
         <p class=\"eyebrow\">Plugin API direction</p>
         <h2 id=\"plugin-api-title\">Attach once. Search the catalog table. Query the facade table.</h2>
-        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker. The native extension resolves ODD table references with a replacement scan. Set the Overture S3 region before querying those facade tables.</p>
+        <p>The public site stays static for now. No fake terminal, no browser query runner, and no preset picker. The native extension resolves ODD table references with a replacement scan. Set the Overture S3 region before querying those facade tables. Registry validations keep each facade query paired with a direct DuckDB control.</p>
       </div>
-
       <div class=\"api-card\" aria-label=\"Open Data Duck plugin API example\">
         <pre><code>INSTALL open_data_duck;
 LOAD open_data_duck;
@@ -234,8 +201,8 @@ ATTACH ':memory:' AS odd (TYPE open_data_duck);
 
 SELECT *
 FROM odd.index
-WHERE list_contains(tags, 'buildings')
-   OR name ILIKE '%building%';
+WHERE name ILIKE '%building%'
+   OR source_type = 'overture';
 
 SELECT table_reference, reader, path
 FROM odd.tables
@@ -250,45 +217,25 @@ WHERE bbox.xmin <= -149
 LIMIT 10;</code></pre>
         <table>
           <caption>Generated queryable table refs from registry/sources.yml</caption>
-          <thead>
-            <tr>
-              <th>source</th>
-              <th>table</th>
-              <th>table_reference</th>
-            </tr>
-          </thead>
+          <thead><tr><th>source</th><th>table</th><th>table_reference</th></tr></thead>
           <tbody>
 {table_rows}
           </tbody>
         </table>
       </div>
     </section>
-
     <section class=\"catalog\" id=\"source-catalog\" aria-labelledby=\"source-catalog-title\">
       <p class=\"eyebrow\">Generated catalog</p>
       <h2 id=\"source-catalog-title\">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class=\"catalog-summary\">{len(sources)} sources across {source_type_counts}. Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class=\"catalog-summary\">{len(sources)} sources across {source_type_counts}. Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class=\"catalog-grid\">
 {source_cards}
       </div>
     </section>
-
     <section class=\"grid\" aria-label=\"Project documentation\">
-      <article>
-        <h2>Source index</h2>
-        <p>Human- and AI-friendly catalog entries for public data sources, DuckDB recipes, licenses, usage hints, and validation queries.</p>
-        <a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md\">Read the generated index</a>
-      </article>
-      <article>
-        <h2>Engine track</h2>
-        <p>Connector status for ArcGIS, CKAN/DCAT, Socrata, Overture, STAC, and public object-storage paths.</p>
-        <a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/engine-maintenance.md\">See engine maintenance</a>
-      </article>
-      <article>
-        <h2>Brand assets</h2>
-        <p>The project wordmark and icon are checked into the repo and reused here by the Pages build.</p>
-        <a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/brand-assets.md\">View brand assets</a>
-      </article>
+      <article><h2>Source index</h2><p>Human- and AI-friendly catalog entries for public data sources, licenses, table hints, and executable validation pairs.</p><a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md\">Read the generated index</a></article>
+      <article><h2>Engine track</h2><p>Connector status for ArcGIS, CKAN/DCAT, Socrata, Overture, STAC, and public object-storage paths.</p><a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/engine-maintenance.md\">See engine maintenance</a></article>
+      <article><h2>Brand assets</h2><p>The project wordmark and icon are checked into the repo and reused here by the Pages build.</p><a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/brand-assets.md\">View brand assets</a></article>
     </section>
   </main>
 </body>
@@ -298,33 +245,17 @@ LIMIT 10;</code></pre>
 
 def _render_site_table_row(source: Source, table: dict[str, Any]) -> str:
     ref = _html(str(table.get("ref", "")))
-    return (
-        "            <tr>\n"
-        f"              <td>{_html(source.name)}</td>\n"
-        f"              <td>{_html(str(table.get('id', '')))}</td>\n"
-        f"              <td><code>{ref}</code></td>\n"
-        "            </tr>"
-    )
+    return f"            <tr>\n              <td>{_html(source.name)}</td>\n              <td>{_html(str(table.get('id', '')))}</td>\n              <td><code>{ref}</code></td>\n            </tr>"
 
 
 def _render_site_source_card(source: Source) -> str:
-    tags = "".join(f"<li>{_html(tag)}</li>" for tag in source.tags[:6])
     table_items = "".join(_render_site_source_table(table) for table in source.tables[:4])
-    homepage = f"<a href=\"{_html(source.homepage)}\">Homepage</a>" if source.homepage else ""
     return f"""        <article class=\"source-card\">
-          <div class=\"source-card-header\">
-            <span class=\"status\">{_html(source.status)}</span>
-            <span>{_html(source.source_type)}</span>
-          </div>
+          <div class=\"source-card-header\"><span class=\"status\">{_html(source.status)}</span><span>{_html(source.source_type)}</span></div>
           <h3><code>{_html(source.id)}</code></h3>
-          <p>{_html(source.description or source.name)}</p>
-          <dl>
-            <dt>Authority</dt><dd>{_html(source.authority)}</dd>
-            <dt>License</dt><dd><a href=\"{_html(source.license_url)}\">Terms</a></dd>
-          </dl>
-          <ul class=\"tag-list\">{tags}</ul>
+          <p>{_html(source.name)}</p>
+          <dl><dt>Authority</dt><dd>{_html(source.authority)}</dd><dt>License</dt><dd><a href=\"{_html(source.license_url)}\">Terms</a></dd></dl>
           <ul class=\"table-list\">{table_items}</ul>
-          {homepage}
         </article>"""
 
 
@@ -341,9 +272,8 @@ def _html(value: str) -> str:
 
 def write_index_artifacts(registry_path: Path, output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    sources = load_sources(registry_path)
     markdown_path = output_dir / "index.md"
-    markdown_path.write_text(render_index_markdown(sources), encoding="utf-8")
+    markdown_path.write_text(render_index_markdown(load_sources(registry_path)), encoding="utf-8")
     return [markdown_path]
 
 
@@ -351,6 +281,7 @@ def write_site_index(registry_path: Path, output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(render_site_index_html(load_sources(registry_path)), encoding="utf-8")
     return output_path
+
 
 def _inline_mapping(value: dict[str, Any]) -> str:
     return "; ".join(f"{key}: {_inline_value(item)}" for key, item in value.items())
