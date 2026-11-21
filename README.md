@@ -31,12 +31,11 @@ These are temporary unsigned builds, not signed community artifacts. Start DuckD
 
 Manual GitHub release asset downloads remain available for debugging, rollback, and checksum verification, but they are not the normal install path.
 
-## Intended plugin flow
+## Query with the ODD catalog
 
-This is the product shape Open Data Duck is moving toward:
+After loading the extension, attach the virtual ODD catalog and query table facades directly. You should not need to write `read_parquet`, `ST_Read`, or source-specific release/path plumbing for the common Overture, Census, and NOAA flows.
 
 ```sql
-INSTALL open_data_duck;
 LOAD open_data_duck;
 
 -- Overture Maps public S3 data lives in us-west-2.
@@ -58,7 +57,7 @@ FROM odd.tables
 WHERE table_reference = 'odd.overturemaps.latest.building';
 
 -- Query the matched table through an ODD table facade.
-SELECT *
+SELECT id, bbox
 FROM odd.overturemaps.latest.building
 WHERE bbox.xmin <= -149
   AND bbox.xmax >= -150
@@ -67,7 +66,7 @@ WHERE bbox.xmin <= -149
 LIMIT 10;
 ```
 
-`odd.index` is the SQL-searchable catalog view. Each source that exposes data tables carries a `namespace` such as `odd.overturemaps.latest`. The native extension exposes the catalog through `ATTACH ... (TYPE open_data_duck)` and keeps resolving `namespace.<table>` references with replacement scans into DuckDB readers. Query `odd.tables` first and copy the `table_reference` exactly; Overture facade table names are singular, for example `place`, `building`, `address`, and `segment`. Keep bbox filters tight; Overture tables are large.
+`odd.index` is the SQL-searchable catalog view. Each source that exposes data tables carries a `namespace` such as `odd.overturemaps.latest`. The native extension exposes the catalog through `ATTACH ... (TYPE open_data_duck)` and resolves `namespace.<table>` references with replacement scans into DuckDB readers. Query `odd.tables` first and copy the `table_reference` exactly; Overture facade table names are singular, for example `place`, `building`, `address`, and `segment`. Keep bbox filters tight; Overture tables are large.
 
 ### How `latest` tables are discovered
 
@@ -86,64 +85,30 @@ SELECT open_data_release('overture.maps.release');  -- resolved from the STAC ca
 SELECT table_reference, path FROM odd.tables WHERE source_id = 'overture.maps.release';
 ```
 
-## Current pre-community behavior
+## Inspect sources and generated SQL
 
-The extension also returns SQL recipes and table metadata for inspection.
-
-```sql
-LOAD './open_data_duck.duckdb_extension';
-SELECT open_data_sql('overture.maps.release');
-```
-
-Copy the returned SQL and run it in DuckDB. For Overture buildings in a small bbox, it is this shape:
+The extension still exposes registry metadata and SQL snippets for debugging, comparison, and release validation. Treat these as inspection surfaces; user-facing examples should prefer the ODD catalog facade above.
 
 ```sql
-LOAD httpfs;
-SET s3_region='us-west-2';
-SET VARIABLE overture_release = '2026-10-21.0';
-SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-SELECT *
-FROM read_parquet(
-  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*',
-  hive_partitioning = true
-)
-WHERE bbox.xmin <= -149
-  AND bbox.xmax >= -150
-  AND bbox.ymin <= 61
-  AND bbox.ymax >= 60
-LIMIT 10;
-```
-
-To read a different Overture table, change the path:
-
-- places: `/theme=places/type=place/*`
-- buildings: `/theme=buildings/type=building/*`
-- road segments: `/theme=transportation/type=segment/*`
-- addresses: `/theme=addresses/type=address/*`
-
-Keep bounding boxes tight. Overture files are large.
-
-From the repo CLI, you can print the same recipe without loading the extension:
-
-```bash
-uv run odd sql overture.maps.release
-uv run odd sql overture.maps.release --validation --no-install
-```
-
-## Find sources
-
-```sql
-LOAD './open_data_duck.duckdb_extension';
+LOAD open_data_duck;
 
 SELECT id, name, status FROM open_data_sources();
 SELECT id, name, namespace FROM open_data_search('building');
 SELECT table_reference, reader, path FROM open_data_tables();
-SELECT id, name, namespace FROM odd.index WHERE list_contains(tags, 'buildings');
-SELECT table_reference, reader, path FROM odd.tables;
 SELECT open_data_sql('overture.maps.release');
 SELECT open_data_validation_sql('overture.maps.release');
 ```
+
+From the repo CLI, you can inspect the same registry-backed SQL without loading the extension:
+
+```bash
+uv run odd search overture
+uv run odd show overture.maps.release
+uv run odd sql overture.maps.release
+uv run odd sql overture.maps.release --validation --no-install
+```
+
+## Native SQL surfaces
 
 Implemented native functions:
 
@@ -158,7 +123,7 @@ Implemented native functions:
 - `open_data_validation_sql(id)`
 - `open_data_release(id)`
 
-Table namespaces today, each discovered from the source at first use. Readers are `read_parquet` (with `hive_partitioning`), `read_csv`, `read_json`, or `st_read`:
+Table namespaces today, each discovered from the source at first use. The replacement scan binds discovered tables to DuckDB reader functions internally:
 
 | namespace | tables | reader | pin variable |
 | --- | --- | --- | --- |
@@ -168,7 +133,7 @@ Table namespaces today, each discovered from the source at first use. Readers ar
 
 ### Registry validation pairs
 
-The registry contract is moving toward proof instead of brochure metadata. The old registry shape required descriptive fields such as `description` and `homepage`; those are now optional. The required source fields are the smaller legal/execution core: `id`, `name`, `status`, `source_type`, `authority`, `license_url`, `attribution`, and `duckdb`.
+The registry contract uses proof instead of brochure metadata. The old registry shape required descriptive fields such as `description` and `homepage`; those are now optional. The required source fields are the smaller legal/execution core: `id`, `name`, `status`, `source_type`, `authority`, `license_url`, `attribution`, and `duckdb`.
 
 There is no separate `freshness` contract. If a source needs update logic, keep it in release discovery or a validation pair.
 
@@ -326,6 +291,7 @@ ODD_SOCRATA_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_socrata_engine.
 
 - Source lifecycle: `candidate -> verified -> deprecated`; `connector-blocked` means the source is authoritative but the DuckDB engine path still needs work.
 - Engine work is tracked in the [Engine maintenance track](docs/engine-maintenance.md).
+- Architecture maps live in [docs/architecture](docs/architecture/README.md), with diagrams for the CLI/registry flow, generated registry header, schema manifest, and native ODD facade replacement scans.
 - Source-controlled discovery SQL runs inside the [source SQL security boundary](docs/plugin-sql-security.md), isolated from the caller's session secrets and attached databases.
 - Community submission notes live in [`docs/community-extension-submission.md`](docs/community-extension-submission.md), with the descriptor at [`docs/community-extensions/open_data_duck/description.yml`](docs/community-extensions/open_data_duck/description.yml).
 - MCP server for AI clients: `uv sync --extra mcp && uv run python -m odd.mcp_server`.
