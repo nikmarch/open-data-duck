@@ -533,6 +533,37 @@ def test_project_usgs_earthquake_feed_uses_direct_geojson_recipe() -> None:
     assert "load stac" not in rendered_sql
 
 
+def test_project_usgs_nwis_instantaneous_values_uses_public_json_recipe() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "usgs.nwis.instantaneous-values")
+
+    rendered_sql = "\n".join(
+        (
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            "\n".join(source["duckdb"].get("examples", {}).values()),
+        )
+    ).casefold()
+    table = source["tables"][0]
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "U.S. Geological Survey Water Data for the Nation"
+    assert "httpfs" in source["duckdb"]["extensions"]
+    assert "waterservices.usgs.gov/nwis/iv/" in rendered_sql
+    assert "read_json_auto" in rendered_sql
+    assert "unnest(value.timeseries)" in rendered_sql
+    assert "ts.values[1].value" in rendered_sql
+    assert "sites=01646500" in source["duckdb"]["validation_query"]
+    assert "parametercd=00060" in source["duckdb"]["validation_query"].casefold()
+    assert "count(*) = 192" in source["duckdb"]["validation_query"]
+    assert table["id"] == "instantaneous_values"
+    assert "provisional" in " ".join(table["warnings"]).casefold()
+    assert "load stac" not in rendered_sql
+    assert "install stac" not in rendered_sql
+
+
 def test_project_noaa_ncei_storm_events_uses_latest_bulk_csv_discovery() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
     source = next(source for source in registry["sources"] if source["id"] == "noaa.ncei.storm-events")
