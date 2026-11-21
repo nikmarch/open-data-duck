@@ -176,6 +176,43 @@ Risk:
 
 - Low if deferred. High if abstracted prematurely.
 
+## Slice 7: Refresh README after refactor slices settle
+
+Problem visible in docs:
+
+- `README.md` still carries transitional project history and examples that can drift from the preferred ODD facade flow.
+- The README should describe the final post-refactor shape, not every intermediate architecture step.
+
+Tracking issue:
+
+- [#133 Refresh README after architecture refactor slices](https://github.com/nikmarch/open-data-duck/issues/133)
+
+Files touched:
+
+- `README.md`
+- Possibly `docs/architecture/README.md` if the README should link to architecture docs.
+
+New/renamed responsibility:
+
+- Make the README the concise product/user entry point.
+- Keep architecture internals in `docs/architecture/`.
+- Keep generated catalog/source detail in generated docs/site outputs.
+
+Behavior expected to stay the same:
+
+- No code behavior changes.
+- README examples should match real CLI/native extension behavior.
+
+Tests/verification:
+
+- Run the README-mentioned commands that are practical locally.
+- Keep install/query snippets copy-pasteable.
+- Run docs/site/generated checks when links or generated references are touched.
+
+Risk:
+
+- Low technically, but high review value. Do it after the refactor shape settles so stale text does not get rewritten twice.
+
 ## Recommended order
 
 1. Slice 1: split registry rendering/validation/model. Done.
@@ -184,5 +221,6 @@ Risk:
 4. Slice 4: extract native registry parser/lookup from `src/open_data_duck_extension.cpp`.
 5. Slice 5: extract native release/table discovery boundary.
 6. Slice 6: revisit engine helper abstraction only after a concrete need.
+7. Slice 7: refresh README after the architecture/refactor slices settle.
 
-This keeps the first PRs low-risk Python cleanup before touching DuckDB C++ runtime behavior.
+This keeps the first PRs low-risk Python cleanup before touching DuckDB C++ runtime behavior, then finishes with a README that reflects the stable shape.
