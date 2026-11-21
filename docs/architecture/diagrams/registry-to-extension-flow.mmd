@@ -1,5 +1,5 @@
 flowchart LR
-  SourcesYaml["registry/sources.yml"] --> LoadSources["odd.registry.load_sources()"]
+  SourcesYaml["registry/sources.yml"] --> LoadSources["odd.registry_model.load_sources()"]
   LoadSources --> SourceObjects["list[Source]"]
   SourceObjects --> SourceToExtension["odd.extension_registry.source_to_extension_dict()\nselect extension-consumed fields"]
   SourceToExtension --> Payload["build_extension_registry()\nschema_version + source_count + sources"]

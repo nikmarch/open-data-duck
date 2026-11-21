@@ -9,19 +9,17 @@ from odd.extension_registry import (
     check_extension_registry_header,
     write_extension_registry_header,
 )
-from odd.registry import (
-    find_source,
-    load_sources,
+from odd.registry_model import find_source, load_sources, search_sources
+from odd.registry_renderers import (
     render_index_json,
     render_index_markdown,
     render_index_text,
     render_source_detail,
     render_source_sql,
-    search_sources,
-    validate_registry,
     write_index_artifacts,
     write_site_index,
 )
+from odd.registry_validation import validate_registry
 from odd.schema_manifest import (
     check_source_schema,
     inspect_source_schema,

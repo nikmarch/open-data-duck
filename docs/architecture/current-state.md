@@ -34,23 +34,45 @@ Current pain points:
 
 ### `odd/registry.py`
 
-Responsibility: source registry model, loading, search, rendering, site generation, and validation hygiene.
+Responsibility: compatibility facade for the split registry modules.
+
+Key symbols:
+
+- Re-exports the public registry API used by `odd.cli`, `odd.extension_registry`, `odd.schema_manifest`, tests, scripts, and MCP wrappers.
+- Keeps existing imports such as `from odd.registry import load_sources, render_source_sql, validate_registry` working while responsibilities move into focused modules.
+
+### `odd/registry_model.py`
+
+Responsibility: source registry data model, YAML/JSON loading, lookup, and search.
 
 Key symbols:
 
 - `Source` dataclass normalizes a YAML source mapping into runtime fields.
 - `ValidationError` formats validation failures.
 - `load_yaml()`, `load_json()`, `load_sources()`, `find_source()`, and `search_sources()` own registry reads and lookups.
+
+### `odd/registry_renderers.py`
+
+Responsibility: turn `Source` objects into user-facing text, Markdown, JSON, SQL, site HTML, and generated docs/site files.
+
+Key symbols:
+
 - `render_source_sql()`, `_first_validation_pair()`, and `_render_validation_pair_sql()` choose validation-pair SQL or legacy query SQL.
 - `render_index_text()`, `render_source_detail()`, `render_index_markdown()`, `render_index_json()`, and `render_site_index_html()` render user-facing outputs.
 - `write_index_artifacts()` and `write_site_index()` write generated docs/site artifacts.
-- `validate_registry()`, `_validate_hygiene()`, `_validate_tables()`, and `_validate_validation_pairs()` enforce schema plus repository-specific rules.
 
-Current pain points:
+### `odd/registry_validation.py`
 
-- `registry.py` mixes four responsibilities: data model, loading/search, rendering, and validation.
-- HTML generation for the public site lives next to registry validation rules.
-- Validation-pair logic is shared conceptually with the native extension, but only by generated data and tests, not by a small named boundary.
+Responsibility: schema plus repository-specific registry hygiene checks.
+
+Key symbols:
+
+- `validate_registry()` combines JSON Schema validation with hygiene checks.
+- `_validate_hygiene()`, `_validate_tables()`, and `_validate_validation_pairs()` enforce source ids, required legal/execution fields, table metadata, validation-pair SQL, and ODD table-reference shape.
+
+Current pain point:
+
+- Validation-pair SQL rendering is still conceptually mirrored by the native extension; the split made Python responsibilities clearer but did not create a shared Python/C++ contract.
 
 ### `odd/extension_registry.py`
 
@@ -175,9 +197,9 @@ Relevant covered surfaces:
 ### Python CLI and registry path
 
 1. `odd.cli.main()` parses a command.
-2. The command handler calls `odd.registry`, `odd.extension_registry`, or `odd.schema_manifest`.
-3. `odd.registry.load_sources()` reads `registry/sources.yml` into `Source` objects.
-4. Render/check commands produce docs, JSON, SQL, site HTML, validation errors, or generated C++ headers.
+2. The command handler calls `odd.registry_model`, `odd.registry_renderers`, `odd.registry_validation`, `odd.extension_registry`, or `odd.schema_manifest`.
+3. `odd.registry_model.load_sources()` reads `registry/sources.yml` into `Source` objects.
+4. Renderer/check commands produce docs, JSON, SQL, site HTML, validation errors, or generated C++ headers.
 
 Diagram: [CLI registry sequence](diagrams/cli-registry-sequence.mmd).
 
@@ -185,7 +207,7 @@ Diagram: [CLI registry sequence](diagrams/cli-registry-sequence.mmd).
 
 1. `registry/sources.yml` is the source of truth.
 2. `uv run odd generate-extension-registry` dispatches through `odd.cli._generate_extension_registry()`.
-3. `odd.extension_registry.render_extension_registry_header()` embeds selected registry fields as JSON.
+3. `odd.extension_registry.render_extension_registry_header()` embeds selected fields from `odd.registry_model.Source` as JSON.
 4. `src/include/open_data_duck_registry.generated.hpp` is compiled into the extension.
 5. `src/open_data_duck_extension.cpp` parses `open_data_duck::REGISTRY_JSON` at runtime.
 
@@ -206,9 +228,9 @@ Diagram: [ODD facade and replacement scan flow](diagrams/odd-facade-replacement-
 
 ### Site/docs path
 
-1. `registry/sources.yml` feeds `odd.registry.load_sources()`.
-2. `uv run odd generate-index` writes `docs/index.md` through `write_index_artifacts()`.
-3. `uv run odd generate-site` writes `site/index.html` through `write_site_index()`.
+1. `registry/sources.yml` feeds `odd.registry_model.load_sources()`.
+2. `uv run odd generate-index` writes `docs/index.md` through `odd.registry_renderers.write_index_artifacts()`.
+3. `uv run odd generate-site` writes `site/index.html` through `odd.registry_renderers.write_site_index()`.
 4. `scripts/build_pages_site.py` copies static site assets and renders `_site/index.html` for GitHub Pages.
 
 This relationship is included in [Module dependency map](diagrams/module-dependencies.mmd).
@@ -216,4 +238,4 @@ This relationship is included in [Module dependency map](diagrams/module-depende
 ## Important inferred relationships
 
 - The generated-header contract is inferred from matching Python renderer fields in `odd/extension_registry.py` and C++ parser reads in `src/open_data_duck_extension.cpp`. There is no shared schema file specifically for the embedded header payload today.
-- The native extension mirrors parts of Python CLI behavior, for example `RenderSourceSql()` says it mirrors `odd.registry.render_source_sql()`. Tests verify behavior, but the implementation is duplicated across Python and C++.
+- The native extension mirrors parts of Python CLI behavior, for example `RenderSourceSql()` says it mirrors `odd.registry_renderers.render_source_sql()`. Tests verify behavior, but the implementation is duplicated across Python and C++.

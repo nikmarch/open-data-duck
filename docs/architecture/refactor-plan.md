@@ -9,25 +9,15 @@ This plan is intentionally small-slice and behavior-preserving. It comes from th
 - Keep native extension behavior covered by `test/sql/open_data_duck.test` and network-sensitive behavior isolated in `test/sql/open_data_duck_network.test`.
 - Do not invent a generic engine framework until at least two source-family paths need the same runtime shape.
 
-## Slice 1: Split registry rendering from registry validation
+## Slice 1: Split registry rendering from registry validation — done
 
-Problem visible in diagram:
+Result:
 
-- `odd/registry.py` is both the registry model and a renderer/validator/site generator. The module dependency map shows `odd.cli`, `odd.extension_registry`, `odd.schema_manifest`, `odd.mcp_server`, and `scripts/build_pages_site.py` all depending on one large module.
-
-Files touched:
-
-- `odd/registry.py`
-- New candidate: `odd/registry_model.py` or `odd/sources.py`
-- New candidate: `odd/registry_renderers.py`
-- New candidate: `odd/registry_validation.py`
-- Existing tests in `tests/test_registry_validation.py`
-
-New/renamed responsibility:
-
-- Keep `Source`, `ValidationError`, loading, search, and lookup in a small model/access module.
-- Move Markdown/HTML/JSON/text rendering to a renderer module.
-- Move validation hygiene to a validation module.
+- `odd/registry.py` is now a compatibility facade.
+- `odd/registry_model.py` owns `Source`, `ValidationError`, YAML/JSON loading, source lookup, and search.
+- `odd/registry_renderers.py` owns SQL, text, Markdown, JSON, site HTML, and docs/site artifact rendering.
+- `odd/registry_validation.py` owns JSON Schema plus registry hygiene checks.
+- Internal callers now import focused modules directly where practical; tests and external callers can still import from `odd.registry`.
 
 Behavior expected to stay the same:
 
@@ -36,16 +26,9 @@ Behavior expected to stay the same:
 - Generated `docs/index.md` and `site/index.html`.
 - Registry validation errors.
 
-Tests/verification:
+Follow-up watchpoint:
 
-- `uv run pytest tests/test_registry_validation.py tests/test_github_pages.py`
-- `uv run odd validate`
-- `uv run odd generate-index --output-dir /tmp/odd-docs-check`
-- `uv run odd generate-site --output /tmp/odd-site-check.html`
-
-Risk:
-
-- Import churn. Keep public helper names re-exported temporarily if needed.
+- Keep the facade only as a compatibility boundary. New internal code should depend on the focused modules.
 
 ## Slice 2: Extract CLI parser construction from command execution
 
@@ -209,7 +192,7 @@ Risk:
 
 ## Recommended order
 
-1. Slice 1: split registry rendering/validation/model.
+1. Slice 1: split registry rendering/validation/model. Done.
 2. Slice 2: extract CLI parser construction.
 3. Slice 3: name/test generated extension registry contract.
 4. Slice 4: extract native registry parser/lookup from `src/open_data_duck_extension.cpp`.
