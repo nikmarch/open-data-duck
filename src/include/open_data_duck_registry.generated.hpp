@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 23;
+static constexpr int REGISTRY_SOURCE_COUNT = 24;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 23,
+  "source_count": 24,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -727,6 +727,65 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "hazards",
         "geojson",
         "realtime"
+      ]
+    },
+    {
+      "attribution": "Credit U.S. Geological Survey / USGS Water Data for the Nation; cite the site, parameter, time range, and retrieval endpoint used.",
+      "authority": "U.S. Geological Survey Water Data for the Nation",
+      "description": "Official U.S. Geological Survey Water Data for the Nation instantaneous values time-series observations for monitoring sites, queryable as nested public JSON over HTTPS with DuckDB httpfs.",
+      "duckdb": {
+        "example_query": "LOAD httpfs;\nWITH raw AS (\n  SELECT value\n  FROM read_json_auto(\n    'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'\n  )\n), series AS (\n  SELECT unnest(value.timeSeries) AS ts\n  FROM raw\n), observations AS (\n  SELECT ts.sourceInfo.siteName AS site_name,\n         ts.sourceInfo.siteCode[1].value AS site_no,\n         ts.variable.variableCode[1].value AS parameter_cd,\n         ts.variable.variableName AS parameter_name,\n         unnest(ts.values[1].value) AS obs\n  FROM series\n)\nSELECT site_no,\n       site_name,\n       parameter_cd,\n       parameter_name,\n       obs.dateTime AS observed_at,\n       TRY_CAST(obs.value AS DOUBLE) AS observed_value,\n       obs.qualifiers AS qualifiers\nFROM observations\nORDER BY observed_at\nLIMIT 25;",
+        "examples": {
+          "potomac_streamflow_15_minute_values": "LOAD httpfs;\nWITH raw AS (\n  SELECT value\n  FROM read_json_auto(\n    'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'\n  )\n), series AS (\n  SELECT unnest(value.timeSeries) AS ts\n  FROM raw\n), observations AS (\n  SELECT ts.sourceInfo.siteName AS site_name,\n         ts.sourceInfo.siteCode[1].value AS site_no,\n         ts.variable.variableCode[1].value AS parameter_cd,\n         ts.variable.variableName AS parameter_name,\n         unnest(ts.values[1].value) AS obs\n  FROM series\n)\nSELECT site_no,\n       site_name,\n       parameter_cd,\n       parameter_name,\n       obs.dateTime AS observed_at,\n       TRY_CAST(obs.value AS DOUBLE) AS observed_value,\n       obs.qualifiers AS qualifiers\nFROM observations\nORDER BY observed_at\nLIMIT 25;"
+        },
+        "extensions": [
+          "httpfs"
+        ],
+        "install": "INSTALL httpfs;",
+        "tables": {},
+        "validation_query": "LOAD httpfs;\nWITH raw AS (\n  SELECT value\n  FROM read_json_auto(\n    'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'\n  )\n), series AS (\n  SELECT unnest(value.timeSeries) AS ts\n  FROM raw\n), observations AS (\n  SELECT ts.sourceInfo.siteCode[1].value AS site_no,\n         ts.variable.variableCode[1].value AS parameter_cd,\n         unnest(ts.values[1].value) AS obs\n  FROM series\n)\nSELECT site_no = '01646500' AS expected_site,\n       parameter_cd = '00060' AS expected_parameter,\n       count(*) = 192 AS expected_15_minute_rows\nFROM observations\nGROUP BY site_no, parameter_cd;"
+      },
+      "homepage": "https://waterservices.usgs.gov/docs/instantaneous-values/instantaneous-values-details/",
+      "id": "usgs.nwis.instantaneous-values",
+      "license_url": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+      "name": "USGS NWIS instantaneous water values API",
+      "release": {},
+      "source_type": "other",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "site number",
+            "parameter code",
+            "start datetime",
+            "end datetime",
+            "site status",
+            "whether provisional operational values are acceptable"
+          ],
+          "columns_hint": {
+            "observed_at": "Observation timestamp returned by the service, generally UTC when date ranges are supplied without local timezone offsets.",
+            "observed_value": "Observation value cast to DOUBLE from the nested JSON string value.",
+            "parameter_cd": "USGS parameter code such as 00060 for streamflow.",
+            "qualifiers": "USGS value qualifiers such as approved or provisional status flags.",
+            "site_no": "USGS monitoring site number such as 01646500."
+          },
+          "description": "USGS NWIS instantaneous observations. One row per timestamped monitoring-site and parameter observation after flattening the WaterML JSON timeSeries payload.",
+          "id": "instantaneous_values",
+          "warnings": [
+            "Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows.",
+            "Large multi-site or multi-parameter requests should be bounded by date range.",
+            "Instantaneous operational values can be provisional and not fully quality-assured."
+          ]
+        }
+      ],
+      "tags": [
+        "usgs",
+        "nwis",
+        "water",
+        "streamflow",
+        "hydrology",
+        "json",
+        "public-domain"
       ]
     },
     {
