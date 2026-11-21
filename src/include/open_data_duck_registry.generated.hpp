@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 24;
+static constexpr int REGISTRY_SOURCE_COUNT = 25;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 24,
+  "source_count": 25,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
