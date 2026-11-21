@@ -1,39 +1,43 @@
 flowchart TD
-  CLI["odd/cli.py\nargparse commands"] --> Registry["odd/registry.py\nSource model + search + render + validation"]
+  CLI["odd/cli.py\nargparse commands"] --> RegistryFacade["odd/registry.py\ncompatibility facade"]
   CLI --> ExtensionRegistry["odd/extension_registry.py\ngenerate C++ registry header"]
   CLI --> SchemaManifest["odd/schema_manifest.py\nschema inspect/check/refresh"]
 
-  MCP["odd/mcp_server.py\noptional MCP tools"] --> Registry
+  RegistryFacade --> RegistryModel["odd/registry_model.py\nSource + load/search"]
+  RegistryFacade --> RegistryRenderers["odd/registry_renderers.py\nSQL/Markdown/JSON/site renderers"]
+  RegistryFacade --> RegistryValidation["odd/registry_validation.py\nschema + hygiene validation"]
+
+  MCP["odd/mcp_server.py\noptional MCP tools"] --> RegistryFacade
   MCP --> SchemaManifest
 
-  SchemaManifest --> Registry
+  SchemaManifest --> RegistryFacade
   SchemaManifest --> SQLHelpers["sql/open_data_duck.sql\nDuckDB schema helper SQL"]
 
-  ExtensionRegistry --> Registry
+  ExtensionRegistry --> RegistryFacade
   ExtensionRegistry --> GeneratedHeader["src/include/open_data_duck_registry.generated.hpp\nREGISTRY_JSON"]
 
-  SourcesYaml["registry/sources.yml\nsource of truth"] --> Registry
-  SourceSchema["schema/source.schema.json"] --> Registry
+  SourcesYaml["registry/sources.yml\nsource of truth"] --> RegistryModel
+  SourceSchema["schema/source.schema.json"] --> RegistryValidation
   SchemaManifestFile["schema/source-manifest.json"] --> SchemaManifest
 
-  BuildPages["scripts/build_pages_site.py"] --> Registry
+  BuildPages["scripts/build_pages_site.py"] --> RegistryFacade
   BuildPages --> SiteStatic["site/\nstatic assets"]
   BuildPages --> BrandAssets["docs/assets/brand/\nbrand assets"]
-  Registry --> DocsIndex["docs/index.md\ngenerated Markdown"]
-  Registry --> SiteIndex["site/index.html / _site/index.html\ngenerated HTML"]
+  RegistryRenderers --> DocsIndex["docs/index.md\ngenerated Markdown"]
+  RegistryRenderers --> SiteIndex["site/index.html / _site/index.html\ngenerated HTML"]
 
   ExtensionCpp["src/open_data_duck_extension.cpp\nnative DuckDB extension"] --> GeneratedHeader
   ExtensionCpp --> DuckDB["DuckDB extension APIs"]
 
   SQLTests["test/sql/open_data_duck*.test\nsqllogictest"] --> ExtensionCpp
   PyTests["tests/*.py\nPython tests"] --> CLI
-  PyTests --> Registry
+  PyTests --> RegistryFacade
   PyTests --> ExtensionRegistry
   PyTests --> SchemaManifest
 
-  ArcGIS["odd/arcgis.py"] -. source-family helpers .-> Registry
-  CKAN["odd/ckan.py"] -. source-family helpers .-> Registry
-  Socrata["odd/socrata.py"] -. source-family helpers .-> Registry
+  ArcGIS["odd/arcgis.py"] -. source-family helpers .-> RegistryModel
+  CKAN["odd/ckan.py"] -. source-family helpers .-> RegistryModel
+  Socrata["odd/socrata.py"] -. source-family helpers .-> RegistryModel
 
   classDef source fill:#f5f5ff,stroke:#555;
   classDef generated fill:#fff3cc,stroke:#996b00;

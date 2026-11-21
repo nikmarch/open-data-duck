@@ -9,7 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from odd.registry import load_sources, render_site_index_html
+from odd.registry_model import load_sources
+from odd.registry_renderers import render_site_index_html
 SITE_SOURCE = ROOT / "site"
 BRAND_SOURCE = ROOT / "docs" / "assets" / "brand"
 REGISTRY = ROOT / "registry" / "sources.yml"

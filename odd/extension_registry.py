@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from odd.registry import Source, load_sources
+from odd.registry_model import Source, load_sources
 
 EXTENSION_REGISTRY_SCHEMA_VERSION = 1
 DEFAULT_EXTENSION_REGISTRY_HEADER = Path("src/include/open_data_duck_registry.generated.hpp")

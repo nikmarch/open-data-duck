@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from odd.registry import find_source, render_source_sql, search_sources
+from odd.registry_model import find_source, search_sources
+from odd.registry_renderers import render_source_sql
 from odd.schema_manifest import load_manifest
 
 try:
