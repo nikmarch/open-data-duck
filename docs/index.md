@@ -84,6 +84,25 @@ Australian Government CKAN catalog package with a public CSV distribution of Wyn
 
 ## other
 
+### `naturalearth.admin0-countries` — Natural Earth Admin 0 countries
+
+Public-domain generalized country and sovereignty polygons from Natural Earth's 1:110m Admin 0 countries layer, queryable directly from the zipped shapefile with DuckDB spatial/GDAL virtual file paths.
+
+- Status: `candidate`
+- Authority: Natural Earth
+- Homepage: https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/
+- License: https://www.naturalearthdata.com/about/terms-of-use/
+- Tags: `natural-earth`, `countries`, `boundaries`, `shapefile`, `geospatial`
+- Topics: country boundaries, world maps, administrative boundaries, cartography, choropleth joins
+- Cadence: Natural Earth versioned releases update occasionally
+- Tables:
+  - `countries_110m` (`odd.naturalearth.latest.countries_110m`): Generalized Admin 0 country polygons at 1:110m scale. One row per country or country-like map unit in the Natural Earth countries layer.
+    - Ask for: scale, whether de facto boundaries are acceptable, country or sovereignty fields, limit
+    - Warnings: Natural Earth is cartographic generalized data for small-scale maps, not legal or survey boundaries., The Admin 0 countries layer uses de facto boundaries by default; choose a different Natural Earth Admin 0 product if map units, sovereignty, or disputed areas matter.
+    - Columns: NAME: Display name for the country or map unit.; ISO_A3: Three-letter ISO-style country code where assigned.; CONTINENT: Continent grouping from Natural Earth.; POP_EST: Estimated population attribute from Natural Earth.; geom: Generalized polygon or multipolygon geometry.
+- AI use cases: draw world country maps, join country-level indicators by ISO_A3, build small geospatial smoke tests
+- Caveats: generalized for small-scale cartography, not authoritative legal boundaries, de facto country boundaries may not match all political requirements
+
 ### `census.cartographic.county-boundaries` — U.S. Census cartographic county boundary files
 
 Official generalized U.S. county boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.

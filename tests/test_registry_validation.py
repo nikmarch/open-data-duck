@@ -445,6 +445,51 @@ def test_project_census_cartographic_boundaries_use_direct_spatial_file_recipes(
     assert "where statefp = '02'" in tract_sql
 
 
+def test_project_natural_earth_admin0_countries_uses_direct_spatial_file_recipe() -> None:
+    registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    source = next(source for source in registry["sources"] if source["id"] == "naturalearth.admin0-countries")
+    table = source["tables"][0]
+
+    rendered_sql = "\n".join(
+        (
+            source["duckdb"].get("install", ""),
+            source["duckdb"]["example_query"],
+            source["duckdb"]["validation_query"],
+            "\n".join(source["duckdb"].get("examples", {}).values()),
+            "\n".join(
+                validation["direct_sql"] + "\n" + validation["odd_sql"]
+                for validation in table.get("validations", [])
+            ),
+        )
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "Natural Earth"
+    assert source["license_url"] == "https://www.naturalearthdata.com/about/terms-of-use/"
+    assert source["duckdb"]["extensions"] == ["spatial"]
+    assert source["release"]["latest"] == {
+        "method": "static-download",
+        "url": "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip",
+        "resolve_sql": "SELECT regexp_extract('https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip', '/naturalearth/([0-9]+m)/', 1) AS release;\n",
+    }
+    assert source["release"]["pinned"] == {"duckdb_setting": "naturalearth_scale", "example": "110m"}
+    assert table["ref"] == "odd.naturalearth.latest.countries_110m"
+    assert "install spatial" in rendered_sql
+    assert "load spatial" in rendered_sql
+    assert "st_read" in rendered_sql
+    assert "naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip" in rendered_sql
+    assert "count(*) = 177" in source["duckdb"]["validation_query"]
+    assert source["duckdb"]["tables"] == {
+        "namespace": "odd.naturalearth.latest",
+        "discover_sql": "SELECT 'countries_{release}' AS name,\n"
+        "       'st_read' AS reader,\n"
+        "       '/vsizip/vsicurl/https://naciscdn.org/naturalearth/{release}/cultural/ne_{release}_admin_0_countries.zip/ne_{release}_admin_0_countries.shp' AS path;\n",
+    }
+    assert "load naturalearth" not in rendered_sql
+    assert "install naturalearth" not in rendered_sql
+
+
 def test_project_usgs_earthquake_feed_uses_direct_geojson_recipe() -> None:
     registry = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
     source = next(source for source in registry["sources"] if source["id"] == "usgs.earthquake.realtime-geojson")
