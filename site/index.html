@@ -99,6 +99,11 @@ LIMIT 10;</code></pre>
               <td><code>odd.overturemaps.latest.address</code></td>
             </tr>
             <tr>
+              <td>Natural Earth Admin 0 countries</td>
+              <td>countries_110m</td>
+              <td><code>odd.naturalearth.latest.countries_110m</code></td>
+            </tr>
+            <tr>
               <td>U.S. Census cartographic county boundary files</td>
               <td>county_20m</td>
               <td><code>odd.census.latest.county_20m</code></td>
@@ -113,11 +118,6 @@ LIMIT 10;</code></pre>
               <td>storm_events_details</td>
               <td><code>odd.noaa.latest.storm_events_details</code></td>
             </tr>
-            <tr>
-              <td>NOAA NCEI Storm Events bulk CSV files</td>
-              <td>storm_events_fatalities</td>
-              <td><code>odd.noaa.latest.storm_events_fatalities</code></td>
-            </tr>
           </tbody>
         </table>
       </div>
@@ -126,7 +126,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">23 sources across arcgis (3), ckan (1), other (12), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">24 sources across arcgis (3), ckan (1), other (13), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header">
@@ -142,6 +142,21 @@ LIMIT 10;</code></pre>
           <ul class="tag-list"><li>maps</li><li>geospatial</li><li>places</li><li>buildings</li><li>transportation</li><li>addresses</li></ul>
           <ul class="table-list"><li><strong>place</strong> <code>odd.overturemaps.latest.place</code>: Places and points of interest. One row per Overture place feature. <span>Ask for: bbox or area, release or latest, limit</span> <span>Warnings: Large global table; always use tight bbox filters.</span></li><li><strong>building</strong> <code>odd.overturemaps.latest.building</code>: Building footprint polygons. One row per Overture building feature. <span>Ask for: bbox or area, release or latest, limit</span> <span>Warnings: Large global table; always use tight bbox filters.</span></li><li><strong>segment</strong> <code>odd.overturemaps.latest.segment</code>: Transportation road/path segments. One row per Overture segment feature. <span>Ask for: bbox or area, release or latest, limit</span> <span>Warnings: Large global table; always use tight bbox filters.</span></li><li><strong>address</strong> <code>odd.overturemaps.latest.address</code>: Address point/record features. One row per Overture address feature. <span>Ask for: bbox or area, release or latest, limit</span> <span>Warnings: Large global table; always use tight bbox filters.</span></li></ul>
           <a href="https://docs.overturemaps.org/getting-data/">Homepage</a>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header">
+            <span class="status">candidate</span>
+            <span>other</span>
+          </div>
+          <h3><code>naturalearth.admin0-countries</code></h3>
+          <p>Public-domain generalized country and sovereignty polygons from Natural Earth&#x27;s 1:110m Admin 0 countries layer, queryable directly from the zipped shapefile with DuckDB spatial/GDAL virtual file paths.</p>
+          <dl>
+            <dt>Authority</dt><dd>Natural Earth</dd>
+            <dt>License</dt><dd><a href="https://www.naturalearthdata.com/about/terms-of-use/">Terms</a></dd>
+          </dl>
+          <ul class="tag-list"><li>natural-earth</li><li>countries</li><li>boundaries</li><li>shapefile</li><li>geospatial</li></ul>
+          <ul class="table-list"><li><strong>countries_110m</strong> <code>odd.naturalearth.latest.countries_110m</code>: Generalized Admin 0 country polygons at 1:110m scale. One row per country or country-like map unit in the Natural Earth countries layer. <span>Ask for: scale, whether de facto boundaries are acceptable, country or sovereignty fields, limit</span> <span>Warnings: Natural Earth is cartographic generalized data for small-scale maps, not legal or survey boundaries., The Admin 0 countries layer uses de facto boundaries by default; choose a different Natural Earth Admin 0 product if map units, sovereignty, or disputed areas matter.</span></li></ul>
+          <a href="https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/">Homepage</a>
         </article>
         <article class="source-card">
           <div class="source-card-header">

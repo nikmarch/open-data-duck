@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 1;
-static constexpr int REGISTRY_SOURCE_COUNT = 23;
+static constexpr int REGISTRY_SOURCE_COUNT = 24;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 1,
-  "source_count": 23,
+  "source_count": 24,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -191,6 +191,88 @@ static const char *const REGISTRY_JSON = R"odd_registry(
         "buildings",
         "transportation",
         "addresses"
+      ]
+    },
+    {
+      "attribution": "Natural Earth public-domain map data; optional credit: Made with Natural Earth.",
+      "authority": "Natural Earth",
+      "description": "Public-domain generalized country and sovereignty polygons from Natural Earth's 1:110m Admin 0 countries layer, queryable directly from the zipped shapefile with DuckDB spatial/GDAL virtual file paths.",
+      "duckdb": {
+        "example_query": "LOAD spatial;\n\nSELECT NAME, ISO_A3, CONTINENT, POP_EST\nFROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp')\nWHERE ISO_A3 IN ('USA', 'UZB')\nORDER BY ISO_A3;",
+        "examples": {
+          "countries_by_continent": "LOAD spatial;\n\nSELECT NAME, ISO_A3, POP_EST\nFROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp')\nWHERE CONTINENT = 'Asia'\nORDER BY NAME\nLIMIT 25;"
+        },
+        "extensions": [
+          "spatial"
+        ],
+        "install": "INSTALL spatial;",
+        "tables": {
+          "discover_sql": "SELECT 'countries_{release}' AS name,\n       'st_read' AS reader,\n       '/vsizip/vsicurl/https://naciscdn.org/naturalearth/{release}/cultural/ne_{release}_admin_0_countries.zip/ne_{release}_admin_0_countries.shp' AS path;",
+          "namespace": "odd.naturalearth.latest"
+        },
+        "validation_query": "LOAD spatial;\n\nSELECT count(*) = 177 AS ok\nFROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp');"
+      },
+      "homepage": "https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/",
+      "id": "naturalearth.admin0-countries",
+      "license_url": "https://www.naturalearthdata.com/about/terms-of-use/",
+      "name": "Natural Earth Admin 0 countries",
+      "release": {
+        "latest": {
+          "method": "static-download",
+          "resolve_sql": "SELECT regexp_extract('https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip', '/naturalearth/([0-9]+m)/', 1) AS release;\n",
+          "url": "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip"
+        },
+        "pinned": {
+          "duckdb_setting": "naturalearth_scale",
+          "example": "110m"
+        }
+      },
+      "source_type": "other",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "scale",
+            "whether de facto boundaries are acceptable",
+            "country or sovereignty fields",
+            "limit"
+          ],
+          "columns_hint": {
+            "CONTINENT": "Continent grouping from Natural Earth.",
+            "ISO_A3": "Three-letter ISO-style country code where assigned.",
+            "NAME": "Display name for the country or map unit.",
+            "POP_EST": "Estimated population attribute from Natural Earth.",
+            "geom": "Generalized polygon or multipolygon geometry."
+          },
+          "description": "Generalized Admin 0 country polygons at 1:110m scale. One row per country or country-like map unit in the Natural Earth countries layer.",
+          "id": "countries_110m",
+          "ref": "odd.naturalearth.latest.countries_110m",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the Natural Earth Admin 0 countries facade with the direct zipped shapefile recipe for two stable country rows.",
+              "direct_sql": "LOAD spatial;\nSELECT NAME, ISO_A3, CONTINENT, POP_EST\nFROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp')\nWHERE ISO_A3 IN ('USA', 'UZB')\nORDER BY ISO_A3;\n",
+              "id": "odd.naturalearth.latest.countries_110m",
+              "limit": 2,
+              "odd_sql": "LOAD spatial;\nLOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT NAME, ISO_A3, CONTINENT, POP_EST\nFROM odd.naturalearth.latest.countries_110m\nWHERE ISO_A3 IN ('USA', 'UZB')\nORDER BY ISO_A3;\n",
+              "order_by": [
+                "ISO_A3"
+              ],
+              "release": "latest"
+            }
+          ],
+          "warnings": [
+            "Natural Earth is cartographic generalized data for small-scale maps, not legal or survey boundaries.",
+            "The Admin 0 countries layer uses de facto boundaries by default; choose a different Natural Earth Admin 0 product if map units, sovereignty, or disputed areas matter."
+          ]
+        }
+      ],
+      "tags": [
+        "natural-earth",
+        "countries",
+        "boundaries",
+        "shapefile",
+        "geospatial"
       ]
     },
     {
