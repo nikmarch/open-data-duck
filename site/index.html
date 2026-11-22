@@ -107,9 +107,9 @@ LIMIT 10;</code></pre>
               <td><code>odd.census.latest.tract_5m</code></td>
             </tr>
             <tr>
-              <td>NOAA NCEI Storm Events bulk CSV files</td>
-              <td>storm_events_details</td>
-              <td><code>odd.noaa.latest.storm_events_details</code></td>
+              <td>WRI Global Power Plant Database</td>
+              <td>global_power_plants</td>
+              <td><code>odd.wri.latest.global_power_plants</code></td>
             </tr>
           </tbody>
         </table>
@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">26 sources across arcgis (3), ckan (1), other (14), overture (1), parquet (1), socrata (3), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">27 sources across arcgis (3), ckan (1), other (15), overture (1), parquet (1), socrata (3), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -238,6 +238,13 @@ LIMIT 10;</code></pre>
           <p>U.S. Treasury Fiscal Data Debt to the Penny API</p>
           <dl><dt>Authority</dt><dd>U.S. Department of the Treasury, Bureau of the Fiscal Service</dd><dt>License</dt><dd><a href="https://catalog.data.gov/dataset/debt-to-the-penny">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>debt_observations</strong>: U.S. Treasury daily public debt outstanding records. One row per record date. <span>Ask for: date window, debt field, limit</span> <span>Warnings: Fiscal Data CSV responses are gzipped; use compression = &#x27;gzip&#x27;.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
+          <h3><code>wri.global-power-plant-database</code></h3>
+          <p>WRI Global Power Plant Database</p>
+          <dl><dt>Authority</dt><dd>World Resources Institute</dd><dt>License</dt><dd><a href="https://raw.githubusercontent.com/wri/global-power-plant-database/master/README.md">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>global_power_plants</strong> <code>odd.wri.latest.global_power_plants</code>: Global power plant records. One row per plant with country, fuel, capacity, geolocation, ownership/source metadata, and generation fields. <span>Ask for: country or countries, fuel type, capacity threshold, whether stale 2021/2022-era data is acceptable, limit</span> <span>Warnings: WRI says the project is not currently maintained and has no planned updates as of early 2022; use it as a broad reference index, not a freshness-sensitive operational source., The integrated database combines national and manual sources, so inspect source-year and lineage fields before comparing countries.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>

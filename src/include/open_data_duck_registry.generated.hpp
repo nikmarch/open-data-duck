@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 26;
+static constexpr int REGISTRY_SOURCE_COUNT = 27;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 26,
+  "source_count": 27,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -786,6 +786,77 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "id": "debt_observations",
           "warnings": [
             "Fiscal Data CSV responses are gzipped; use compression = 'gzip'."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "World Resources Institute / Global Power Plant Database; preserve CC BY 4.0 attribution and do not imply WRI endorsement.",
+      "authority": "World Resources Institute",
+      "discovery": {
+        "discover_sql": "SELECT 'global_power_plants' AS name,\n       'read_csv' AS reader,\n       'https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv' AS path\nWHERE '{release}' = 'v1x3x0';\n",
+        "namespace": "odd.wri.latest"
+      },
+      "id": "wri.global-power-plant-database",
+      "license_url": "https://raw.githubusercontent.com/wri/global-power-plant-database/master/README.md",
+      "name": "WRI Global Power Plant Database",
+      "release": {
+        "latest": {
+          "method": "static-csv",
+          "resolve_sql": "SELECT 'v1x3x0' AS release;\n",
+          "url": "https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv"
+        },
+        "pinned": {
+          "duckdb_setting": "wri_global_power_plants_release",
+          "example": "v1x3x0"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "other",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "country or countries",
+            "fuel type",
+            "capacity threshold",
+            "whether stale 2021/2022-era data is acceptable",
+            "limit"
+          ],
+          "columns_hint": {
+            "capacity_mw": "Plant capacity in megawatts.",
+            "country": "ISO-like three-letter country code used by the dataset.",
+            "country_long": "Country display name.",
+            "latitude": "Plant latitude.",
+            "longitude": "Plant longitude.",
+            "name": "Power plant name.",
+            "primary_fuel": "Primary fuel category.",
+            "year_of_capacity_data": "Year attached to the reported capacity data where available."
+          },
+          "description": "Global power plant records. One row per plant with country, fuel, capacity, geolocation, ownership/source metadata, and generation fields.",
+          "id": "global_power_plants",
+          "ref": "odd.wri.latest.global_power_plants",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the WRI Global Power Plant Database facade with the direct public CSV recipe for stable country aggregates.",
+              "direct_sql": "LOAD httpfs;\nSELECT country, count(*) AS plants, round(sum(capacity_mw), 1) AS capacity_mw\nFROM read_csv_auto('https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv')\nWHERE country IN ('USA', 'UZB')\nGROUP BY country\nORDER BY country;\n",
+              "id": "odd.wri.latest.global_power_plants",
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE wri_global_power_plants_release = 'v1x3x0';\nSELECT country, count(*) AS plants, round(sum(capacity_mw), 1) AS capacity_mw\nFROM odd.wri.latest.global_power_plants\nWHERE country IN ('USA', 'UZB')\nGROUP BY country\nORDER BY country;\n",
+              "order_by": [
+                "country"
+              ],
+              "release": "latest",
+              "source_release": "v1.3.0"
+            }
+          ],
+          "warnings": [
+            "WRI says the project is not currently maintained and has no planned updates as of early 2022; use it as a broad reference index, not a freshness-sensitive operational source.",
+            "The integrated database combines national and manual sources, so inspect source-year and lineage fields before comparing countries."
           ]
         }
       ]
