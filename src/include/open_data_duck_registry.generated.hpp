@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 26;
+static constexpr int REGISTRY_SOURCE_COUNT = 27;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 26,
+  "source_count": 27,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -506,6 +506,79 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "id": "flood_hazard_zones",
           "warnings": [
             "Not a substitute for official determinations; connector path is not stable yet."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "Cite FEMA OpenFEMA and the Disaster Declarations Summaries dataset/retrieval per the OpenFEMA Terms and Conditions citation guidance.",
+      "authority": "Federal Emergency Management Agency OpenFEMA",
+      "discovery": {
+        "discover_sql": "SELECT 'disaster_declarations' AS name,\n       'read_parquet' AS reader,\n       'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet' AS path\nWHERE '{release}' = 'v2';\n",
+        "namespace": "odd.fema.latest"
+      },
+      "id": "fema.openfema.disaster-declarations",
+      "license_url": "https://www.fema.gov/about/openfema/terms-conditions",
+      "name": "FEMA OpenFEMA Disaster Declarations Summaries",
+      "release": {
+        "latest": {
+          "method": "static-parquet",
+          "resolve_sql": "SELECT 'v2' AS release;\n",
+          "url": "https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet"
+        },
+        "pinned": {
+          "duckdb_setting": "fema_disaster_declarations_release",
+          "example": "v2"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "parquet",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "state or territory",
+            "declaration date or fiscal year range",
+            "incident type",
+            "declaration type",
+            "assistance program flags",
+            "limit"
+          ],
+          "columns_hint": {
+            "declarationDate": "Date FEMA declared the disaster.",
+            "declarationType": "FEMA declaration type code.",
+            "designatedArea": "County, parish, borough, census area, statewide area, or Tribal area covered by the declaration.",
+            "disasterNumber": "FEMA disaster declaration number.",
+            "hmProgramDeclared": "Whether Hazard Mitigation was declared for the record.",
+            "ihProgramDeclared": "Whether the Individual and Households Program was declared for the record.",
+            "incidentType": "Incident category such as Flood, Fire, Hurricane, or Earthquake.",
+            "paProgramDeclared": "Whether Public Assistance was declared for the record.",
+            "state": "Two-letter state, territory, or Tribal Nation state-code grouping."
+          },
+          "description": "FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward.",
+          "id": "disaster_declarations",
+          "ref": "odd.fema.latest.disaster_declarations",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the FEMA OpenFEMA disaster declarations facade with the direct public Parquet export for stable state aggregates.",
+              "direct_sql": "LOAD httpfs;\nSELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster\nFROM read_parquet('https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet')\nWHERE state IN ('AK', 'CA')\nGROUP BY state\nORDER BY state;\n",
+              "id": "odd.fema.latest.disaster_declarations",
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE fema_disaster_declarations_release = 'v2';\nSELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster\nFROM odd.fema.latest.disaster_declarations\nWHERE state IN ('AK', 'CA')\nGROUP BY state\nORDER BY state;\n",
+              "order_by": [
+                "state"
+              ],
+              "release": "latest",
+              "source_release": "v2"
+            }
+          ],
+          "warnings": [
+            "FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error.",
+            "County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data."
           ]
         }
       ]

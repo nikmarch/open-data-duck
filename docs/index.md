@@ -426,6 +426,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
 
 ## parquet
 
+### `fema.openfema.disaster-declarations` — FEMA OpenFEMA Disaster Declarations Summaries
+
+- Status: `candidate`
+- Authority: Federal Emergency Management Agency OpenFEMA
+- License: https://www.fema.gov/about/openfema/terms-conditions
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.fema.latest`
+- Tables:
+  - `disaster_declarations` (`odd.fema.latest.disaster_declarations`): FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward.
+    - Ask for: state or territory, declaration date or fiscal year range, incident type, declaration type, assistance program flags, limit
+    - Warnings: FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error., County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data.
+    - Columns: disasterNumber: FEMA disaster declaration number.; state: Two-letter state, territory, or Tribal Nation state-code grouping.; declarationDate: Date FEMA declared the disaster.; incidentType: Incident category such as Flood, Fire, Hurricane, or Earthquake.; designatedArea: County, parish, borough, census area, statewide area, or Tribal area covered by the declaration.; declarationType: FEMA declaration type code.; ihProgramDeclared: Whether the Individual and Households Program was declared for the record.; paProgramDeclared: Whether Public Assistance was declared for the record.; hmProgramDeclared: Whether Hazard Mitigation was declared for the record.
+    - Validation: `odd.fema.latest.disaster_declarations`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE fema_disaster_declarations_release = 'v2';
+      SELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster
+      FROM odd.fema.latest.disaster_declarations
+      WHERE state IN ('AK', 'CA')
+      GROUP BY state
+      ORDER BY state;
+      ```
+
 ### `sourcecoop.vida.google-microsoft-open-buildings` — VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
 
 - Status: `candidate`

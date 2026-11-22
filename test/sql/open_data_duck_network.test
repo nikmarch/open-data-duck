@@ -22,10 +22,11 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.noaa.latest.ghcn_daily', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.fema.latest.disaster_declarations', 'odd.noaa.latest.ghcn_daily', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.census.latest.county_20m	st_read
+odd.fema.latest.disaster_declarations	read_parquet
 odd.noaa.latest.ghcn_daily	read_csv
 odd.overturemaps.latest.building	read_parquet
 odd.overturemaps.latest.place	read_parquet
@@ -82,6 +83,16 @@ true
 
 query I
 SELECT count(*) > 0 FROM odd.noaa.latest.ghcn_daily LIMIT 1;
+----
+true
+
+statement ok
+SET VARIABLE fema_disaster_declarations_release = 'v2';
+
+query I
+SELECT count(*) > 0
+FROM odd.fema.latest.disaster_declarations
+WHERE state = 'AK';
 ----
 true
 
