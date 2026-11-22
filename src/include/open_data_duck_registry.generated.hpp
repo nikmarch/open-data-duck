@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 26;
+static constexpr int REGISTRY_SOURCE_COUNT = 27;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 26,
+  "source_count": 27,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -1171,6 +1171,72 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "id": "county_health_estimates",
           "warnings": [
             "Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "CDC/NCHS, National Vital Statistics System mortality data, and CDC WONDER; do not imply CDC endorsement.",
+      "authority": "Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics",
+      "discovery": {
+        "discover_sql": "SELECT 'leading_causes_of_death' AS name,\n       'read_csv_auto' AS reader,\n       'https://data.cdc.gov/resource/bi63-dtpu.csv?$select=year,_113_cause_name,cause_name,state,deaths,aadr&$order=year,state,cause_name&$limit=50000' AS path;\n",
+        "namespace": "odd.cdc.latest"
+      },
+      "id": "socrata.cdc.nchs-leading-causes-of-death",
+      "license_url": "https://www.usa.gov/government-works",
+      "name": "CDC NCHS leading causes of death, United States",
+      "release": {
+        "latest": {
+          "method": "static-soda-export",
+          "url": "https://data.cdc.gov/resource/bi63-dtpu.csv"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "socrata",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "state",
+            "year range",
+            "cause name or whether to include the All causes rollup",
+            "limit"
+          ],
+          "columns_hint": {
+            "_113_cause_name": "Detailed ICD-coded cause-of-death grouping from Socrata's 113 Cause Name field.",
+            "aadr": "Age-adjusted death rate for the selected year, state, and cause.",
+            "cause_name": "Cause-of-death grouping; filter out All causes for ranked-cause comparisons.",
+            "deaths": "Death count for the selected year, state, and cause.",
+            "state": "U.S. state or District of Columbia reported by the dataset.",
+            "year": "Reporting year from Socrata's Year field."
+          },
+          "description": "CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate.",
+          "id": "leading_causes_of_death",
+          "ref": "odd.cdc.latest.leading_causes_of_death",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the CDC NCHS Socrata facade with the direct bounded SODA CSV recipe for a stable Alaska mortality sample.",
+              "direct_sql": "LOAD httpfs;\nSELECT count(*) AS row_count,\n       min(year) AS first_year,\n       max(year) AS last_year,\n       CAST(sum(CASE WHEN year = 2017 AND cause_name <> 'All causes' THEN deaths ELSE 0 END) AS BIGINT) AS ranked_deaths_2017\nFROM read_csv_auto('https://data.cdc.gov/resource/bi63-dtpu.csv?$select=year,_113_cause_name,cause_name,state,deaths,aadr&$order=year,state,cause_name&$limit=50000')\nWHERE state = 'Alaska';\n",
+              "id": "odd.cdc.latest.leading_causes_of_death",
+              "limit": 1,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT count(*) AS row_count,\n       min(year) AS first_year,\n       max(year) AS last_year,\n       CAST(sum(CASE WHEN year = 2017 AND cause_name <> 'All causes' THEN deaths ELSE 0 END) AS BIGINT) AS ranked_deaths_2017\nFROM odd.cdc.latest.leading_causes_of_death\nWHERE state = 'Alaska';\n",
+              "order_by": [
+                "row_count"
+              ],
+              "release": "latest"
+            }
+          ],
+          "warnings": [
+            "Dataset is a compact NCHS summary, not record-level mortality microdata.",
+            "Latest rows in this Socrata asset currently stop at 2017.",
+            "Filter out All causes when comparing ranked cause totals.",
+            "Facade uses a bounded Socrata SODA CSV export with selected columns, deterministic ordering, and a 50000-row cap.",
+            "Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22."
           ]
         }
       ]

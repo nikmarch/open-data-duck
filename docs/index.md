@@ -461,6 +461,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Ask for: state, measure id, age-adjusted or crude prevalence
     - Warnings: Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.
 
+### `socrata.cdc.nchs-leading-causes-of-death` — CDC NCHS leading causes of death, United States
+
+- Status: `candidate`
+- Authority: Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics
+- License: https://www.usa.gov/government-works
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.cdc.latest`
+- Tables:
+  - `leading_causes_of_death` (`odd.cdc.latest.leading_causes_of_death`): CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate.
+    - Ask for: state, year range, cause name or whether to include the All causes rollup, limit
+    - Warnings: Dataset is a compact NCHS summary, not record-level mortality microdata., Latest rows in this Socrata asset currently stop at 2017., Filter out All causes when comparing ranked cause totals., Facade uses a bounded Socrata SODA CSV export with selected columns, deterministic ordering, and a 50000-row cap., Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22.
+    - Columns: year: Reporting year from Socrata's Year field.; _113_cause_name: Detailed ICD-coded cause-of-death grouping from Socrata's 113 Cause Name field.; cause_name: Cause-of-death grouping; filter out All causes for ranked-cause comparisons.; state: U.S. state or District of Columbia reported by the dataset.; deaths: Death count for the selected year, state, and cause.; aadr: Age-adjusted death rate for the selected year, state, and cause.
+    - Validation: `odd.cdc.latest.leading_causes_of_death`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(year) AS first_year,
+             max(year) AS last_year,
+             CAST(sum(CASE WHEN year = 2017 AND cause_name <> 'All causes' THEN deaths ELSE 0 END) AS BIGINT) AS ranked_deaths_2017
+      FROM odd.cdc.latest.leading_causes_of_death
+      WHERE state = 'Alaska';
+      ```
+
 ## stac
 
 ### `stac.earth-search.aws` — Earth Search STAC API
