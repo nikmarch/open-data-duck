@@ -947,9 +947,11 @@ sources:
     - httpfs
   tables:
   - id: leading_causes_of_death
+    ref: odd.cdc.latest.leading_causes_of_death
     description: CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate.
     columns_hint:
-      _year: Reporting year parsed from Socrata's Year field when normalize_names is enabled.
+      year: Reporting year from Socrata's Year field.
+      _113_cause_name: Detailed ICD-coded cause-of-death grouping from Socrata's 113 Cause Name field.
       cause_name: Cause-of-death grouping; filter out All causes for ranked-cause comparisons.
       state: U.S. state or District of Columbia reported by the dataset.
       deaths: Death count for the selected year, state, and cause.
@@ -963,7 +965,25 @@ sources:
     - Dataset is a compact NCHS summary, not record-level mortality microdata.
     - Latest rows in this Socrata asset currently stop at 2017.
     - Filter out All causes when comparing ranked cause totals.
+    - Facade uses a bounded Socrata SODA CSV export with selected columns, deterministic ordering, and a 50000-row cap.
     - "Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22."
+    validations:
+    - id: odd.cdc.latest.leading_causes_of_death
+      description: Compare the CDC NCHS Socrata facade with the direct bounded SODA CSV recipe for a stable Alaska mortality sample.
+      release: latest
+      compare: exact
+      order_by:
+      - row_count
+      limit: 1
+      direct_sql: "LOAD httpfs;\nSELECT count(*) AS row_count,\n       min(year) AS first_year,\n       max(year) AS last_year,\n       CAST(sum(CASE WHEN year = 2017 AND cause_name <> 'All causes' THEN deaths ELSE 0 END) AS BIGINT) AS ranked_deaths_2017\nFROM read_csv_auto('https://data.cdc.gov/resource/bi63-dtpu.csv?$select=year,_113_cause_name,cause_name,state,deaths,aadr&$order=year,state,cause_name&$limit=50000')\nWHERE state = 'Alaska';\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT count(*) AS row_count,\n       min(year) AS first_year,\n       max(year) AS last_year,\n       CAST(sum(CASE WHEN year = 2017 AND cause_name <> 'All causes' THEN deaths ELSE 0 END) AS BIGINT) AS ranked_deaths_2017\nFROM odd.cdc.latest.leading_causes_of_death\nWHERE state = 'Alaska';\n"
+  release:
+    latest:
+      method: static-soda-export
+      url: https://data.cdc.gov/resource/bi63-dtpu.csv
+  discovery:
+    namespace: odd.cdc.latest
+    discover_sql: "SELECT 'leading_causes_of_death' AS name,\n       'read_csv_auto' AS reader,\n       'https://data.cdc.gov/resource/bi63-dtpu.csv?$select=year,_113_cause_name,cause_name,state,deaths,aadr&$order=year,state,cause_name&$limit=50000' AS path;\n"
 - id: sourcecoop.vida.google-microsoft-open-buildings
   name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
   status: candidate
