@@ -227,7 +227,7 @@ static const char *const REGISTRY_JSON = R"odd_registry(
               "direct_sql": "LOAD spatial;\nSELECT NAME, ISO_A3, CONTINENT, POP_EST\nFROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp')\nWHERE ISO_A3 IN ('USA', 'UZB')\nORDER BY ISO_A3;\n",
               "id": "odd.naturalearth.latest.countries_110m",
               "limit": 2,
-              "odd_sql": "LOAD spatial;\nLOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT NAME, ISO_A3, CONTINENT, POP_EST\nFROM odd.naturalearth.latest.countries_110m\nWHERE ISO_A3 IN ('USA', 'UZB')\nORDER BY ISO_A3;\n",
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT NAME, ISO_A3, CONTINENT, POP_EST\nFROM odd.naturalearth.latest.countries_110m\nWHERE ISO_A3 IN ('USA', 'UZB')\nORDER BY ISO_A3;\n",
               "order_by": [
                 "ISO_A3"
               ],
@@ -406,10 +406,10 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             {
               "compare": "exact",
               "description": "Compare the latest Census county boundary facade with the direct zipped shapefile recipe.",
-              "direct_sql": "LOAD spatial;\nSELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
+              "direct_sql": "LOAD spatial;\nSELECT GEOID, NAME, STATE_NAME\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
               "id": "odd.census.latest.county_20m",
               "limit": 10,
-              "odd_sql": "LOAD spatial;\nLOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE census_cartographic_year = '2025';\nSELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type\nFROM odd.census.latest.county_20m\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE census_cartographic_year = '2025';\nSELECT GEOID, NAME, STATE_NAME\nFROM odd.census.latest.county_20m\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
               "order_by": [
                 "GEOID"
               ],
@@ -466,10 +466,10 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             {
               "compare": "exact",
               "description": "Compare the latest Census tract boundary facade with the direct zipped shapefile recipe.",
-              "direct_sql": "LOAD spatial;\nSELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
+              "direct_sql": "LOAD spatial;\nSELECT GEOID, NAME, STATEFP, COUNTYFP\nFROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
               "id": "odd.census.latest.tract_5m",
               "limit": 10,
-              "odd_sql": "LOAD spatial;\nLOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE census_cartographic_year = '2025';\nSELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type\nFROM odd.census.latest.tract_5m\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE census_cartographic_year = '2025';\nSELECT GEOID, NAME, STATEFP, COUNTYFP\nFROM odd.census.latest.tract_5m\nWHERE STATEFP = '02'\nORDER BY GEOID\nLIMIT 10;\n",
               "order_by": [
                 "GEOID"
               ],

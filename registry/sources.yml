@@ -169,9 +169,7 @@ sources:
         ORDER BY ISO_A3;
 
         '
-      odd_sql: 'LOAD spatial;
-
-        LOAD open_data_duck;
+      odd_sql: 'LOAD open_data_duck;
 
         ATTACH '':memory:'' AS odd (TYPE open_data_duck);
 
@@ -315,7 +313,7 @@ sources:
       limit: 10
       direct_sql: 'LOAD spatial;
 
-        SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
+        SELECT GEOID, NAME, STATE_NAME
 
         FROM ST_Read(''/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp'')
 
@@ -326,15 +324,13 @@ sources:
         LIMIT 10;
 
         '
-      odd_sql: 'LOAD spatial;
-
-        LOAD open_data_duck;
+      odd_sql: 'LOAD open_data_duck;
 
         ATTACH '':memory:'' AS odd (TYPE open_data_duck);
 
         SET VARIABLE census_cartographic_year = ''2025'';
 
-        SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
+        SELECT GEOID, NAME, STATE_NAME
 
         FROM odd.census.latest.county_20m
 
@@ -387,7 +383,7 @@ sources:
       limit: 10
       direct_sql: 'LOAD spatial;
 
-        SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
+        SELECT GEOID, NAME, STATEFP, COUNTYFP
 
         FROM ST_Read(''/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp'')
 
@@ -398,15 +394,13 @@ sources:
         LIMIT 10;
 
         '
-      odd_sql: 'LOAD spatial;
-
-        LOAD open_data_duck;
+      odd_sql: 'LOAD open_data_duck;
 
         ATTACH '':memory:'' AS odd (TYPE open_data_duck);
 
         SET VARIABLE census_cartographic_year = ''2025'';
 
-        SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
+        SELECT GEOID, NAME, STATEFP, COUNTYFP
 
         FROM odd.census.latest.tract_5m
 

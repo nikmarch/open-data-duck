@@ -70,7 +70,6 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Columns: NAME: Display name for the country or map unit.; ISO_A3: Three-letter ISO-style country code where assigned.; CONTINENT: Continent grouping from Natural Earth.; POP_EST: Estimated population attribute from Natural Earth.; geom: Generalized polygon or multipolygon geometry.
     - Validation: `odd.naturalearth.latest.countries_110m`
       ```
-      LOAD spatial;
       LOAD open_data_duck;
       ATTACH ':memory:' AS odd (TYPE open_data_duck);
       SELECT NAME, ISO_A3, CONTINENT, POP_EST
@@ -92,11 +91,10 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Warnings: Generalized for thematic mapping, not surveying.
     - Validation: `odd.census.latest.county_20m`
       ```
-      LOAD spatial;
       LOAD open_data_duck;
       ATTACH ':memory:' AS odd (TYPE open_data_duck);
       SET VARIABLE census_cartographic_year = '2025';
-      SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
+      SELECT GEOID, NAME, STATE_NAME
       FROM odd.census.latest.county_20m
       WHERE STATEFP = '02'
       ORDER BY GEOID
@@ -116,11 +114,10 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Warnings: National tract files are larger; filter by state when possible.
     - Validation: `odd.census.latest.tract_5m`
       ```
-      LOAD spatial;
       LOAD open_data_duck;
       ATTACH ':memory:' AS odd (TYPE open_data_duck);
       SET VARIABLE census_cartographic_year = '2025';
-      SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
+      SELECT GEOID, NAME, STATEFP, COUNTYFP
       FROM odd.census.latest.tract_5m
       WHERE STATEFP = '02'
       ORDER BY GEOID
