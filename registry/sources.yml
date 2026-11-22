@@ -640,6 +640,59 @@ sources:
     - limit
     warnings:
     - Fiscal Data CSV responses are gzipped; use compression = 'gzip'.
+- id: wri.global-power-plant-database
+  name: WRI Global Power Plant Database
+  status: candidate
+  source_type: other
+  authority: World Resources Institute
+  license_url: https://raw.githubusercontent.com/wri/global-power-plant-database/master/README.md
+  attribution: World Resources Institute / Global Power Plant Database; preserve CC BY 4.0 attribution and do not imply WRI endorsement.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: global_power_plants
+    ref: odd.wri.latest.global_power_plants
+    description: Global power plant records. One row per plant with country, fuel, capacity, geolocation, ownership/source metadata, and generation fields.
+    columns_hint:
+      country: ISO-like three-letter country code used by the dataset.
+      country_long: Country display name.
+      name: Power plant name.
+      primary_fuel: Primary fuel category.
+      capacity_mw: Plant capacity in megawatts.
+      latitude: Plant latitude.
+      longitude: Plant longitude.
+      year_of_capacity_data: Year attached to the reported capacity data where available.
+    ask_for:
+    - country or countries
+    - fuel type
+    - capacity threshold
+    - whether stale 2021/2022-era data is acceptable
+    - limit
+    warnings:
+    - WRI says the project is not currently maintained and has no planned updates as of early 2022; use it as a broad reference index, not a freshness-sensitive operational source.
+    - The integrated database combines national and manual sources, so inspect source-year and lineage fields before comparing countries.
+    validations:
+    - id: odd.wri.latest.global_power_plants
+      description: Compare the WRI Global Power Plant Database facade with the direct public CSV recipe for stable country aggregates.
+      release: latest
+      source_release: v1.3.0
+      compare: exact
+      order_by:
+      - country
+      direct_sql: "LOAD httpfs;\nSELECT country, count(*) AS plants, round(sum(capacity_mw), 1) AS capacity_mw\nFROM read_csv_auto('https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv')\nWHERE country IN ('USA', 'UZB')\nGROUP BY country\nORDER BY country;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE wri_global_power_plants_release = 'v1x3x0';\nSELECT country, count(*) AS plants, round(sum(capacity_mw), 1) AS capacity_mw\nFROM odd.wri.latest.global_power_plants\nWHERE country IN ('USA', 'UZB')\nGROUP BY country\nORDER BY country;\n"
+  release:
+    latest:
+      method: static-csv
+      url: https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv
+      resolve_sql: "SELECT 'v1x3x0' AS release;\n"
+    pinned:
+      duckdb_setting: wri_global_power_plants_release
+      example: v1x3x0
+  discovery:
+    namespace: odd.wri.latest
+    discover_sql: "SELECT 'global_power_plants' AS name,\n       'read_csv' AS reader,\n       'https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv' AS path\nWHERE '{release}' = 'v1x3x0';\n"
 - id: noaa.ncei.storm-events
   name: NOAA NCEI Storm Events bulk CSV files
   status: candidate

@@ -209,6 +209,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Ask for: date window, debt field, limit
     - Warnings: Fiscal Data CSV responses are gzipped; use compression = 'gzip'.
 
+### `wri.global-power-plant-database` — WRI Global Power Plant Database
+
+- Status: `candidate`
+- Authority: World Resources Institute
+- License: https://raw.githubusercontent.com/wri/global-power-plant-database/master/README.md
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.wri.latest`
+- Tables:
+  - `global_power_plants` (`odd.wri.latest.global_power_plants`): Global power plant records. One row per plant with country, fuel, capacity, geolocation, ownership/source metadata, and generation fields.
+    - Ask for: country or countries, fuel type, capacity threshold, whether stale 2021/2022-era data is acceptable, limit
+    - Warnings: WRI says the project is not currently maintained and has no planned updates as of early 2022; use it as a broad reference index, not a freshness-sensitive operational source., The integrated database combines national and manual sources, so inspect source-year and lineage fields before comparing countries.
+    - Columns: country: ISO-like three-letter country code used by the dataset.; country_long: Country display name.; name: Power plant name.; primary_fuel: Primary fuel category.; capacity_mw: Plant capacity in megawatts.; latitude: Plant latitude.; longitude: Plant longitude.; year_of_capacity_data: Year attached to the reported capacity data where available.
+    - Validation: `odd.wri.latest.global_power_plants`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE wri_global_power_plants_release = 'v1x3x0';
+      SELECT country, count(*) AS plants, round(sum(capacity_mw), 1) AS capacity_mw
+      FROM odd.wri.latest.global_power_plants
+      WHERE country IN ('USA', 'UZB')
+      GROUP BY country
+      ORDER BY country;
+      ```
+
 ### `noaa.ncei.storm-events` — NOAA NCEI Storm Events bulk CSV files
 
 - Status: `candidate`
