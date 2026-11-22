@@ -130,6 +130,7 @@ Table namespaces today, each discovered from the source at first use. The replac
 | `odd.overturemaps.latest` | every STAC collection of the release (`building`, `place`, `segment`, `address`, `division`, `land`, `water`, ...) | `read_parquet` | `overture_release` |
 | `odd.census.latest` | `county_20m`, `county_5m`, `county_500k`, `tract_5m`, `tract_500k`, ... | `st_read` (needs `LOAD spatial`) | `census_cartographic_year` |
 | `odd.noaa.latest` | `ghcn_daily`, `storm_events_details`, `storm_events_fatalities`, `storm_events_locations` | `read_csv` | `noaa_ghcn_year`, `noaa_storm_events_year` |
+| `odd.wri.latest` | `global_power_plants` | `read_csv` | `wri_global_power_plants_release` |
 
 ### Registry validation pairs
 
