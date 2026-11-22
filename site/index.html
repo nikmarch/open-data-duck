@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">25 sources across arcgis (3), ckan (1), other (14), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">26 sources across arcgis (3), ckan (1), other (14), overture (1), parquet (1), socrata (3), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -287,6 +287,13 @@ LIMIT 10;</code></pre>
           <p>CDC PLACES county health estimates, 2025 release</p>
           <dl><dt>Authority</dt><dd>Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health</dd><dt>License</dt><dd><a href="https://data.cdc.gov/api/views/metadata/v1/swc5-untb">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>county_health_estimates</strong>: CDC PLACES county health estimate rows. One row per county, measure, and data-value type. <span>Ask for: state, measure id, age-adjusted or crude prevalence</span> <span>Warnings: Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>socrata</span></div>
+          <h3><code>socrata.cdc.nchs-leading-causes-of-death</code></h3>
+          <p>CDC NCHS leading causes of death, United States</p>
+          <dl><dt>Authority</dt><dd>Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics</dd><dt>License</dt><dd><a href="https://www.usa.gov/government-works">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>leading_causes_of_death</strong>: CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate. <span>Ask for: state, year range, cause name or whether to include the All causes rollup, limit</span> <span>Warnings: Dataset is a compact NCHS summary, not record-level mortality microdata., Latest rows in this Socrata asset currently stop at 2017., Filter out All causes when comparing ranked cause totals., Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>parquet</span></div>

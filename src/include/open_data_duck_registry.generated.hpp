@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 25;
+static constexpr int REGISTRY_SOURCE_COUNT = 26;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 25,
+  "source_count": 26,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -1100,6 +1100,45 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "id": "county_health_estimates",
           "warnings": [
             "Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "CDC/NCHS, National Vital Statistics System mortality data, and CDC WONDER; do not imply CDC endorsement.",
+      "authority": "Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics",
+      "id": "socrata.cdc.nchs-leading-causes-of-death",
+      "license_url": "https://www.usa.gov/government-works",
+      "name": "CDC NCHS leading causes of death, United States",
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "socrata",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "state",
+            "year range",
+            "cause name or whether to include the All causes rollup",
+            "limit"
+          ],
+          "columns_hint": {
+            "_year": "Reporting year parsed from Socrata's Year field when normalize_names is enabled.",
+            "aadr": "Age-adjusted death rate for the selected year, state, and cause.",
+            "cause_name": "Cause-of-death grouping; filter out All causes for ranked-cause comparisons.",
+            "deaths": "Death count for the selected year, state, and cause.",
+            "state": "U.S. state or District of Columbia reported by the dataset."
+          },
+          "description": "CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate.",
+          "id": "leading_causes_of_death",
+          "warnings": [
+            "Dataset is a compact NCHS summary, not record-level mortality microdata.",
+            "Latest rows in this Socrata asset currently stop at 2017.",
+            "Filter out All causes when comparing ranked cause totals.",
+            "Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22."
           ]
         }
       ]

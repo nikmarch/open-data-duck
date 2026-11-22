@@ -437,6 +437,18 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Ask for: state, measure id, age-adjusted or crude prevalence
     - Warnings: Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.
 
+### `socrata.cdc.nchs-leading-causes-of-death` — CDC NCHS leading causes of death, United States
+
+- Status: `candidate`
+- Authority: Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics
+- License: https://www.usa.gov/government-works
+- DuckDB extensions: httpfs
+- Tables:
+  - `leading_causes_of_death`: CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate.
+    - Ask for: state, year range, cause name or whether to include the All causes rollup, limit
+    - Warnings: Dataset is a compact NCHS summary, not record-level mortality microdata., Latest rows in this Socrata asset currently stop at 2017., Filter out All causes when comparing ranked cause totals., Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22.
+    - Columns: _year: Reporting year parsed from Socrata's Year field when normalize_names is enabled.; cause_name: Cause-of-death grouping; filter out All causes for ranked-cause comparisons.; state: U.S. state or District of Columbia reported by the dataset.; deaths: Death count for the selected year, state, and cause.; aadr: Age-adjusted death rate for the selected year, state, and cause.
+
 ## stac
 
 ### `stac.earth-search.aws` — Earth Search STAC API

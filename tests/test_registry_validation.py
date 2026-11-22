@@ -370,6 +370,22 @@ def test_project_registry_meets_seed_source_targets() -> None:
     assert sum(source_id.startswith("aws.") for source_id in source_ids) >= 3
 
 
+def test_cdc_nchs_leading_causes_source_preserves_parameterized_socrata_shape() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "socrata.cdc.nchs-leading-causes-of-death")
+
+    assert source["source_type"] == "socrata"
+    assert source["requirements"]["duckdb_extensions"] == ["httpfs"]
+    assert "discovery" not in source
+    table = source["tables"][0]
+    assert table["id"] == "leading_causes_of_death"
+    assert "ref" not in table
+    assert "validations" not in table
+    assert "state" in table["ask_for"]
+    assert any("row_count=209" in warning for warning in table["warnings"])
+    assert table["columns_hint"]["cause_name"].startswith("Cause-of-death grouping")
+
+
 def test_project_registry_has_no_redundant_source_attributes_or_duckdb_junk_drawer() -> None:
     registry = load_project_registry()
     redundant = {"description", "homepage", "tags", "topics", "coverage", "cadence", "ai", "duckdb"}
