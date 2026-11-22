@@ -47,19 +47,17 @@ struct OpenDataSource {
 	string name;
 	string source_type;
 	string status;
-	string description;
 	string authority;
-	string homepage;
 	string license_url;
 	string attribution;
-	vector<string> tags;
 	vector<string> extensions;
-	//! duckdb.tables.namespace: odd.<provider>.<version> prefix of this source's data tables.
+	//! discovery.namespace: odd.<provider>.<version> prefix of this source's data tables.
 	string tables_namespace;
-	//! duckdb.tables.discover_sql: SQL returning (name, reader, path) rows, with {release} substituted.
+	//! discovery.discover_sql: SQL returning (name, reader, path) rows, with {release} substituted.
 	string tables_discover_sql;
-	string install;
+	//! First table validation's odd_sql, used as the source-level example SQL.
 	string example_query;
+	//! First table validation rendered as direct control + ODD facade SQL.
 	string validation_query;
 	//! release.latest.resolve_sql: SQL returning the current release id of a `latest` table.
 	string latest_resolve_sql;
@@ -202,13 +200,13 @@ static unique_ptr<QueryResult> RunSourceControlledSql(ClientContext &context, co
 	return connection.Query(sql);
 }
 
-static void JsonTables(const JSONValue &duckdb_value, OpenDataSource &source) {
-	auto tables_value = duckdb_value.GetMember("tables");
-	if (!tables_value.IsValid() || !tables_value.IsObject()) {
+static void JsonDiscovery(const JSONValue &source_value, OpenDataSource &source) {
+	auto discovery_value = source_value.GetMember("discovery");
+	if (!discovery_value.IsValid() || !discovery_value.IsObject()) {
 		return;
 	}
-	auto ns = Stripped(JsonString(tables_value, "namespace"));
-	auto discover_sql = Stripped(JsonString(tables_value, "discover_sql"));
+	auto ns = Stripped(JsonString(discovery_value, "namespace"));
+	auto discover_sql = Stripped(JsonString(discovery_value, "discover_sql"));
 	if (ns.empty() || discover_sql.empty()) {
 		return;
 	}
@@ -216,18 +214,50 @@ static void JsonTables(const JSONValue &duckdb_value, OpenDataSource &source) {
 	source.tables_discover_sql = std::move(discover_sql);
 }
 
-static string BuildSearchText(const OpenDataSource &source) {
-	vector<string> parts {source.id,       source.name,        source.description, source.status,
-	                      source.source_type, source.authority, source.homepage,    source.license_url,
-	                      source.attribution};
-	for (auto &tag : source.tags) {
-		parts.push_back(tag);
+static void JsonFirstValidationPair(const JSONValue &source_value, OpenDataSource &source) {
+	auto tables_value = source_value.GetMember("tables");
+	if (!tables_value.IsValid() || !tables_value.IsArray()) {
+		return;
 	}
+	bool found = false;
+	tables_value.IterateArray([&](JSONValue table_value) {
+		if (found || !table_value.IsObject()) {
+			return;
+		}
+		auto validations_value = table_value.GetMember("validations");
+		if (!validations_value.IsValid() || !validations_value.IsArray()) {
+			return;
+		}
+		validations_value.IterateArray([&](JSONValue validation_value) {
+			if (found || !validation_value.IsObject()) {
+				return;
+			}
+			auto direct_sql = Stripped(JsonString(validation_value, "direct_sql"));
+			auto odd_sql = Stripped(JsonString(validation_value, "odd_sql"));
+			if (direct_sql.empty() || odd_sql.empty()) {
+				return;
+			}
+			auto validation_id = Stripped(JsonString(validation_value, "id"));
+			if (validation_id.empty()) {
+				validation_id = source.id;
+			}
+			source.example_query = odd_sql;
+			source.validation_query = "-- direct DuckDB control for " + validation_id + "\n" + direct_sql +
+			                          "\n\n-- ODD facade example for " + validation_id + "\n" + odd_sql;
+			found = true;
+		});
+	});
+}
+
+static string BuildSearchText(const OpenDataSource &source) {
+	vector<string> parts {source.id,   source.name,       source.status,      source.source_type,
+	                      source.authority, source.license_url, source.attribution};
 	for (auto &extension : source.extensions) {
 		parts.push_back(extension);
 	}
 	parts.push_back(source.tables_namespace);
 	parts.push_back(source.example_query);
+	parts.push_back(source.validation_query);
 	return StringUtil::Lower(StringUtil::Join(parts, " "));
 }
 
@@ -247,21 +277,16 @@ static vector<OpenDataSource> ParseEmbeddedRegistry() {
 		source.name = JsonString(item, "name");
 		source.source_type = JsonString(item, "source_type");
 		source.status = JsonString(item, "status");
-		source.description = JsonString(item, "description");
 		source.authority = JsonString(item, "authority");
-		source.homepage = JsonString(item, "homepage");
 		source.license_url = JsonString(item, "license_url");
 		source.attribution = JsonString(item, "attribution");
-		source.tags = JsonStringArray(item, "tags");
 
-		auto duckdb_value = item.GetMember("duckdb");
-		if (duckdb_value.IsValid() && duckdb_value.IsObject()) {
-			source.extensions = JsonStringArray(duckdb_value, "extensions");
-			JsonTables(duckdb_value, source);
-			source.install = JsonString(duckdb_value, "install");
-			source.example_query = JsonString(duckdb_value, "example_query");
-			source.validation_query = JsonString(duckdb_value, "validation_query");
+		auto requirements_value = item.GetMember("requirements");
+		if (requirements_value.IsValid() && requirements_value.IsObject()) {
+			source.extensions = JsonStringArray(requirements_value, "duckdb_extensions");
 		}
+		JsonDiscovery(item, source);
+		JsonFirstValidationPair(item, source);
 		auto release_value = item.GetMember("release");
 		if (release_value.IsValid() && release_value.IsObject()) {
 			auto latest_value = release_value.GetMember("latest");
@@ -308,20 +333,14 @@ static const OpenDataSource &FindSourceOrThrow(const string &source_id) {
 	                            source_id);
 }
 
-//! Mirrors odd.registry.render_source_sql(): install statements, blank line, query, trailing newline.
+//! Mirrors odd.registry.render_source_sql(): first table validation odd_sql, or direct+ODD validation pair.
 static string RenderSourceSql(const OpenDataSource &source, bool validation) {
-	vector<string> statements;
-	auto install = Stripped(source.install);
-	if (!install.empty()) {
-		statements.push_back(install);
-	}
 	auto query = Stripped(validation ? source.validation_query : source.example_query);
 	if (query.empty()) {
-		throw InvalidInputException("open_data_duck: source '%s' has no duckdb.%s", source.id,
-		                            validation ? "validation_query" : "example_query");
+		throw InvalidInputException("open_data_duck: source '%s' has no table validation %s", source.id,
+		                            validation ? "direct_sql/odd_sql pair" : "odd_sql");
 	}
-	statements.push_back(query);
-	return StringUtil::Join(statements, "\n\n") + "\n";
+	return query + "\n";
 }
 
 //===--------------------------------------------------------------------===//
@@ -389,12 +408,12 @@ struct DiscoveredTables {
 	vector<OpenDataTable> tables;
 };
 
-//! Rows of duckdb.tables.discover_sql for the source's current release. Runs once per
+//! Rows of discovery.discover_sql for the source's current release. Runs once per
 //! process and source@release on its own connection, then serves from cache. Pinning a
 //! different release (SET VARIABLE ...) gets its own cache entry.
 static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSource &source) {
 	if (source.tables_discover_sql.empty()) {
-		throw InvalidInputException("open_data_duck: source '%s' has no duckdb.tables.discover_sql", source.id);
+		throw InvalidInputException("open_data_duck: source '%s' has no discovery.discover_sql", source.id);
 	}
 	DiscoveredTables result;
 	auto sql = source.tables_discover_sql;
@@ -420,7 +439,7 @@ static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSou
 		                            query_result->GetError());
 	}
 	if (query_result->ColumnCount() < 3) {
-		throw InvalidInputException("open_data_duck: duckdb.tables.discover_sql for '%s' must return (name, reader, path)",
+		throw InvalidInputException("open_data_duck: discovery.discover_sql for '%s' must return (name, reader, path)",
 		                            source.id);
 	}
 	for (auto &row : *query_result) {
@@ -539,22 +558,14 @@ struct OpenDataSourcesGlobalState : public GlobalTableFunctionState {
 };
 
 static void DefineSourceColumns(vector<LogicalType> &return_types, vector<Identifier> &names) {
-	const char *varchar_columns[] = {"id",       "name",        "source_type", "status",     "description",
-	                                 "authority", "homepage",    "license_url", "attribution"};
+	const char *varchar_columns[] = {"id",       "name",        "source_type", "status",
+	                                 "authority", "license_url", "attribution"};
 	for (auto column : varchar_columns) {
 		names.emplace_back(column);
 		return_types.emplace_back(LogicalType::VARCHAR);
 	}
-	names.emplace_back("tags");
+	names.emplace_back("duckdb_extensions");
 	return_types.emplace_back(LogicalType::LIST(LogicalType::VARCHAR));
-	names.emplace_back("extensions");
-	return_types.emplace_back(LogicalType::LIST(LogicalType::VARCHAR));
-	names.emplace_back("install");
-	return_types.emplace_back(LogicalType::VARCHAR);
-	names.emplace_back("example_query");
-	return_types.emplace_back(LogicalType::VARCHAR);
-	names.emplace_back("validation_query");
-	return_types.emplace_back(LogicalType::VARCHAR);
 	names.emplace_back("namespace");
 	return_types.emplace_back(LogicalType::VARCHAR);
 }
@@ -634,16 +645,10 @@ static void OpenDataSourcesScan(ClientContext &context, TableFunctionInput &data
 		output.data[col++].Append(Value(source.name));
 		output.data[col++].Append(Value(source.source_type));
 		output.data[col++].Append(Value(source.status));
-		output.data[col++].Append(Value(source.description));
 		output.data[col++].Append(Value(source.authority));
-		output.data[col++].Append(Value(source.homepage));
 		output.data[col++].Append(Value(source.license_url));
 		output.data[col++].Append(Value(source.attribution));
-		output.data[col++].Append(StringListValue(source.tags));
 		output.data[col++].Append(StringListValue(source.extensions));
-		output.data[col++].Append(Value(source.install));
-		output.data[col++].Append(Value(source.example_query));
-		output.data[col++].Append(Value(source.validation_query));
 		output.data[col++].Append(Value(source.tables_namespace));
 		count++;
 	}

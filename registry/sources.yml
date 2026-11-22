@@ -2,2088 +2,956 @@
 # Status values: candidate, connector-blocked, verified, deprecated.
 
 sources:
-  - id: overture.maps.release
-    name: Overture Maps source family
-    description: Global open map data releases for places, buildings, transportation, addresses, divisions, and base layers queryable from public S3 with DuckDB httpfs.
-    status: candidate
-    source_type: overture
-    authority: Overture Maps Foundation
-    homepage: https://docs.overturemaps.org/getting-data/
-    license_url: https://docs.overturemaps.org/attribution/
-    attribution: Overture Maps Foundation and contributing data providers.
-    tables:
-      - id: place
-        ref: odd.overturemaps.latest.place
-        description: Places and points of interest. One row per Overture place feature.
-        columns_hint:
-          id: Stable Overture feature id.
-          names: Nested names object; primary/common/local names are not plain text columns.
-          bbox: Bounding box for fast spatial prefilters.
-          geometry: Place geometry.
-        ask_for: [bbox or area, release or latest, limit]
-        warnings: [Large global table; always use tight bbox filters.]
-        validations:
-          - id: odd.overturemaps.latest.place
-            description: Compare the latest Overture places facade with the direct public S3 parquet recipe over a sampled tiny bbox.
-            release: latest
-            compare: exact
-            order_by: [id]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SET s3_region='us-west-2';
-              SET VARIABLE overture_latest_release_url = (
-                SELECT l.href
-                FROM (SELECT unnest(links) AS l FROM read_json('https://stac.overturemaps.org/catalog.json'))
-                WHERE l.rel = 'child' AND l.latest
-              );
-              SET VARIABLE s3_uri = (
-                SELECT regexp_replace(
-                         regexp_replace(min(assets.aws.href), '^https://([^.]+)\\.s3\\.[^/]+/', 's3://\\1/'),
-                         '/part-[^/]+$',
-                         '/*'
-                       )
-                FROM read_parquet(replace(getvariable('overture_latest_release_url'), '/catalog.json', '/collections.parquet'))
-                WHERE collection = 'place'
-              );
+- id: overture.maps.release
+  name: Overture Maps source family
+  status: candidate
+  source_type: overture
+  authority: Overture Maps Foundation
+  license_url: https://docs.overturemaps.org/attribution/
+  attribution: Overture Maps Foundation and contributing data providers.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: place
+    ref: odd.overturemaps.latest.place
+    description: Places and points of interest. One row per Overture place feature.
+    columns_hint:
+      id: Stable Overture feature id.
+      names: Nested names object; primary/common/local names are not plain text columns.
+      bbox: Bounding box for fast spatial prefilters.
+      geometry: Place geometry.
+    ask_for:
+    - bbox or area
+    - release or latest
+    - limit
+    warnings:
+    - Large global table; always use tight bbox filters.
+    validations:
+    - id: odd.overturemaps.latest.place
+      description: Compare the latest Overture places facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+      release: latest
+      compare: exact
+      order_by:
+      - id
+      limit: 10
+      direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_latest_release_url = (\n  SELECT l.href\n  FROM (SELECT unnest(links) AS l FROM read_json('https://stac.overturemaps.org/catalog.json'))\n  WHERE l.rel = 'child' AND l.latest\n);\nSET VARIABLE s3_uri = (\n  SELECT regexp_replace(\n           regexp_replace(min(assets.aws.href), '^https://([^.]+)\\\\.s3\\\\.[^/]+/', 's3://\\\\1/'),\n           '/part-[^/]+$',\n           '/*'\n         )\n  FROM read_parquet(replace(getvariable('overture_latest_release_url'), '/catalog.json', '/collections.parquet'))\n  WHERE collection = 'place'\n);\n\nSELECT id, names, bbox\nFROM read_parquet(getvariable('s3_uri'))\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT id, names, bbox\nFROM odd.overturemaps.latest.place\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+    - id: odd.overturemaps.x2026x10x21.place
+      description: Compare a pinned, SQL-safe Overture release facade with the same direct release path over a sampled tiny bbox.
+      release: x2026x10x21
+      source_release: 2026-10-21.0
+      compare: exact
+      order_by:
+      - id
+      limit: 10
+      direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, names, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/2026-10-21.0/theme=places/type=place/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT id, names, bbox\nFROM odd.overturemaps.x2026x10x21.place\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+  - id: building
+    ref: odd.overturemaps.latest.building
+    description: Building footprint polygons. One row per Overture building feature.
+    ask_for:
+    - bbox or area
+    - release or latest
+    - limit
+    warnings:
+    - Large global table; always use tight bbox filters.
+    validations:
+    - id: odd.overturemaps.latest.building
+      description: Compare the latest Overture buildings facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+      release: latest
+      compare: exact
+      order_by:
+      - id
+      limit: 10
+      direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.building\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+  - id: segment
+    ref: odd.overturemaps.latest.segment
+    description: Transportation road/path segments. One row per Overture segment feature.
+    ask_for:
+    - bbox or area
+    - release or latest
+    - limit
+    warnings:
+    - Large global table; always use tight bbox filters.
+    validations:
+    - id: odd.overturemaps.latest.segment
+      description: Compare the latest Overture transportation segments facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+      release: latest
+      compare: exact
+      order_by:
+      - id
+      limit: 10
+      direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=transportation/type=segment/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.segment\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+  - id: address
+    ref: odd.overturemaps.latest.address
+    description: Address point/record features. One row per Overture address feature.
+    ask_for:
+    - bbox or area
+    - release or latest
+    - limit
+    warnings:
+    - Large global table; always use tight bbox filters.
+    validations:
+    - id: odd.overturemaps.latest.address
+      description: Compare the latest Overture addresses facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+      release: latest
+      compare: exact
+      order_by:
+      - id
+      limit: 10
+      direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=addresses/type=address/*'\n)\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.address\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+  release:
+    latest:
+      method: stac-catalog
+      url: https://stac.overturemaps.org/catalog.json
+      resolve_sql: 'SELECT regexp_extract(l.href, ''/([0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+)/catalog\.json$'', 1) AS release
 
-              SELECT id, names, bbox
-              FROM read_parquet(getvariable('s3_uri'))
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SELECT id, names, bbox
-              FROM odd.overturemaps.latest.place
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-          - id: odd.overturemaps.x2026x10x21.place
-            description: Compare a pinned, SQL-safe Overture release facade with the same direct release path over a sampled tiny bbox.
-            release: x2026x10x21
-            source_release: 2026-10-21.0
-            compare: exact
-            order_by: [id]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SET s3_region='us-west-2';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+        FROM (SELECT unnest(links) AS l FROM read_json(''https://stac.overturemaps.org/catalog.json''))
 
-              SELECT id, names, bbox
-              FROM read_parquet(
-                getvariable('overture_s3_base') || '/release/2026-10-21.0/theme=places/type=place/*'
-              )
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SELECT id, names, bbox
-              FROM odd.overturemaps.x2026x10x21.place
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-      - id: building
-        ref: odd.overturemaps.latest.building
-        description: Building footprint polygons. One row per Overture building feature.
-        ask_for: [bbox or area, release or latest, limit]
-        warnings: [Large global table; always use tight bbox filters.]
-        validations:
-          - id: odd.overturemaps.latest.building
-            description: Compare the latest Overture buildings facade with the direct public S3 parquet recipe over a sampled tiny bbox.
-            release: latest
-            compare: exact
-            order_by: [id]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SET s3_region='us-west-2';
-              SET VARIABLE overture_release = '2026-10-21.0';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+        WHERE l.rel = ''child'' AND l.latest;
 
-              SELECT id, bbox
-              FROM read_parquet(
-                getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*'
-              )
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE overture_release = '2026-10-21.0';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-              SELECT id, bbox
-              FROM odd.overturemaps.latest.building
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-      - id: segment
-        ref: odd.overturemaps.latest.segment
-        description: Transportation road/path segments. One row per Overture segment feature.
-        ask_for: [bbox or area, release or latest, limit]
-        warnings: [Large global table; always use tight bbox filters.]
-        validations:
-          - id: odd.overturemaps.latest.segment
-            description: Compare the latest Overture transportation segments facade with the direct public S3 parquet recipe over a sampled tiny bbox.
-            release: latest
-            compare: exact
-            order_by: [id]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SET s3_region='us-west-2';
-              SET VARIABLE overture_release = '2026-10-21.0';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-              SELECT id, bbox
-              FROM read_parquet(
-                getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=transportation/type=segment/*'
-              )
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE overture_release = '2026-10-21.0';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-              SELECT id, bbox
-              FROM odd.overturemaps.latest.segment
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-      - id: address
-        ref: odd.overturemaps.latest.address
-        description: Address point/record features. One row per Overture address feature.
-        ask_for: [bbox or area, release or latest, limit]
-        warnings: [Large global table; always use tight bbox filters.]
-        validations:
-          - id: odd.overturemaps.latest.address
-            description: Compare the latest Overture addresses facade with the direct public S3 parquet recipe over a sampled tiny bbox.
-            release: latest
-            compare: exact
-            order_by: [id]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SET s3_region='us-west-2';
-              SET VARIABLE overture_release = '2026-10-21.0';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-              SELECT id, bbox
-              FROM read_parquet(
-                getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=addresses/type=address/*'
-              )
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE overture_release = '2026-10-21.0';
-              SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-              SELECT id, bbox
-              FROM odd.overturemaps.latest.address
-              WHERE bbox.xmin <= 66.981
-                AND bbox.xmax >= 66.976
-                AND bbox.ymin <= 39.657
-                AND bbox.ymax >= 39.652
-              ORDER BY id
-              LIMIT 10;
-    tags: [maps, geospatial, places, buildings, transportation, addresses]
-    topics: [basemaps, points of interest, buildings, addresses, roads, geocoding]
-    coverage:
-      spatial: global
-      temporal: release snapshots
-      grain: theme/type partitioned parquet files
-    cadence: monthly releases
-    ai:
-      summary: Best default source for broad global map features when DuckDB can query public S3.
-      use_cases: [find places in a bounding box, inspect global building footprints, sample road segments, query address points, compare map releases]
-      caveats: [large files require tight spatial filters, attribution varies by contributing provider, release paths should be pinned for reproducible workflows]
-      prompt_hints: [Ask for the Overture theme/type, release, and bounding box before generating SQL.]
-    release:
-      latest:
-        method: stac-catalog
-        url: https://stac.overturemaps.org/catalog.json
-        # The extension runs this once per process on the first `latest` table
-        # query and caches the result. SET VARIABLE overture_release = '...' pins instead.
-        resolve_sql: |
-          SELECT regexp_extract(l.href, '/([0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+)/catalog\.json$', 1) AS release
-          FROM (SELECT unnest(links) AS l FROM read_json('https://stac.overturemaps.org/catalog.json'))
-          WHERE l.rel = 'child' AND l.latest;
-      pinned:
-        duckdb_setting: overture_release
-        s3_base_setting: overture_s3_base
-        example: "2026-10-21.0"
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SET s3_region='us-west-2';
-        SET VARIABLE overture_release = '2026-10-21.0';
-        SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-        -- Direct public S3 recipe. The future open_data_duck extension should wrap
-        -- this release/path logic instead of relying on a separate Overture plugin.
-        SELECT *
-        FROM read_parquet(
-          getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
-          hive_partitioning = true
-        )
-        WHERE bbox.xmin <= -149
-          AND bbox.xmax >= -150
-          AND bbox.ymin <= 61
-          AND bbox.ymax >= 60
-        LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        SET s3_region='us-west-2';
-        SET VARIABLE overture_release = '2026-10-21.0';
-        SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-        SELECT count(*) >= 0 AS small_bbox_query_ok
-        FROM read_parquet(
-          getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
-          hive_partitioning = true
-        )
-        WHERE bbox.xmin <= -149
-          AND bbox.xmax >= -150
-          AND bbox.ymin <= 61
-          AND bbox.ymax >= 60
-        LIMIT 1;
-      examples:
-        places_bbox_direct_s3: |
-          LOAD httpfs;
-          SET s3_region='us-west-2';
-          SET VARIABLE overture_release = '2026-10-21.0';
-          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-          SELECT *
-          FROM read_parquet(
-            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=places/type=place/*',
-            hive_partitioning = true
-          )
-          WHERE bbox.xmin <= -149
-            AND bbox.xmax >= -150
-            AND bbox.ymin <= 61
-            AND bbox.ymax >= 60
-          LIMIT 10;
-        buildings_bbox_direct_s3: |
-          LOAD httpfs;
-          SET s3_region='us-west-2';
-          SET VARIABLE overture_release = '2026-10-21.0';
-          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-          SELECT *
-          FROM read_parquet(
-            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*',
-            hive_partitioning = true
-          )
-          WHERE bbox.xmin <= -149
-            AND bbox.xmax >= -150
-            AND bbox.ymin <= 61
-            AND bbox.ymax >= 60
-          LIMIT 10;
-        road_segments_bbox_direct_s3: |
-          LOAD httpfs;
-          SET s3_region='us-west-2';
-          SET VARIABLE overture_release = '2026-10-21.0';
-          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-          SELECT *
-          FROM read_parquet(
-            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=transportation/type=segment/*',
-            hive_partitioning = true
-          )
-          WHERE bbox.xmin <= -149
-            AND bbox.xmax >= -150
-            AND bbox.ymin <= 61
-            AND bbox.ymax >= 60
-          LIMIT 10;
-        addresses_bbox_direct_s3: |
-          LOAD httpfs;
-          SET s3_region='us-west-2';
-          SET VARIABLE overture_release = '2026-10-21.0';
-          SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
-
-          SELECT *
-          FROM read_parquet(
-            getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=addresses/type=address/*',
-            hive_partitioning = true
-          )
-          WHERE bbox.xmin <= -149
-            AND bbox.xmax >= -150
-            AND bbox.ymin <= 61
-            AND bbox.ymax >= 60
-          LIMIT 10;
-      tables:
-        namespace: odd.overturemaps.latest
-        # One table per STAC collection of the release; paths come from the
-        # collection assets, so nothing here lists themes or S3 prefixes by hand.
-        discover_sql: |
-          SELECT collection AS name,
-                 'read_parquet' AS reader,
-                 regexp_replace(regexp_replace(min(assets.aws.href), '^https://([^.]+)\.s3\.[^/]+/', 's3://\1/'), '/part-[^/]+$', '/*') AS path
-          FROM read_parquet('https://stac.overturemaps.org/{release}/collections.parquet')
-          GROUP BY collection;
-  - id: naturalearth.admin0-countries
-    name: Natural Earth Admin 0 countries
-    description: Public-domain generalized country and sovereignty polygons from Natural Earth's 1:110m Admin 0 countries layer, queryable directly from the zipped shapefile with DuckDB spatial/GDAL virtual file paths.
-    status: candidate
-    source_type: other
-    authority: Natural Earth
-    homepage: https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/
-    license_url: https://www.naturalearthdata.com/about/terms-of-use/
-    attribution: "Natural Earth public-domain map data; optional credit: Made with Natural Earth."
-    tables:
-      - id: countries_110m
-        ref: odd.naturalearth.latest.countries_110m
-        description: Generalized Admin 0 country polygons at 1:110m scale. One row per country or country-like map unit in the Natural Earth countries layer.
-        columns_hint:
-          NAME: Display name for the country or map unit.
-          ISO_A3: Three-letter ISO-style country code where assigned.
-          CONTINENT: Continent grouping from Natural Earth.
-          POP_EST: Estimated population attribute from Natural Earth.
-          geom: Generalized polygon or multipolygon geometry.
-        ask_for: [scale, whether de facto boundaries are acceptable, country or sovereignty fields, limit]
-        warnings:
-          - Natural Earth is cartographic generalized data for small-scale maps, not legal or survey boundaries.
-          - The Admin 0 countries layer uses de facto boundaries by default; choose a different Natural Earth Admin 0 product if map units, sovereignty, or disputed areas matter.
-        validations:
-          - id: odd.naturalearth.latest.countries_110m
-            description: Compare the Natural Earth Admin 0 countries facade with the direct zipped shapefile recipe for two stable country rows.
-            release: latest
-            compare: exact
-            order_by: [ISO_A3]
-            limit: 2
-            direct_sql: |
-              LOAD spatial;
-              SELECT NAME, ISO_A3, CONTINENT, POP_EST
-              FROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp')
-              WHERE ISO_A3 IN ('USA', 'UZB')
-              ORDER BY ISO_A3;
-            odd_sql: |
-              LOAD spatial;
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SELECT NAME, ISO_A3, CONTINENT, POP_EST
-              FROM odd.naturalearth.latest.countries_110m
-              WHERE ISO_A3 IN ('USA', 'UZB')
-              ORDER BY ISO_A3;
-    tags: [natural-earth, countries, boundaries, shapefile, geospatial]
-    topics: [country boundaries, world maps, administrative boundaries, cartography, choropleth joins]
-    coverage:
-      spatial: global country and country-like map units
-      temporal: Natural Earth release snapshot served by the current 110m download
-      grain: one generalized Admin 0 country or map unit polygon
-    cadence: Natural Earth versioned releases update occasionally
-    ai:
-      summary: Best lightweight public-domain country-boundary source for small-scale world maps and quick ISO_A3 joins in DuckDB.
-      use_cases: [draw world country maps, join country-level indicators by ISO_A3, build small geospatial smoke tests]
-      caveats: [generalized for small-scale cartography, not authoritative legal boundaries, de facto country boundaries may not match all political requirements]
-      prompt_hints: [Ask whether 110m generalized boundaries are sufficient and whether de facto boundaries are acceptable before generating SQL.]
-    release:
-      latest:
-        method: static-download
-        url: https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip
-        resolve_sql: |
-          SELECT regexp_extract('https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip', '/naturalearth/([0-9]+m)/', 1) AS release;
-      pinned:
-        duckdb_setting: naturalearth_scale
-        example: 110m
-    duckdb:
-      extensions:
-        - spatial
-      install: |
-        INSTALL spatial;
-      example_query: |
-        LOAD spatial;
+        '
+    pinned:
+      duckdb_setting: overture_release
+      s3_base_setting: overture_s3_base
+      example: 2026-10-21.0
+  discovery:
+    namespace: odd.overturemaps.latest
+    discover_sql: "SELECT collection AS name,\n       'read_parquet' AS reader,\n       regexp_replace(regexp_replace(min(assets.aws.href), '^https://([^.]+)\\.s3\\.[^/]+/', 's3://\\1/'), '/part-[^/]+$', '/*') AS path\nFROM read_parquet('https://stac.overturemaps.org/{release}/collections.parquet')\nGROUP BY collection;\n"
+- id: naturalearth.admin0-countries
+  name: Natural Earth Admin 0 countries
+  status: candidate
+  source_type: other
+  authority: Natural Earth
+  license_url: https://www.naturalearthdata.com/about/terms-of-use/
+  attribution: 'Natural Earth public-domain map data; optional credit: Made with Natural Earth.'
+  requirements:
+    duckdb_extensions:
+    - spatial
+  tables:
+  - id: countries_110m
+    ref: odd.naturalearth.latest.countries_110m
+    description: Generalized Admin 0 country polygons at 1:110m scale. One row per country or country-like map unit in the Natural Earth countries layer.
+    columns_hint:
+      NAME: Display name for the country or map unit.
+      ISO_A3: Three-letter ISO-style country code where assigned.
+      CONTINENT: Continent grouping from Natural Earth.
+      POP_EST: Estimated population attribute from Natural Earth.
+      geom: Generalized polygon or multipolygon geometry.
+    ask_for:
+    - scale
+    - whether de facto boundaries are acceptable
+    - country or sovereignty fields
+    - limit
+    warnings:
+    - Natural Earth is cartographic generalized data for small-scale maps, not legal or survey boundaries.
+    - The Admin 0 countries layer uses de facto boundaries by default; choose a different Natural Earth Admin 0 product if map units, sovereignty, or disputed areas matter.
+    validations:
+    - id: odd.naturalearth.latest.countries_110m
+      description: Compare the Natural Earth Admin 0 countries facade with the direct zipped shapefile recipe for two stable country rows.
+      release: latest
+      compare: exact
+      order_by:
+      - ISO_A3
+      limit: 2
+      direct_sql: 'LOAD spatial;
 
         SELECT NAME, ISO_A3, CONTINENT, POP_EST
-        FROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp')
-        WHERE ISO_A3 IN ('USA', 'UZB')
+
+        FROM ST_Read(''/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp'')
+
+        WHERE ISO_A3 IN (''USA'', ''UZB'')
+
         ORDER BY ISO_A3;
-      validation_query: |
-        LOAD spatial;
 
-        SELECT count(*) = 177 AS ok
-        FROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp');
-      examples:
-        countries_by_continent: |
-          LOAD spatial;
+        '
+      odd_sql: 'LOAD open_data_duck;
 
-          SELECT NAME, ISO_A3, POP_EST
-          FROM ST_Read('/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp')
-          WHERE CONTINENT = 'Asia'
-          ORDER BY NAME
-          LIMIT 25;
-      tables:
-        namespace: odd.naturalearth.latest
-        discover_sql: |
-          SELECT 'countries_{release}' AS name,
-                 'st_read' AS reader,
-                 '/vsizip/vsicurl/https://naciscdn.org/naturalearth/{release}/cultural/ne_{release}_admin_0_countries.zip/ne_{release}_admin_0_countries.shp' AS path;
-  - id: stac.earth-search.aws
-    name: Earth Search STAC API
-    description: Element 84 STAC API for cloud-optimized geospatial imagery, especially Sentinel collections hosted in the AWS open data ecosystem.
-    status: candidate
-    source_type: stac
-    authority: Element 84 / AWS Open Data ecosystem
-    homepage: https://earth-search.aws.element84.com/v1
-    license_url: https://registry.opendata.aws/sentinel-2-l2a-cogs/
-    attribution: Dataset-specific attribution required; verify per collection.
-    tables:
-      - id: stac_items
-        description: STAC item search results from Earth Search. One row per imagery item returned by the STAC API.
-        ask_for: [collection, bbox, date range, cloud cover, limit]
-        warnings: [Assets can be large; inspect metadata before reading imagery assets.]
-    tags: [stac, imagery, aws, sentinel]
-    topics: [satellite imagery, earth observation, cloud optimized geotiff]
-    coverage:
-      spatial: global where source collections are available
-      temporal: collection-specific acquisition dates
-      grain: STAC item and asset metadata
-    cadence: collection-specific updates
-    ai:
-      summary: Good STAC search target for AWS-hosted earth observation assets.
-      use_cases: [discover Sentinel scenes, filter imagery by bounding box and date, inspect asset URLs]
-      caveats: [license and attribution are collection-specific, assets may be large]
-      prompt_hints: [Ask for collection, date range, cloud cover, and bbox before generating SQL.]
-    duckdb:
-      extensions:
-        - httpfs
-        - spatial
-        - stac
-      install: |
-        INSTALL httpfs;
-        INSTALL spatial;
-        INSTALL stac FROM community;
-      example_query: |
-        LOAD httpfs;
-        LOAD spatial;
-        LOAD stac;
-        SELECT collection, id, bbox
-        FROM STAC_Search('https://earth-search.aws.element84.com/v1/search', max_items := 10)
-        LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM STAC_Collections('https://earth-search.aws.element84.com/v1');
-  - id: stac.microsoft.planetary-computer
-    name: Microsoft Planetary Computer STAC API
-    description: Microsoft Planetary Computer STAC catalog for environmental, climate, and satellite datasets exposed through a STAC API.
-    status: candidate
-    source_type: stac
-    authority: Microsoft Planetary Computer
-    homepage: https://planetarycomputer.microsoft.com/catalog
-    license_url: https://planetarycomputer.microsoft.com/terms
-    attribution: Dataset-specific attribution required; verify per Planetary Computer collection.
-    tables:
-      - id: stac_items
-        description: STAC item search results from Microsoft Planetary Computer. One row per catalog item returned by the STAC API.
-        ask_for: [collection, bbox, date range, limit]
-        warnings: [Some assets require Planetary Computer signing or access patterns.]
-    tags: [stac, imagery, climate, microsoft]
-    topics: [earth observation, climate data, environmental analysis]
-    coverage:
-      spatial: collection-specific global and regional datasets
-      temporal: collection-specific acquisition dates
-      grain: STAC collections, items, and assets
-    cadence: collection-specific updates
-    ai:
-      summary: Broad STAC catalog for research-grade geospatial and environmental datasets.
-      use_cases: [discover public imagery collections, inspect STAC item assets, build climate-data queries]
-      caveats: [some assets require signing or Planetary Computer-specific access patterns]
-      prompt_hints: [Ask which collection and spatial/temporal filter the user wants.]
-    duckdb:
-      extensions:
-        - httpfs
-        - spatial
-        - stac
-      install: |
-        INSTALL httpfs;
-        INSTALL spatial;
-        INSTALL stac FROM community;
-      example_query: |
-        LOAD httpfs;
-        LOAD spatial;
-        LOAD stac;
-        SELECT collection, id, bbox
-        FROM STAC_Search('https://planetarycomputer.microsoft.com/api/stac/v1/search', max_items := 10)
-        LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM STAC_Collections('https://planetarycomputer.microsoft.com/api/stac/v1');
-  - id: stac.nasa.lpcloud
-    name: NASA LP DAAC LPCLOUD STAC catalog
-    description: NASA LP DAAC STAC catalog for land processes data products served through Earthdata/CMR endpoints.
-    status: candidate
-    source_type: stac
-    authority: NASA Land Processes Distributed Active Archive Center
-    homepage: https://cmr.earthdata.nasa.gov/stac/LPCLOUD/
-    license_url: https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy
-    attribution: NASA LP DAAC data; cite dataset-specific DOI and attribution.
-    tables:
-      - id: stac_items
-        description: NASA LP DAAC STAC item metadata. One row per land-processes product item returned by the STAC API.
-        ask_for: [product or collection, bbox or area, date range, limit]
-        warnings: [Some downstream assets may require Earthdata access workflows.]
-    tags: [stac, nasa, land, earthdata]
-    topics: [land processes, remote sensing, NASA earth science]
-    coverage:
-      spatial: product-specific global and regional coverage
-      temporal: product-specific acquisition dates
-      grain: STAC collection and item metadata
-    cadence: product-specific updates
-    ai:
-      summary: NASA land-processes catalog for discovering authoritative Earthdata products.
-      use_cases: [find LP DAAC products, inspect land remote-sensing assets, cite NASA datasets]
-      caveats: [some downstream assets may require Earthdata access workflows]
-      prompt_hints: [Ask for the NASA product, date range, and area of interest.]
-    duckdb:
-      extensions:
-        - httpfs
-        - spatial
-        - stac
-      install: |
-        INSTALL httpfs;
-        INSTALL spatial;
-        INSTALL stac FROM community;
-      example_query: |
-        LOAD httpfs;
-        LOAD spatial;
-        LOAD stac;
-        SELECT collection, id, bbox
-        FROM STAC_Search('https://cmr.earthdata.nasa.gov/stac/LPCLOUD/search', max_items := 10)
-        LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM STAC_Collections('https://cmr.earthdata.nasa.gov/stac/LPCLOUD/');
-  - id: arcgis.census.tigerweb.state-county
-    name: U.S. Census TIGERweb state and county layers
-    description: Census TIGERweb ArcGIS layers for U.S. state and county boundaries, useful once ArcGIS paging is available in the DuckDB path.
-    status: connector-blocked
-    source_type: arcgis
-    authority: U.S. Census Bureau
-    homepage: https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer
-    license_url: https://www.census.gov/data/developers/about/terms-of-service.html
-    attribution: U.S. Census Bureau TIGERweb.
-    tables:
-      - id: county_boundaries
-        description: TIGERweb state/county boundary layer features. One row per ArcGIS boundary feature.
-        ask_for: [state or county, fields, whether geometry is needed]
-        warnings: [Connector is blocked; use REST pagination until ArcGIS support is stable.]
-    tags: [arcgis, census, boundaries, us]
-    topics: [administrative boundaries, counties, states]
-    coverage:
-      spatial: United States
-      temporal: current TIGERweb service state
-      grain: ArcGIS layer features
-    cadence: Census service updates
-    ai:
-      summary: Authoritative U.S. boundary service, currently blocked on stable DuckDB ArcGIS connector packaging.
-      use_cases: [join data to county boundaries, inspect state and county geometries]
-      caveats: [connector is blocked; use REST pagination path until extension install is reliable]
-      prompt_hints: [Mention connector-blocked status and prefer REST pagination planning.]
-    duckdb:
-      extensions:
-        - arcgis
-      install: |
-        -- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.
-        -- Current releases install from unsigned exact-version binaries.
-        -- Open DuckDB with allow_unsigned_extensions before installing a release file.
-      example_query: |
-        -- Future duckdb-arcgis shape once the connector has a stable install path.
-        LOAD arcgis;
-        SELECT *
-        FROM arcgis_query('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1')
-        LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM arcgis_query('https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1');
-  - id: census.cartographic.county-boundaries
-    name: U.S. Census cartographic county boundary files
-    description: Official generalized U.S. county boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.
-    status: candidate
-    source_type: other
-    authority: U.S. Census Bureau Geography Program
-    homepage: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
-    license_url: https://www.census.gov/data/developers/about/terms-of-service.html
-    attribution: U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.
-    tables:
-      - id: county_20m
-        ref: odd.census.latest.county_20m
-        description: Generalized U.S. county polygons at 20m scale. One row per county or county-equivalent feature.
-        ask_for: [year, scale, state filter, GEOID join key]
-        warnings: [Generalized for thematic mapping, not surveying.]
-        validations:
-          - id: odd.census.latest.county_20m
-            description: Compare the latest Census county boundary facade with the direct zipped shapefile recipe.
-            release: latest
-            compare: exact
-            order_by: [GEOID]
-            limit: 10
-            direct_sql: |
-              LOAD spatial;
-              SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
-              FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')
-              WHERE STATEFP = '02'
-              ORDER BY GEOID
-              LIMIT 10;
-            odd_sql: |
-              LOAD spatial;
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE census_cartographic_year = '2025';
-              SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
-              FROM odd.census.latest.county_20m
-              WHERE STATEFP = '02'
-              ORDER BY GEOID
-              LIMIT 10;
-    tags: [census, boundaries, counties, shapefile, geospatial]
-    topics: [administrative boundaries, counties, thematic mapping, fips]
-    coverage:
-      spatial: United States counties and equivalent entities
-      temporal: annual cartographic boundary file vintages
-      grain: one generalized county or county-equivalent polygon feature
-    cadence: annual Census cartographic boundary file releases
-    ai:
-      summary: Best direct-file Census county boundary source for joining county-level data to generalized polygons in DuckDB.
-      use_cases: [map county-level indicators, join county FIPS codes to generalized boundaries, build thematic maps without TIGERweb paging]
-      caveats: [generalized for thematic mapping rather than surveying, choose year and scale explicitly, zipped shapefile access requires DuckDB spatial/GDAL virtual paths]
-      prompt_hints: [Ask for the boundary vintage, generalized scale, and whether county GEOID/FIPS is enough before generating SQL.]
-    duckdb:
-      extensions:
-        - spatial
-      install: |
-        INSTALL spatial;
-      example_query: |
-        LOAD spatial;
+        ATTACH '':memory:'' AS odd (TYPE open_data_duck);
 
-        SELECT GEOID, NAME, STATE_NAME, ST_GeometryType(geom) AS geom_type
-        FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')
-        LIMIT 10;
-      validation_query: |
-        LOAD spatial;
+        SELECT NAME, ISO_A3, CONTINENT, POP_EST
 
-        SELECT count(*) = 3222 AS ok
-        FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp');
-      examples:
-        alaska_counties_2025_20m: |
-          LOAD spatial;
+        FROM odd.naturalearth.latest.countries_110m
 
-          SELECT GEOID, NAME, LSAD, ST_AsText(ST_Centroid(geom)) AS centroid_wkt
-          FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp')
-          WHERE STATEFP = '02'
-          ORDER BY GEOID;
-      tables:
-        namespace: odd.census.latest
-        # Every county shapefile of the release at every published scale (20m, 5m, 500k, ...).
-        discover_sql: |
-          SELECT regexp_extract(z, 'cb_{release}_us_(.+)\.zip', 1) AS name,
-                 'st_read' AS reader,
-                 '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/' || z || '/' || replace(z, '.zip', '.shp') AS path
-          FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'cb_{release}_us_county[a-z0-9_]*\.zip')) AS z
-                FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));
-    release:
-      latest:
-        method: html-listing
-        url: https://www2.census.gov/geo/tiger/
-        resolve_sql: |
-          SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release
-          FROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m
-                FROM read_text('https://www2.census.gov/geo/tiger/'));
-      pinned:
-        duckdb_setting: census_cartographic_year
-        example: "2025"
-  - id: census.cartographic.tract-boundaries
-    name: U.S. Census cartographic tract boundary files
-    description: Official generalized U.S. census tract boundary shapefiles from the Census Bureau Cartographic Boundary Files collection, queryable directly from the public zipped shapefile with DuckDB spatial/GDAL virtual file paths.
-    status: candidate
-    source_type: other
-    authority: U.S. Census Bureau Geography Program
-    homepage: https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
-    license_url: https://www.census.gov/data/developers/about/terms-of-service.html
-    attribution: U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.
-    tables:
-      - id: tract_5m
-        ref: odd.census.latest.tract_5m
-        description: Generalized U.S. census tract polygons at 5m scale. One row per census tract feature.
-        ask_for: [year, scale, state filter, tract GEOID join key]
-        warnings: [National tract files are larger; filter by state when possible.]
-        validations:
-          - id: odd.census.latest.tract_5m
-            description: Compare the latest Census tract boundary facade with the direct zipped shapefile recipe.
-            release: latest
-            compare: exact
-            order_by: [GEOID]
-            limit: 10
-            direct_sql: |
-              LOAD spatial;
-              SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
-              FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')
-              WHERE STATEFP = '02'
-              ORDER BY GEOID
-              LIMIT 10;
-            odd_sql: |
-              LOAD spatial;
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE census_cartographic_year = '2025';
-              SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
-              FROM odd.census.latest.tract_5m
-              WHERE STATEFP = '02'
-              ORDER BY GEOID
-              LIMIT 10;
-    tags: [census, boundaries, tracts, shapefile, geospatial]
-    topics: [census tracts, statistical geographies, thematic mapping, geoid, fips]
-    coverage:
-      spatial: United States census tracts
-      temporal: annual cartographic boundary file vintages
-      grain: one generalized census tract polygon feature
-    cadence: annual Census cartographic boundary file releases
-    ai:
-      summary: Best direct-file Census tract boundary source for joining tract-level ACS or public-health data to generalized polygons in DuckDB.
-      use_cases: [map tract-level indicators, join tract GEOIDs to ACS estimates, build thematic maps without TIGERweb paging]
-      caveats: [generalized for thematic mapping rather than surveying, choose year and scale explicitly, national tract files are larger than county files, zipped shapefile access requires DuckDB spatial/GDAL virtual paths]
-      prompt_hints: [Ask for the boundary vintage, generalized scale, state filter, and tract-level GEOID join key before generating SQL.]
-    duckdb:
-      extensions:
-        - spatial
-      install: |
-        INSTALL spatial;
-      example_query: |
-        LOAD spatial;
+        WHERE ISO_A3 IN (''USA'', ''UZB'')
 
-        SELECT GEOID, NAME, STATEFP, COUNTYFP, ST_GeometryType(geom) AS geom_type
-        FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')
-        WHERE STATEFP = '02'
-        LIMIT 10;
-      validation_query: |
-        LOAD spatial;
+        ORDER BY ISO_A3;
 
-        SELECT count(*) = 85187 AS ok
-        FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp');
-      examples:
-        alaska_tracts_2025_5m: |
-          LOAD spatial;
+        '
+  release:
+    latest:
+      method: static-download
+      url: https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip
+      resolve_sql: 'SELECT regexp_extract(''https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip'', ''/naturalearth/([0-9]+m)/'', 1) AS release;
 
-          SELECT GEOID, NAME, COUNTYFP, ST_AsText(ST_Centroid(geom)) AS centroid_wkt
-          FROM ST_Read('/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp')
-          WHERE STATEFP = '02'
-          ORDER BY GEOID
-          LIMIT 25;
-      tables:
-        namespace: odd.census.latest
-        # Every tract shapefile of the release at every published scale (20m, 5m, 500k, ...).
-        discover_sql: |
-          SELECT regexp_extract(z, 'cb_{release}_us_(.+)\.zip', 1) AS name,
-                 'st_read' AS reader,
-                 '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/' || z || '/' || replace(z, '.zip', '.shp') AS path
-          FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'cb_{release}_us_tract[a-z0-9_]*\.zip')) AS z
-                FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));
-    release:
-      latest:
-        method: html-listing
-        url: https://www2.census.gov/geo/tiger/
-        resolve_sql: |
-          SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release
-          FROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m
-                FROM read_text('https://www2.census.gov/geo/tiger/'));
-      pinned:
-        duckdb_setting: census_cartographic_year
-        example: "2025"
-  - id: arcgis.fema.nfhl.flood-hazard-zones
-    name: FEMA National Flood Hazard Layer flood hazard zones
-    description: FEMA NFHL ArcGIS layer for flood hazard zones, intended for risk and property-context queries after ArcGIS paging support is stable.
-    status: connector-blocked
-    source_type: arcgis
-    authority: Federal Emergency Management Agency
-    homepage: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer
-    license_url: https://www.fema.gov/about/openfema/terms-conditions
-    attribution: Federal Emergency Management Agency National Flood Hazard Layer.
-    tables:
-      - id: flood_hazard_zones
-        description: FEMA NFHL flood hazard zone features. One row per flood hazard zone feature.
-        ask_for: [bbox or jurisdiction, fields, whether geometry is needed]
-        warnings: [Not a substitute for official determinations; connector path is not stable yet.]
-    tags: [arcgis, fema, flood, hazards]
-    topics: [flood risk, hazards, property context]
-    coverage:
-      spatial: United States
-      temporal: current NFHL service state
-      grain: flood hazard zone features
-    cadence: FEMA service updates
-    ai:
-      summary: Authoritative FEMA flood-hazard layer, but DuckDB access is connector-blocked today.
-      use_cases: [identify flood hazard zones, enrich property or parcel analysis]
-      caveats: [not a substitute for official determinations; connector path is not stable yet]
-      prompt_hints: [Ask for area of interest and explain official-use caveats.]
-    duckdb:
-      extensions:
-        - arcgis
-      install: |
-        -- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.
-        -- Current releases install from unsigned exact-version binaries.
-        -- Open DuckDB with allow_unsigned_extensions before installing a release file.
-      example_query: |
-        -- Future duckdb-arcgis shape once the connector has a stable install path.
-        LOAD arcgis;
-        SELECT *
-        FROM arcgis_query('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28')
+        '
+    pinned:
+      duckdb_setting: naturalearth_scale
+      example: 110m
+  discovery:
+    namespace: odd.naturalearth.latest
+    discover_sql: "SELECT 'countries_{release}' AS name,\n       'st_read' AS reader,\n       '/vsizip/vsicurl/https://naciscdn.org/naturalearth/{release}/cultural/ne_{release}_admin_0_countries.zip/ne_{release}_admin_0_countries.shp' AS path;\n"
+- id: stac.earth-search.aws
+  name: Earth Search STAC API
+  status: candidate
+  source_type: stac
+  authority: Element 84 / AWS Open Data ecosystem
+  license_url: https://registry.opendata.aws/sentinel-2-l2a-cogs/
+  attribution: Dataset-specific attribution required; verify per collection.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+    - spatial
+    - stac
+  tables:
+  - id: stac_items
+    description: STAC item search results from Earth Search. One row per imagery item returned by the STAC API.
+    ask_for:
+    - collection
+    - bbox
+    - date range
+    - cloud cover
+    - limit
+    warnings:
+    - Assets can be large; inspect metadata before reading imagery assets.
+- id: stac.microsoft.planetary-computer
+  name: Microsoft Planetary Computer STAC API
+  status: candidate
+  source_type: stac
+  authority: Microsoft Planetary Computer
+  license_url: https://planetarycomputer.microsoft.com/terms
+  attribution: Dataset-specific attribution required; verify per Planetary Computer collection.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+    - spatial
+    - stac
+  tables:
+  - id: stac_items
+    description: STAC item search results from Microsoft Planetary Computer. One row per catalog item returned by the STAC API.
+    ask_for:
+    - collection
+    - bbox
+    - date range
+    - limit
+    warnings:
+    - Some assets require Planetary Computer signing or access patterns.
+- id: stac.nasa.lpcloud
+  name: NASA LP DAAC LPCLOUD STAC catalog
+  status: candidate
+  source_type: stac
+  authority: NASA Land Processes Distributed Active Archive Center
+  license_url: https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy
+  attribution: NASA LP DAAC data; cite dataset-specific DOI and attribution.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+    - spatial
+    - stac
+  tables:
+  - id: stac_items
+    description: NASA LP DAAC STAC item metadata. One row per land-processes product item returned by the STAC API.
+    ask_for:
+    - product or collection
+    - bbox or area
+    - date range
+    - limit
+    warnings:
+    - Some downstream assets may require Earthdata access workflows.
+- id: arcgis.census.tigerweb.state-county
+  name: U.S. Census TIGERweb state and county layers
+  status: connector-blocked
+  source_type: arcgis
+  authority: U.S. Census Bureau
+  license_url: https://www.census.gov/data/developers/about/terms-of-service.html
+  attribution: U.S. Census Bureau TIGERweb.
+  requirements:
+    duckdb_extensions:
+    - arcgis
+  tables:
+  - id: county_boundaries
+    description: TIGERweb state/county boundary layer features. One row per ArcGIS boundary feature.
+    ask_for:
+    - state or county
+    - fields
+    - whether geometry is needed
+    warnings:
+    - Connector is blocked; use REST pagination until ArcGIS support is stable.
+- id: census.cartographic.county-boundaries
+  name: U.S. Census cartographic county boundary files
+  status: candidate
+  source_type: other
+  authority: U.S. Census Bureau Geography Program
+  license_url: https://www.census.gov/data/developers/about/terms-of-service.html
+  attribution: U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.
+  requirements:
+    duckdb_extensions:
+    - spatial
+  tables:
+  - id: county_20m
+    ref: odd.census.latest.county_20m
+    description: Generalized U.S. county polygons at 20m scale. One row per county or county-equivalent feature.
+    ask_for:
+    - year
+    - scale
+    - state filter
+    - GEOID join key
+    warnings:
+    - Generalized for thematic mapping
+    - not surveying.
+    validations:
+    - id: odd.census.latest.county_20m
+      description: Compare the latest Census county boundary facade with the direct zipped shapefile recipe.
+      release: latest
+      compare: exact
+      order_by:
+      - GEOID
+      limit: 10
+      direct_sql: 'LOAD spatial;
+
+        SELECT GEOID, NAME, STATE_NAME
+
+        FROM ST_Read(''/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_20m.zip/cb_2025_us_county_20m.shp'')
+
+        WHERE STATEFP = ''02''
+
+        ORDER BY GEOID
+
         LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM arcgis_query('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28');
-  - id: arcgis.usgs.national-map-contours
-    name: USGS National Map elevation contours
-    description: USGS National Map ArcGIS contour layer for elevation-line features and terrain context, pending stable ArcGIS support.
-    status: connector-blocked
-    source_type: arcgis
-    authority: U.S. Geological Survey
-    homepage: https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer
-    license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
-    attribution: U.S. Geological Survey National Map.
-    tables:
-      - id: contours
-        description: USGS National Map elevation contour line features. One row per contour segment feature.
-        ask_for: [bbox, contour interval or elevation need, fields]
-        warnings: [Connector is blocked; large geometry layers need paging.]
-    tags: [arcgis, usgs, elevation, contours]
-    topics: [terrain, elevation, topography]
-    coverage:
-      spatial: United States
-      temporal: current National Map service state
-      grain: contour line features
-    cadence: USGS service updates
-    ai:
-      summary: Elevation contour source for terrain questions once ArcGIS connector access is stable.
-      use_cases: [inspect terrain context, locate contour features, enrich map analysis]
-      caveats: [connector is blocked; large geometry layers need paging]
-      prompt_hints: [Ask for bbox and contour/elevation needs before SQL generation.]
-    duckdb:
-      extensions:
-        - arcgis
-      install: |
-        -- connector-blocked: duckdb-arcgis is not in DuckDB community extensions.
-        -- Current releases install from unsigned exact-version binaries.
-        -- Open DuckDB with allow_unsigned_extensions before installing a release file.
-      example_query: |
-        -- Future duckdb-arcgis shape once the connector has a stable install path.
-        LOAD arcgis;
-        SELECT *
-        FROM arcgis_query('https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2')
+
+        '
+      odd_sql: 'LOAD open_data_duck;
+
+        ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+        SET VARIABLE census_cartographic_year = ''2025'';
+
+        SELECT GEOID, NAME, STATE_NAME
+
+        FROM odd.census.latest.county_20m
+
+        WHERE STATEFP = ''02''
+
+        ORDER BY GEOID
+
         LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM arcgis_query('https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/2');
-  - id: nhtsa.vehicle-safety
-    name: NHTSA vehicle safety recalls and ratings APIs
-    description: Official National Highway Traffic Safety Administration vehicle recall campaigns and safety-rating lookup APIs, queryable as public JSON over HTTPS with DuckDB httpfs.
-    status: candidate
-    source_type: other
-    authority: National Highway Traffic Safety Administration, U.S. Department of Transportation
-    homepage: https://www.nhtsa.gov/nhtsa-datasets-and-apis
-    license_url: https://www.nhtsa.gov/about-nhtsa/terms-use
-    attribution: National Highway Traffic Safety Administration (NHTSA), U.S. Department of Transportation; credit NHTSA/DOT and do not imply endorsement.
-    tables:
-      - id: recalls_by_vehicle
-        description: NHTSA recall campaign results for a requested model year, make, and model. One row per recall campaign result.
-        columns_hint:
-          NHTSACampaignNumber: NHTSA recall campaign identifier.
-          ReportReceivedDate: Date NHTSA received the campaign report.
-          Component: Vehicle component affected by the recall.
-          Summary: Long recall summary text.
-        ask_for: [model year, make, model, limit]
-        warnings: [Parameterized API endpoint; preserve model year, make, and model filters instead of treating it as a full-table scan.]
-      - id: safety_rating_variants
-        description: NHTSA safety-rating vehicle variants for a requested model year, make, and model. One row per returned vehicle variant.
-        columns_hint:
-          VehicleId: Identifier used by NHTSA rating-detail lookups.
-          VehicleDescription: Human-readable vehicle variant description.
-        ask_for: [model year, make, model, limit]
-        warnings: [Parameterized API endpoint; use the returned VehicleId for rating-detail lookups.]
-    tags: [nhtsa, vehicle-safety, recalls, safety-ratings, json]
-    topics: [vehicle recalls, crash-test ratings, automotive safety, campaign lookup, model-year lookup]
-    coverage:
-      spatial: United States vehicle safety programs and vehicles sold or recalled under NHTSA authority
-      temporal: current NHTSA API data for the requested vehicle/campaign parameters
-      grain: one recall campaign or safety-rating vehicle variant per requested vehicle lookup
-    cadence: NHTSA APIs reflect current agency recall and safety-rating records as published
-    ai:
-      summary: Best official source for vehicle recall campaign lookups and NHTSA safety-rating variant discovery.
-      use_cases: [look up recalls for a year make model, find NHTSA safety-rating vehicle ids, inspect affected components and recall summaries]
-      caveats: [APIs are parameterized rather than full dataset scans, response field names use NHTSA casing, recall text fields can be long]
-      prompt_hints: [Ask for model year, make, and model before generating SQL; use VehicleId from safety_rating_variants before requesting rating details.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT NHTSACampaignNumber,
-               Component,
-               ReportReceivedDate,
-               Summary
-        FROM (
-          SELECT unnest(Results, recursive := true)
-          FROM read_json_auto(
-            'https://api.nhtsa.gov/recalls/recallsByVehicle?make=acura&model=rdx&modelYear=2012'
-          )
-        )
-        ORDER BY NHTSACampaignNumber
+
+        '
+  release:
+    latest:
+      method: html-listing
+      url: https://www2.census.gov/geo/tiger/
+      resolve_sql: "SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m\n      FROM read_text('https://www2.census.gov/geo/tiger/'));\n"
+    pinned:
+      duckdb_setting: census_cartographic_year
+      example: '2025'
+  discovery:
+    namespace: odd.census.latest
+    discover_sql: "SELECT regexp_extract(z, 'cb_{release}_us_(.+)\\.zip', 1) AS name,\n       'st_read' AS reader,\n       '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/' || z || '/' || replace(z, '.zip', '.shp') AS path\nFROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'cb_{release}_us_county[a-z0-9_]*\\.zip')) AS z\n      FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));\n"
+- id: census.cartographic.tract-boundaries
+  name: U.S. Census cartographic tract boundary files
+  status: candidate
+  source_type: other
+  authority: U.S. Census Bureau Geography Program
+  license_url: https://www.census.gov/data/developers/about/terms-of-service.html
+  attribution: U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite the selected year and scale and do not imply Census Bureau endorsement.
+  requirements:
+    duckdb_extensions:
+    - spatial
+  tables:
+  - id: tract_5m
+    ref: odd.census.latest.tract_5m
+    description: Generalized U.S. census tract polygons at 5m scale. One row per census tract feature.
+    ask_for:
+    - year
+    - scale
+    - state filter
+    - tract GEOID join key
+    warnings:
+    - National tract files are larger; filter by state when possible.
+    validations:
+    - id: odd.census.latest.tract_5m
+      description: Compare the latest Census tract boundary facade with the direct zipped shapefile recipe.
+      release: latest
+      compare: exact
+      order_by:
+      - GEOID
+      limit: 10
+      direct_sql: 'LOAD spatial;
+
+        SELECT GEOID, NAME, STATEFP, COUNTYFP
+
+        FROM ST_Read(''/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp'')
+
+        WHERE STATEFP = ''02''
+
+        ORDER BY GEOID
+
         LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        SELECT (
-                 SELECT count(*) = 2
-                 FROM (
-                   SELECT unnest(Results, recursive := true)
-                   FROM read_json_auto(
-                     'https://api.nhtsa.gov/recalls/recallsByVehicle?make=acura&model=rdx&modelYear=2012'
-                   )
-                 )
-               ) AS recalls_fixture_ok,
-               (
-                 SELECT count(*) = 2
-                 FROM (
-                   SELECT unnest(Results, recursive := true)
-                   FROM read_json_auto(
-                     'https://api.nhtsa.gov/SafetyRatings/modelyear/2012/make/Acura/model/RDX'
-                   )
-                 )
-               ) AS safety_rating_variants_fixture_ok;
-      examples:
-        safety_rating_variants_by_vehicle: |
-          LOAD httpfs;
-          SELECT VehicleId,
-                 VehicleDescription
-          FROM (
-            SELECT unnest(Results, recursive := true)
-            FROM read_json_auto(
-              'https://api.nhtsa.gov/SafetyRatings/modelyear/2012/make/Acura/model/RDX'
-            )
-          )
-          ORDER BY VehicleId
-          LIMIT 10;
-        recalls_by_campaign: |
-          LOAD httpfs;
-          SELECT NHTSACampaignNumber,
-                 Component,
-                 ReportReceivedDate,
-                 Summary
-          FROM (
-            SELECT unnest(Results, recursive := true)
-            FROM read_json_auto(
-              'https://api.nhtsa.gov/recalls/recallsByVehicle?make=honda&model=accord&modelYear=2018'
-            )
-          )
-          ORDER BY NHTSACampaignNumber
-          LIMIT 25;
-  - id: usgs.earthquake.realtime-geojson
-    name: USGS realtime earthquake GeoJSON feeds
-    description: Official U.S. Geological Survey realtime earthquake summary feeds for recent seismic events, queryable directly from GeoJSON over HTTPS with DuckDB read_json_auto.
-    status: candidate
-    source_type: other
-    authority: U.S. Geological Survey Earthquake Hazards Program
-    homepage: https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
-    license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
-    attribution: U.S. Geological Survey Earthquake Hazards Program; credit USGS earthquake feeds and do not imply USGS endorsement.
-    tables:
-      - id: earthquake_events
-        description: Recent USGS earthquake event features. One row per reported seismic event in the selected rolling feed.
-        columns_hint:
-          mag: Earthquake magnitude.
-          place: Human-readable event location.
-          time: Event time in epoch milliseconds.
-          geometry: GeoJSON point with longitude, latitude, and depth.
-        ask_for: [feed window, magnitude threshold, bbox or region, limit]
-        warnings: [Rolling feeds are not stable historical snapshots.]
-    tags: [usgs, earthquakes, hazards, geojson, realtime]
-    topics: [earthquakes, seismic events, natural hazards, realtime monitoring]
-    coverage:
-      spatial: global earthquake events reported by USGS and partner seismic networks
-      temporal: rolling realtime feeds for the past hour, day, week, and 30 days
-      grain: one earthquake event feature with magnitude, place, event time, status, and point geometry
-    cadence: feeds update every minute; older events age out by feed window
-    ai:
-      summary: Best official USGS source for recent earthquake events when a user wants live seismic activity in DuckDB.
-      use_cases: [list recent earthquakes by magnitude, monitor significant events, map recent seismic activity]
-      caveats: [rolling feeds are not stable historical snapshots, all_day can be empty during unusually quiet periods, event coordinates are GeoJSON point arrays with longitude latitude depth]
-      prompt_hints: [Ask for the feed window and magnitude threshold before generating SQL; use all_month for a stable validation smoke.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT id AS event_id,
-               mag AS magnitude,
-               place,
-               time AS event_time_ms,
-               geometry
-        FROM read_json_auto(
-          'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',
-          maximum_object_size = 16777216
-        )
-        WHERE type = 'earthquake'
-        ORDER BY time DESC
+
+        '
+      odd_sql: 'LOAD open_data_duck;
+
+        ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+        SET VARIABLE census_cartographic_year = ''2025'';
+
+        SELECT GEOID, NAME, STATEFP, COUNTYFP
+
+        FROM odd.census.latest.tract_5m
+
+        WHERE STATEFP = ''02''
+
+        ORDER BY GEOID
+
         LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        SELECT count(*) > 0 AS ok
-        FROM read_json_auto(
-          'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson',
-          maximum_object_size = 16777216
-        )
-        WHERE type = 'earthquake'
-          AND id IS NOT NULL
-          AND mag IS NOT NULL;
-      examples:
-        magnitude_4_5_week: |
-          LOAD httpfs;
-          SELECT id AS event_id, mag, place, time, updated, geometry
-          FROM read_json_auto(
-            'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson',
-            maximum_object_size = 16777216
-          )
-          ORDER BY time DESC
-          LIMIT 25;
-        significant_month: |
-          LOAD httpfs;
-          SELECT id AS event_id, mag, place, alert, tsunami, sig, url
-          FROM read_json_auto(
-            'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson',
-            maximum_object_size = 16777216
-          )
-          ORDER BY sig DESC
-          LIMIT 25;
-  - id: usgs.nwis.instantaneous-values
-    name: USGS NWIS instantaneous water values API
-    description: Official U.S. Geological Survey Water Data for the Nation instantaneous values time-series observations for monitoring sites, queryable as nested public JSON over HTTPS with DuckDB httpfs.
-    status: candidate
-    source_type: other
-    authority: U.S. Geological Survey Water Data for the Nation
-    homepage: https://waterservices.usgs.gov/docs/instantaneous-values/instantaneous-values-details/
-    license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
-    attribution: Credit U.S. Geological Survey / USGS Water Data for the Nation; cite the site, parameter, time range, and retrieval endpoint used.
-    tables:
-      - id: instantaneous_values
-        description: USGS NWIS instantaneous observations. One row per timestamped monitoring-site and parameter observation after flattening the WaterML JSON timeSeries payload.
-        columns_hint:
-          site_no: USGS monitoring site number such as 01646500.
-          parameter_cd: USGS parameter code such as 00060 for streamflow.
-          observed_at: Observation timestamp returned by the service, generally UTC when date ranges are supplied without local timezone offsets.
-          observed_value: Observation value cast to DOUBLE from the nested JSON string value.
-          qualifiers: USGS value qualifiers such as approved or provisional status flags.
-        ask_for: [site number, parameter code, start datetime, end datetime, site status, whether provisional operational values are acceptable]
-        warnings: [Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows., Large multi-site or multi-parameter requests should be bounded by date range., Instantaneous operational values can be provisional and not fully quality-assured.]
-    tags: [usgs, nwis, water, streamflow, hydrology, json, public-domain]
-    topics: [streamflow, water monitoring, river gauges, hydrology, instantaneous values, time series]
-    coverage:
-      spatial: United States monitoring sites available through USGS Water Data for the Nation
-      temporal: recent and historical instantaneous observations for requested sites and parameters
-      grain: one timestamped site-parameter observation after flattening the NWIS JSON timeSeries response
-    cadence: operational service; cadence varies by monitoring site, sensor, and parameter
-    ai:
-      summary: Official USGS source for gauge observations such as streamflow, stage, temperature, and other instantaneous water values.
-      use_cases: [pull streamflow observations for a gauge, inspect river conditions over a bounded time range, build hydrology examples in DuckDB]
-      caveats: [ask for site and parameter codes before writing SQL, keep date windows narrow for multi-site requests, quality flags and provisional status matter for analysis]
-      prompt_hints: [Ask for the USGS site number, parameter code, time range, site status, and whether provisional data are acceptable.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        WITH raw AS (
-          SELECT value
-          FROM read_json_auto(
-            'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'
-          )
-        ), series AS (
-          SELECT unnest(value.timeSeries) AS ts
-          FROM raw
-        ), observations AS (
-          SELECT ts.sourceInfo.siteName AS site_name,
-                 ts.sourceInfo.siteCode[1].value AS site_no,
-                 ts.variable.variableCode[1].value AS parameter_cd,
-                 ts.variable.variableName AS parameter_name,
-                 unnest(ts.values[1].value) AS obs
-          FROM series
-        )
-        SELECT site_no,
-               site_name,
-               parameter_cd,
-               parameter_name,
-               obs.dateTime AS observed_at,
-               TRY_CAST(obs.value AS DOUBLE) AS observed_value,
-               obs.qualifiers AS qualifiers
-        FROM observations
-        ORDER BY observed_at
-        LIMIT 25;
-      validation_query: |
-        LOAD httpfs;
-        WITH raw AS (
-          SELECT value
-          FROM read_json_auto(
-            'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'
-          )
-        ), series AS (
-          SELECT unnest(value.timeSeries) AS ts
-          FROM raw
-        ), observations AS (
-          SELECT ts.sourceInfo.siteCode[1].value AS site_no,
-                 ts.variable.variableCode[1].value AS parameter_cd,
-                 unnest(ts.values[1].value) AS obs
-          FROM series
-        )
-        SELECT site_no = '01646500' AS expected_site,
-               parameter_cd = '00060' AS expected_parameter,
-               count(*) = 192 AS expected_15_minute_rows
-        FROM observations
-        GROUP BY site_no, parameter_cd;
-      examples:
-        potomac_streamflow_15_minute_values: |
-          LOAD httpfs;
-          WITH raw AS (
-            SELECT value
-            FROM read_json_auto(
-              'https://waterservices.usgs.gov/nwis/iv/?format=json&sites=01646500&parameterCd=00060&startDT=2024-01-01&endDT=2024-01-02&siteStatus=all'
-            )
-          ), series AS (
-            SELECT unnest(value.timeSeries) AS ts
-            FROM raw
-          ), observations AS (
-            SELECT ts.sourceInfo.siteName AS site_name,
-                   ts.sourceInfo.siteCode[1].value AS site_no,
-                   ts.variable.variableCode[1].value AS parameter_cd,
-                   ts.variable.variableName AS parameter_name,
-                   unnest(ts.values[1].value) AS obs
-            FROM series
-          )
-          SELECT site_no,
-                 site_name,
-                 parameter_cd,
-                 parameter_name,
-                 obs.dateTime AS observed_at,
-                 TRY_CAST(obs.value AS DOUBLE) AS observed_value,
-                 obs.qualifiers AS qualifiers
-          FROM observations
-          ORDER BY observed_at
-          LIMIT 25;
-  - id: worldbank.wdi.indicators
-    name: World Bank World Development Indicators API
-    description: Official World Bank Indicators API access to World Development Indicators time-series development data, queryable as public JSON over HTTPS with DuckDB httpfs and JSON functions.
-    status: candidate
-    source_type: other
-    authority: World Bank Group
-    homepage: https://api.worldbank.org/v2/
-    license_url: https://www.worldbank.org/ext/en/legal/terms-conditions/datasets
-    attribution: "World Bank Group, World Development Indicators; attribute as: The World Bank: World Development Indicators: World Bank Group. Do not imply World Bank endorsement."
-    tables:
-      - id: indicators
-        description: World Bank indicator observations. One row per country, indicator, and year.
-        ask_for: [country code, indicator id, year range]
-        warnings: [Values may be null; API responses use a JSON envelope.]
-    tags: [world-bank, wdi, indicators, development, json]
-    topics: [development indicators, population, economy, health, education, country time series]
-    coverage:
-      spatial: global countries and economies covered by the World Bank Indicators API
-      temporal: annual indicator time series, typically 1960 to the most recent World Bank update depending on indicator
-      grain: one country-indicator-year observation
-    cadence: API metadata reports source-specific last updated dates
-    ai:
-      summary: Best official source for broad country-level development indicator time series such as population, GDP, health, education, and poverty.
-      use_cases: [query country indicator histories, compare development indicators across years, pull WDI time series into DuckDB]
-      caveats: [API responses use a two-element JSON envelope, some indicators can have null values, some third-party datasets or indicators may carry different metadata terms]
-      prompt_hints: [Ask for country code, indicator id, and year range before generating SQL; use per_page large enough for the selected series.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        WITH payload AS (
-          SELECT json
-          FROM read_json(
-            'https://api.worldbank.org/v2/country/USA/indicator/SP.POP.TOTL?format=json&per_page=20000',
-            format = 'auto'
-          )
-          WHERE json_type(json) = 'ARRAY'
-        ), rows AS (
-          SELECT e.value AS item
-          FROM payload, json_each(payload.json) AS e
-        )
-        SELECT item->'country'->>'id' AS country_id,
-               item->>'countryiso3code' AS iso3,
-               item->'indicator'->>'id' AS indicator_id,
-               CAST(item->>'date' AS INTEGER) AS year,
-               CAST(item->>'value' AS DOUBLE) AS value
-        FROM rows
-        WHERE item->>'value' IS NOT NULL
-        ORDER BY year DESC
-        LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        WITH payload AS (
-          SELECT json
-          FROM read_json(
-            'https://api.worldbank.org/v2/country/USA/indicator/SP.POP.TOTL?format=json&per_page=20000',
-            format = 'auto'
-          )
-          WHERE json_type(json) = 'ARRAY'
-        ), rows AS (
-          SELECT e.value AS item
-          FROM payload, json_each(payload.json) AS e
-        )
-        SELECT count(*) > 0 AS has_rows,
-               max(CAST(item->>'date' AS INTEGER)) >= 2020 AS has_recent_data
-        FROM rows
-        WHERE item->>'value' IS NOT NULL;
-      examples:
-        usa_gdp_current_usd: |
-          LOAD httpfs;
-          WITH payload AS (
-            SELECT json
-            FROM read_json(
-              'https://api.worldbank.org/v2/country/USA/indicator/NY.GDP.MKTP.CD?format=json&per_page=20000',
-              format = 'auto'
-            )
-            WHERE json_type(json) = 'ARRAY'
-          ), rows AS (
-            SELECT e.value AS item
-            FROM payload, json_each(payload.json) AS e
-          )
-          SELECT CAST(item->>'date' AS INTEGER) AS year,
-                 CAST(item->>'value' AS DOUBLE) AS gdp_current_usd
-          FROM rows
-          WHERE item->>'value' IS NOT NULL
-          ORDER BY year DESC
-          LIMIT 25;
-  - id: bls.cpi.timeseries
-    name: BLS Consumer Price Index time series API
-    description: Official U.S. Bureau of Labor Statistics Public Data API access to Consumer Price Index time-series observations, queryable as public JSON over HTTPS with DuckDB httpfs.
-    status: candidate
-    source_type: other
-    authority: U.S. Bureau of Labor Statistics
-    homepage: https://www.bls.gov/developers/home.htm
-    license_url: https://www.bls.gov/developers/termsOfService.htm
-    attribution: Cite BLS.gov and the API retrieval date; state that BLS.gov cannot vouch for data or analyses derived after retrieval; do not use the BLS logo or imply BLS sponsorship.
-    tables:
-      - id: cpi_observations
-        description: BLS CPI time-series observations. One row per BLS series and period.
-        ask_for: [series id, start year, end year]
-        warnings: [Values are returned as strings and should be cast before numeric analysis.]
-    tags: [bls, cpi, inflation, labor-statistics, json]
-    topics: [consumer price index, inflation, economic indicators, monthly time series]
-    coverage:
-      spatial: United States CPI areas and item categories available through BLS series ids
-      temporal: monthly CPI observations exposed by the public time-series API for the requested series
-      grain: one BLS series-period observation
-    cadence: CPI series are updated on the BLS release schedule; API responses reflect published BLS time-series data
-    ai:
-      summary: Official source for CPI inflation time series such as CPI-U all items and core CPI.
-      use_cases: [pull recent CPI observations, compare CPI series, build inflation trend examples in DuckDB]
-      caveats: [keyless public access should stay to small single-series requests, registered v2 API access is better for multi-series or heavier usage, values are returned as strings and should be cast]
-      prompt_hints: [Ask for the BLS series id, CPI item/area, and desired date range; cite the API retrieval date in outputs.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        WITH series AS (
-          SELECT unnest(Results.series) AS s
-          FROM read_json(
-            'https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0?startyear=2024&endyear=2025',
-            format = 'auto'
-          )
-        ), observations AS (
-          SELECT s.seriesID AS series_id,
-                 unnest(s.data) AS obs
-          FROM series
-        )
-        SELECT series_id,
-               CAST(obs.year AS INTEGER) AS year,
-               obs.period AS period,
-               obs.periodName AS period_name,
-               TRY_CAST(obs.value AS DOUBLE) AS value
-        FROM observations
-        WHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL
-        ORDER BY year DESC, period DESC
-        LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        WITH series AS (
-          SELECT unnest(Results.series) AS s
-          FROM read_json(
-            'https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0?startyear=2024&endyear=2025',
-            format = 'auto'
-          )
-        ), observations AS (
-          SELECT s.seriesID AS series_id,
-                 unnest(s.data) AS obs
-          FROM series
-        )
-        SELECT count(*) > 0 AS has_rows,
-               bool_or(series_id = 'CUUR0000SA0') AS has_cpi_all_items_series,
-               max(CAST(obs.year AS INTEGER)) >= 2024 AS has_recent_data
-        FROM observations
-        WHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL;
-      examples:
-        core_cpi_recent_observations: |
-          LOAD httpfs;
-          WITH series AS (
-            SELECT unnest(Results.series) AS s
-            FROM read_json(
-              'https://api.bls.gov/publicAPI/v1/timeseries/data/CUSR0000SA0L1E?startyear=2024&endyear=2025',
-              format = 'auto'
-            )
-          ), observations AS (
-            SELECT s.seriesID AS series_id,
-                   unnest(s.data) AS obs
-            FROM series
-          )
-          SELECT series_id,
-                 CAST(obs.year AS INTEGER) AS year,
-                 obs.periodName AS period_name,
-                 TRY_CAST(obs.value AS DOUBLE) AS core_cpi
-          FROM observations
-          WHERE TRY_CAST(obs.value AS DOUBLE) IS NOT NULL
-          ORDER BY year DESC, obs.period DESC
-          LIMIT 12;
-  - id: openfda.food.enforcement-reports
-    name: FDA openFDA food enforcement recall reports
-    description: Official openFDA food enforcement recall reports from FDA Recall Enterprise System records, queryable as a public JSON API with DuckDB httpfs.
-    status: candidate
-    source_type: other
-    authority: U.S. Food and Drug Administration openFDA
-    homepage: https://open.fda.gov/apis/food/enforcement/
-    license_url: https://open.fda.gov/license/
-    attribution: Data provided by the U.S. Food and Drug Administration (https://open.fda.gov); openFDA materials are public domain / CC0 unless otherwise noted.
-    tables:
-      - id: food_enforcement_reports
-        description: FDA food enforcement recall reports. One row per public recall report returned from the openFDA food enforcement endpoint after unnesting the JSON results envelope.
-        columns_hint:
-          recall_number: FDA recall number for the enforcement report.
-          status: Recall status, such as Ongoing, Completed, or Terminated.
-          classification: Recall classification, such as Class I, Class II, or Class III.
-          product_description: Product description text from the recall report.
-          recalling_firm: Firm responsible for the recall.
-          report_date: FDA report date as YYYYMMDD text.
-        ask_for: [classification, status, date window, product or firm search term, limit]
-        warnings: [API keys are optional but keyless access can be rate-limited; responses are nested JSON envelopes, so unnest results before treating reports as rows.]
-    tags: [fda, openfda, recalls, food-safety, json, public-domain]
-    topics: [food recalls, enforcement reports, product safety, public health]
-    coverage:
-      spatial: United States FDA-regulated food products and firms represented in enforcement records
-      temporal: FDA food enforcement recall reports exposed by openFDA, documented from 2004 onward
-      grain: one FDA food enforcement recall report after unnesting the API results array
-    cadence: openFDA documents food enforcement data updates weekly
-    ai:
-      summary: Official FDA source for food recall enforcement reports when a user wants recall numbers, classifications, firms, products, and report dates.
-      use_cases: [list recent food recalls, filter recalls by classification or status, search product descriptions or recalling firms]
-      caveats: [openFDA warns the API is not validated for clinical or production use, keyless requests have lower rate limits, query the nested results array rather than the response envelope]
-      prompt_hints: [Ask for classification, recall status, product or firm search terms, date window, and row limit before generating SQL.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        WITH payload AS (
-          SELECT *
-          FROM read_json(
-            'https://api.fda.gov/food/enforcement.json?limit=10',
-            format = 'auto'
-          )
-        ), reports AS (
-          SELECT unnest(results) AS report
-          FROM payload
-        )
-        SELECT report.recall_number AS recall_number,
-               report.status AS status,
-               report.classification AS classification,
-               report.product_description AS product_description,
-               report.recalling_firm AS recalling_firm,
-               report.report_date AS report_date
-        FROM reports
-        ORDER BY report_date DESC
-        LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        WITH payload AS (
-          SELECT *
-          FROM read_json(
-            'https://api.fda.gov/food/enforcement.json?limit=5',
-            format = 'auto'
-          )
-        ), reports AS (
-          SELECT unnest(results) AS report
-          FROM payload
-        )
-        SELECT count(*) > 0 AS has_rows,
-               bool_and(report.recall_number IS NOT NULL) AS has_recall_numbers
-        FROM reports;
-      examples:
-        class_i_recent_reports: |
-          LOAD httpfs;
-          WITH payload AS (
-            SELECT *
-            FROM read_json(
-              'https://api.fda.gov/food/enforcement.json?search=classification:%22Class%20I%22&limit=25',
-              format = 'auto'
-            )
-          ), reports AS (
-            SELECT unnest(results) AS report
-            FROM payload
-          )
-          SELECT report.recall_number AS recall_number,
-                 report.status AS status,
-                 report.product_description AS product_description,
-                 report.recalling_firm AS recalling_firm,
-                 report.report_date AS report_date
-          FROM reports
-          ORDER BY report_date DESC
-          LIMIT 25;
-  - id: treasury.fiscaldata.debt-to-penny
-    name: U.S. Treasury Fiscal Data Debt to the Penny API
-    description: Official Bureau of the Fiscal Service daily total public debt outstanding records from the Treasury Fiscal Data API, queryable as gzipped CSV over HTTPS with DuckDB httpfs.
-    status: candidate
-    source_type: other
-    authority: U.S. Department of the Treasury, Bureau of the Fiscal Service
-    homepage: https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/debt-to-the-penny
-    license_url: https://catalog.data.gov/dataset/debt-to-the-penny
-    attribution: U.S. Department of the Treasury, Bureau of the Fiscal Service, Fiscal Data / Debt to the Penny; do not imply Treasury endorsement.
-    tables:
-      - id: debt_observations
-        description: U.S. Treasury daily public debt outstanding records. One row per record date.
-        ask_for: [date window, debt field, limit]
-        warnings: [Fiscal Data CSV responses are gzipped; use compression = 'gzip'.]
-    tags: [treasury, fiscal-data, debt, public-debt, csv]
-    topics: [federal debt, public debt outstanding, treasury, fiscal data, daily time series]
-    coverage:
-      spatial: United States federal government fiscal accounts
-      temporal: daily public debt outstanding records exposed by the Fiscal Data API
-      grain: one record date with total public debt outstanding amounts
-    cadence: daily on Treasury Fiscal Data publication schedule
-    ai:
-      summary: Official source for daily U.S. total public debt outstanding time-series queries.
-      use_cases: [pull recent debt-to-the-penny observations, monitor daily public debt changes, join federal debt levels into economic time-series analysis]
-      caveats: [Fiscal Data CSV responses are gzipped even though the URL has no .gz suffix, so DuckDB queries must pass compression = 'gzip'; amounts are large dollar values and should be handled as numeric fields]
-      prompt_hints: [Ask for the date window and whether the user wants total public debt or intragovernmental/publicly held debt fields before generating SQL.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT record_date,
-               tot_pub_debt_out_amt
-        FROM read_csv_auto(
-          'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=10&format=csv',
-          compression = 'gzip'
-        )
-        ORDER BY record_date DESC
-        LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        SELECT count(*) > 0 AS has_rows,
-               max(record_date) >= DATE '2026-01-01' AS has_recent_data
-        FROM read_csv_auto(
-          'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=10&format=csv',
-          compression = 'gzip'
-        );
-      examples:
-        recent_public_debt_changes: |
-          LOAD httpfs;
-          SELECT record_date,
-                 tot_pub_debt_out_amt,
-                 tot_pub_debt_out_amt - lag(tot_pub_debt_out_amt) OVER (ORDER BY record_date) AS change_from_previous_record
-          FROM read_csv_auto(
-            'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?fields=record_date,tot_pub_debt_out_amt&sort=-record_date&page%5Bsize%5D=30&format=csv',
-            compression = 'gzip'
-          )
-          ORDER BY record_date DESC
-          LIMIT 10;
-  - id: noaa.ncei.storm-events
-    name: NOAA NCEI Storm Events bulk CSV files
-    description: Official NOAA National Centers for Environmental Information Storm Events Database bulk CSV exports for severe weather events, fatalities, and locations, queryable from public HTTPS gzip files with DuckDB httpfs.
-    status: candidate
-    source_type: other
-    authority: NOAA National Centers for Environmental Information
-    homepage: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
-    license_url: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
-    attribution: NOAA National Centers for Environmental Information, Storm Events Database; credit NOAA/NCEI and do not imply NOAA endorsement.
-    tables:
-      - id: storm_events_details
-        ref: odd.noaa.latest.storm_events_details
-        description: NOAA Storm Events detail rows. One row per reported storm event.
-        ask_for: [year, state, event type, limit]
-        warnings: [Files are revised with creation-date suffixes; pin year for reproducible examples.]
-        validations:
-          - id: odd.noaa.latest.storm_events_details
-            description: Compare NOAA Storm Events details facade with the direct bulk CSV recipe.
-            release: latest
-            compare: exact
-            order_by: [event_id]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SELECT event_id, state, event_type, begin_date_time, cz_name
-              FROM read_csv_auto(
-                'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',
-                sample_size = 20000
-              )
-              WHERE event_type IS NOT NULL
-              ORDER BY event_id
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE noaa_storm_events_year = '2024';
-              SELECT event_id, state, event_type, begin_date_time, cz_name
-              FROM odd.noaa.latest.storm_events_details
-              WHERE event_type IS NOT NULL
-              ORDER BY event_id
-              LIMIT 10;
-      - id: storm_events_fatalities
-        ref: odd.noaa.latest.storm_events_fatalities
-        description: NOAA Storm Events fatality rows. One row per fatality associated with a storm event.
-        ask_for: [year, state or event id, limit]
-        warnings: [Join to details by event_id for event context.]
-        validations:
-          - id: odd.noaa.latest.storm_events_fatalities
-            description: Compare NOAA Storm Events fatalities facade with the direct bulk CSV recipe.
-            release: latest
-            compare: exact
-            order_by: [fatality_id]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age
-              FROM read_csv_auto(
-                'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_fatalities-ftp_v1.0_d2024_c20261119.csv.gz',
-                sample_size = 20000
-              )
-              WHERE event_id IS NOT NULL
-              ORDER BY fatality_id
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE noaa_storm_events_year = '2024';
-              SELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age
-              FROM odd.noaa.latest.storm_events_fatalities
-              WHERE event_id IS NOT NULL
-              ORDER BY fatality_id
-              LIMIT 10;
-      - id: storm_events_locations
-        ref: odd.noaa.latest.storm_events_locations
-        description: NOAA Storm Events location rows. One row per location attached to a storm event.
-        ask_for: [year, state or event id, limit]
-        warnings: [Join to details by event_id for event context.]
-        validations:
-          - id: odd.noaa.latest.storm_events_locations
-            description: Compare NOAA Storm Events locations facade with the direct bulk CSV recipe.
-            release: latest
-            compare: exact
-            order_by: [event_id, location_index]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SELECT event_id, location_index, location, latitude, longitude
-              FROM read_csv_auto(
-                'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_locations-ftp_v1.0_d2024_c20261119.csv.gz',
-                sample_size = 20000
-              )
-              WHERE event_id IS NOT NULL
-              ORDER BY event_id, location_index
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE noaa_storm_events_year = '2024';
-              SELECT event_id, location_index, location, latitude, longitude
-              FROM odd.noaa.latest.storm_events_locations
-              WHERE event_id IS NOT NULL
-              ORDER BY event_id, location_index
-              LIMIT 10;
-    tags: [noaa, ncei, storms, weather, hazards, csv]
-    topics: [severe weather, storm reports, tornadoes, hail, wind, fatalities]
-    coverage:
-      spatial: United States and U.S. territories covered by NOAA Storm Events reports
-      temporal: annual data-year bulk CSV exports
-      grain: storm event, fatality, or event-location row depending on the selected table
-    cadence: bulk files are revised with new creation-date suffixes as NOAA/NCEI republishes each data year
-    ai:
-      summary: Official bulk file source for historical U.S. severe weather event analysis in DuckDB.
-      use_cases: [query storm events by state and event type, inspect tornado or hail reports by year, join event details to fatalities or locations]
-      caveats: [file names include both data year and NOAA creation-date suffix, latest table discovery scans the directory listing to choose the newest suffix per file family, CSV files can be large]
-      prompt_hints: [Ask for data year, event type, and state before generating SQL; pin noaa_storm_events_year for reproducible table-facade queries.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT event_id,
-               state,
-               event_type,
-               begin_date_time,
-               cz_name
-        FROM read_csv_auto(
-          'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',
-          sample_size = 20000
-        )
+
+        '
+  release:
+    latest:
+      method: html-listing
+      url: https://www2.census.gov/geo/tiger/
+      resolve_sql: "SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m\n      FROM read_text('https://www2.census.gov/geo/tiger/'));\n"
+    pinned:
+      duckdb_setting: census_cartographic_year
+      example: '2025'
+  discovery:
+    namespace: odd.census.latest
+    discover_sql: "SELECT regexp_extract(z, 'cb_{release}_us_(.+)\\.zip', 1) AS name,\n       'st_read' AS reader,\n       '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/' || z || '/' || replace(z, '.zip', '.shp') AS path\nFROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'cb_{release}_us_tract[a-z0-9_]*\\.zip')) AS z\n      FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));\n"
+- id: arcgis.fema.nfhl.flood-hazard-zones
+  name: FEMA National Flood Hazard Layer flood hazard zones
+  status: connector-blocked
+  source_type: arcgis
+  authority: Federal Emergency Management Agency
+  license_url: https://www.fema.gov/about/openfema/terms-conditions
+  attribution: Federal Emergency Management Agency National Flood Hazard Layer.
+  requirements:
+    duckdb_extensions:
+    - arcgis
+  tables:
+  - id: flood_hazard_zones
+    description: FEMA NFHL flood hazard zone features. One row per flood hazard zone feature.
+    ask_for:
+    - bbox or jurisdiction
+    - fields
+    - whether geometry is needed
+    warnings:
+    - Not a substitute for official determinations; connector path is not stable yet.
+- id: arcgis.usgs.national-map-contours
+  name: USGS National Map elevation contours
+  status: connector-blocked
+  source_type: arcgis
+  authority: U.S. Geological Survey
+  license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+  attribution: U.S. Geological Survey National Map.
+  requirements:
+    duckdb_extensions:
+    - arcgis
+  tables:
+  - id: contours
+    description: USGS National Map elevation contour line features. One row per contour segment feature.
+    ask_for:
+    - bbox
+    - contour interval or elevation need
+    - fields
+    warnings:
+    - Connector is blocked; large geometry layers need paging.
+- id: nhtsa.vehicle-safety
+  name: NHTSA vehicle safety recalls and ratings APIs
+  status: candidate
+  source_type: other
+  authority: National Highway Traffic Safety Administration, U.S. Department of Transportation
+  license_url: https://www.nhtsa.gov/about-nhtsa/terms-use
+  attribution: National Highway Traffic Safety Administration (NHTSA), U.S. Department of Transportation; credit NHTSA/DOT and do not imply endorsement.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: recalls_by_vehicle
+    description: NHTSA recall campaign results for a requested model year, make, and model. One row per recall campaign result.
+    columns_hint:
+      NHTSACampaignNumber: NHTSA recall campaign identifier.
+      ReportReceivedDate: Date NHTSA received the campaign report.
+      Component: Vehicle component affected by the recall.
+      Summary: Long recall summary text.
+    ask_for:
+    - model year
+    - make
+    - model
+    - limit
+    warnings:
+    - Parameterized API endpoint; preserve model year
+    - make
+    - and model filters instead of treating it as a full-table scan.
+  - id: safety_rating_variants
+    description: NHTSA safety-rating vehicle variants for a requested model year, make, and model. One row per returned vehicle variant.
+    columns_hint:
+      VehicleId: Identifier used by NHTSA rating-detail lookups.
+      VehicleDescription: Human-readable vehicle variant description.
+    ask_for:
+    - model year
+    - make
+    - model
+    - limit
+    warnings:
+    - Parameterized API endpoint; use the returned VehicleId for rating-detail lookups.
+- id: usgs.earthquake.realtime-geojson
+  name: USGS realtime earthquake GeoJSON feeds
+  status: candidate
+  source_type: other
+  authority: U.S. Geological Survey Earthquake Hazards Program
+  license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+  attribution: U.S. Geological Survey Earthquake Hazards Program; credit USGS earthquake feeds and do not imply USGS endorsement.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: earthquake_events
+    description: Recent USGS earthquake event features. One row per reported seismic event in the selected rolling feed.
+    columns_hint:
+      mag: Earthquake magnitude.
+      place: Human-readable event location.
+      time: Event time in epoch milliseconds.
+      geometry: GeoJSON point with longitude, latitude, and depth.
+    ask_for:
+    - feed window
+    - magnitude threshold
+    - bbox or region
+    - limit
+    warnings:
+    - Rolling feeds are not stable historical snapshots.
+- id: usgs.nwis.instantaneous-values
+  name: USGS NWIS instantaneous water values API
+  status: candidate
+  source_type: other
+  authority: U.S. Geological Survey Water Data for the Nation
+  license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+  attribution: Credit U.S. Geological Survey / USGS Water Data for the Nation; cite the site, parameter, time range, and retrieval endpoint used.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: instantaneous_values
+    description: USGS NWIS instantaneous observations. One row per timestamped monitoring-site and parameter observation after flattening the WaterML JSON timeSeries payload.
+    columns_hint:
+      site_no: USGS monitoring site number such as 01646500.
+      parameter_cd: USGS parameter code such as 00060 for streamflow.
+      observed_at: Observation timestamp returned by the service, generally UTC when date ranges are supplied without local timezone offsets.
+      observed_value: Observation value cast to DOUBLE from the nested JSON string value.
+      qualifiers: USGS value qualifiers such as approved or provisional status flags.
+    ask_for:
+    - site number
+    - parameter code
+    - start datetime
+    - end datetime
+    - site status
+    - whether provisional operational values are acceptable
+    warnings:
+    - Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows.
+    - Large multi-site or multi-parameter requests should be bounded by date range.
+    - Instantaneous operational values can be provisional and not fully quality-assured.
+- id: worldbank.wdi.indicators
+  name: World Bank World Development Indicators API
+  status: candidate
+  source_type: other
+  authority: World Bank Group
+  license_url: https://www.worldbank.org/ext/en/legal/terms-conditions/datasets
+  attribution: 'World Bank Group, World Development Indicators; attribute as: The World Bank: World Development Indicators: World Bank Group. Do not imply World Bank endorsement.'
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: indicators
+    description: World Bank indicator observations. One row per country, indicator, and year.
+    ask_for:
+    - country code
+    - indicator id
+    - year range
+    warnings:
+    - Values may be null; API responses use a JSON envelope.
+- id: bls.cpi.timeseries
+  name: BLS Consumer Price Index time series API
+  status: candidate
+  source_type: other
+  authority: U.S. Bureau of Labor Statistics
+  license_url: https://www.bls.gov/developers/termsOfService.htm
+  attribution: Cite BLS.gov and the API retrieval date; state that BLS.gov cannot vouch for data or analyses derived after retrieval; do not use the BLS logo or imply BLS sponsorship.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: cpi_observations
+    description: BLS CPI time-series observations. One row per BLS series and period.
+    ask_for:
+    - series id
+    - start year
+    - end year
+    warnings:
+    - Values are returned as strings and should be cast before numeric analysis.
+- id: openfda.food.enforcement-reports
+  name: FDA openFDA food enforcement recall reports
+  status: candidate
+  source_type: other
+  authority: U.S. Food and Drug Administration openFDA
+  license_url: https://open.fda.gov/license/
+  attribution: Data provided by the U.S. Food and Drug Administration (https://open.fda.gov); openFDA materials are public domain / CC0 unless otherwise noted.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: food_enforcement_reports
+    description: FDA food enforcement recall reports. One row per public recall report returned from the openFDA food enforcement endpoint after unnesting the JSON results envelope.
+    columns_hint:
+      recall_number: FDA recall number for the enforcement report.
+      status: Recall status, such as Ongoing, Completed, or Terminated.
+      classification: Recall classification, such as Class I, Class II, or Class III.
+      product_description: Product description text from the recall report.
+      recalling_firm: Firm responsible for the recall.
+      report_date: FDA report date as YYYYMMDD text.
+    ask_for:
+    - classification
+    - status
+    - date window
+    - product or firm search term
+    - limit
+    warnings:
+    - API keys are optional but keyless access can be rate-limited; responses are nested JSON envelopes
+    - so unnest results before treating reports as rows.
+- id: treasury.fiscaldata.debt-to-penny
+  name: U.S. Treasury Fiscal Data Debt to the Penny API
+  status: candidate
+  source_type: other
+  authority: U.S. Department of the Treasury, Bureau of the Fiscal Service
+  license_url: https://catalog.data.gov/dataset/debt-to-the-penny
+  attribution: U.S. Department of the Treasury, Bureau of the Fiscal Service, Fiscal Data / Debt to the Penny; do not imply Treasury endorsement.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: debt_observations
+    description: U.S. Treasury daily public debt outstanding records. One row per record date.
+    ask_for:
+    - date window
+    - debt field
+    - limit
+    warnings:
+    - Fiscal Data CSV responses are gzipped; use compression = 'gzip'.
+- id: noaa.ncei.storm-events
+  name: NOAA NCEI Storm Events bulk CSV files
+  status: candidate
+  source_type: other
+  authority: NOAA National Centers for Environmental Information
+  license_url: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+  attribution: NOAA National Centers for Environmental Information, Storm Events Database; credit NOAA/NCEI and do not imply NOAA endorsement.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: storm_events_details
+    ref: odd.noaa.latest.storm_events_details
+    description: NOAA Storm Events detail rows. One row per reported storm event.
+    ask_for:
+    - year
+    - state
+    - event type
+    - limit
+    warnings:
+    - Files are revised with creation-date suffixes; pin year for reproducible examples.
+    validations:
+    - id: odd.noaa.latest.storm_events_details
+      description: Compare NOAA Storm Events details facade with the direct bulk CSV recipe.
+      release: latest
+      compare: exact
+      order_by:
+      - event_id
+      limit: 10
+      direct_sql: "LOAD httpfs;\nSELECT event_id, state, event_type, begin_date_time, cz_name\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',\n  sample_size = 20000\n)\nWHERE event_type IS NOT NULL\nORDER BY event_id\nLIMIT 10;\n"
+      odd_sql: 'LOAD open_data_duck;
+
+        ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+        SET VARIABLE noaa_storm_events_year = ''2024'';
+
+        SELECT event_id, state, event_type, begin_date_time, cz_name
+
+        FROM odd.noaa.latest.storm_events_details
+
         WHERE event_type IS NOT NULL
+
         ORDER BY event_id
+
         LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        SELECT count(*) > 0 AS ok
-        FROM read_csv_auto(
-          'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',
-          sample_size = 20000
-        )
+
+        '
+  - id: storm_events_fatalities
+    ref: odd.noaa.latest.storm_events_fatalities
+    description: NOAA Storm Events fatality rows. One row per fatality associated with a storm event.
+    ask_for:
+    - year
+    - state or event id
+    - limit
+    warnings:
+    - Join to details by event_id for event context.
+    validations:
+    - id: odd.noaa.latest.storm_events_fatalities
+      description: Compare NOAA Storm Events fatalities facade with the direct bulk CSV recipe.
+      release: latest
+      compare: exact
+      order_by:
+      - fatality_id
+      limit: 10
+      direct_sql: "LOAD httpfs;\nSELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_fatalities-ftp_v1.0_d2024_c20261119.csv.gz',\n  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\nORDER BY fatality_id\nLIMIT 10;\n"
+      odd_sql: 'LOAD open_data_duck;
+
+        ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+        SET VARIABLE noaa_storm_events_year = ''2024'';
+
+        SELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age
+
+        FROM odd.noaa.latest.storm_events_fatalities
+
         WHERE event_id IS NOT NULL
-          AND event_type IS NOT NULL;
-      examples:
-        latest_details_by_state_type: |
-          LOAD httpfs;
-          SET VARIABLE noaa_storm_events_year = '2024';
-          SELECT event_id, state, event_type, begin_date_time, cz_name
-          FROM odd.noaa.latest.storm_events_details
-          WHERE state = 'ALASKA'
-            AND event_type IS NOT NULL
-          ORDER BY begin_date_time
-          LIMIT 25;
-        latest_fatalities_by_year: |
-          LOAD httpfs;
-          SET VARIABLE noaa_storm_events_year = '2024';
-          SELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age
-          FROM odd.noaa.latest.storm_events_fatalities
-          ORDER BY fatality_date
-          LIMIT 25;
-      tables:
-        namespace: odd.noaa.latest
-        discover_sql: |
-          WITH files AS (
-            SELECT regexp_extract(m, 'StormEvents_([a-z]+)-ftp_v1\.0_d{release}_c([0-9]{8})\.csv\.gz', 1) AS table_kind,
-                   regexp_extract(m, '(StormEvents_[a-z]+-ftp_v1\.0_d{release}_c[0-9]{8}\.csv\.gz)', 1) AS file_name,
-                   regexp_extract(m, '_c([0-9]{8})\.csv\.gz', 1) AS created
-            FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'StormEvents_[a-z]+-ftp_v1\.0_d{release}_c[0-9]{8}\.csv\.gz')) AS m
-                  FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'))
-          ), latest AS (
-            SELECT table_kind, max(created) AS created
-            FROM files
-            GROUP BY table_kind
-          )
-          SELECT 'storm_events_' || files.table_kind AS name,
-                 'read_csv' AS reader,
-                 'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/' || files.file_name AS path
-          FROM files
-          JOIN latest USING (table_kind, created)
-          ORDER BY name;
-    release:
-      latest:
-        method: html-listing
-        url: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
-        resolve_sql: |
-          SELECT max(regexp_extract(m, 'StormEvents_details-ftp_v1\.0_d([0-9]{4})_c[0-9]{8}\.csv\.gz', 1)) AS release
-          FROM (SELECT unnest(regexp_extract_all(content, 'StormEvents_details-ftp_v1\.0_d[0-9]{4}_c[0-9]{8}\.csv\.gz')) AS m
-                FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'));
-      pinned:
-        duckdb_setting: noaa_storm_events_year
-        example: "2024"
-  - id: aws.noaa-ghcn-daily
-    name: NOAA Global Historical Climatology Network Daily
-    description: NOAA GHCN Daily station observations in public S3 CSV files for temperature, precipitation, and other daily climate measurements.
-    status: candidate
-    source_type: other
-    authority: NOAA National Centers for Environmental Information
-    homepage: https://registry.opendata.aws/noaa-ghcn/
-    license_url: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
-    attribution: NOAA National Centers for Environmental Information, Global Historical Climatology Network Daily.
-    tables:
-      - id: ghcn_daily
-        ref: odd.noaa.latest.ghcn_daily
-        description: GHCN Daily station observations. One row per station, date, and observed climate element.
-        ask_for: [year, station id, climate element]
-        warnings: [CSV files are large; filter by year/station/element early.]
-        validations:
-          - id: odd.noaa.latest.ghcn_daily
-            description: Compare NOAA GHCN Daily facade with the direct year CSV recipe.
-            release: latest
-            compare: exact
-            order_by: [id, date, element]
-            limit: 10
-            direct_sql: |
-              LOAD httpfs;
-              SELECT id, date, element, data_value
-              FROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')
-              WHERE id IS NOT NULL
-              ORDER BY id, date, element
-              LIMIT 10;
-            odd_sql: |
-              LOAD open_data_duck;
-              ATTACH ':memory:' AS odd (TYPE open_data_duck);
-              SET VARIABLE noaa_ghcn_year = '2024';
-              SELECT id, date, element, data_value
-              FROM odd.noaa.latest.ghcn_daily
-              WHERE id IS NOT NULL
-              ORDER BY id, date, element
-              LIMIT 10;
-    tags: [aws, noaa, climate, weather, csv]
-    topics: [daily climate observations, stations, temperature, precipitation]
-    coverage:
-      spatial: global station network
-      temporal: year-partitioned historical daily observations
-      grain: station-day observation elements
-    cadence: daily and historical updates
-    ai:
-      summary: Station-day climate observations suitable for DuckDB CSV scans from public S3 HTTPS URLs.
-      use_cases: [analyze daily station observations, compare precipitation or temperature by year]
-      caveats: [CSV files are large; filter by year/station/element early]
-      prompt_hints: [Ask for year, station IDs, and climate elements before generating SQL.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
+
+        ORDER BY fatality_id
+
+        LIMIT 10;
+
+        '
+  - id: storm_events_locations
+    ref: odd.noaa.latest.storm_events_locations
+    description: NOAA Storm Events location rows. One row per location attached to a storm event.
+    ask_for:
+    - year
+    - state or event id
+    - limit
+    warnings:
+    - Join to details by event_id for event context.
+    validations:
+    - id: odd.noaa.latest.storm_events_locations
+      description: Compare NOAA Storm Events locations facade with the direct bulk CSV recipe.
+      release: latest
+      compare: exact
+      order_by:
+      - event_id
+      - location_index
+      limit: 10
+      direct_sql: "LOAD httpfs;\nSELECT event_id, location_index, location, latitude, longitude\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_locations-ftp_v1.0_d2024_c20261119.csv.gz',\n  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\nORDER BY event_id, location_index\nLIMIT 10;\n"
+      odd_sql: 'LOAD open_data_duck;
+
+        ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+        SET VARIABLE noaa_storm_events_year = ''2024'';
+
+        SELECT event_id, location_index, location, latitude, longitude
+
+        FROM odd.noaa.latest.storm_events_locations
+
+        WHERE event_id IS NOT NULL
+
+        ORDER BY event_id, location_index
+
+        LIMIT 10;
+
+        '
+  release:
+    latest:
+      method: html-listing
+      url: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+      resolve_sql: "SELECT max(regexp_extract(m, 'StormEvents_details-ftp_v1\\.0_d([0-9]{4})_c[0-9]{8}\\.csv\\.gz', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'StormEvents_details-ftp_v1\\.0_d[0-9]{4}_c[0-9]{8}\\.csv\\.gz')) AS m\n      FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'));\n"
+    pinned:
+      duckdb_setting: noaa_storm_events_year
+      example: '2024'
+  discovery:
+    namespace: odd.noaa.latest
+    discover_sql: "WITH files AS (\n  SELECT regexp_extract(m, 'StormEvents_([a-z]+)-ftp_v1\\.0_d{release}_c([0-9]{8})\\.csv\\.gz', 1) AS table_kind,\n         regexp_extract(m, '(StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz)', 1) AS file_name,\n         regexp_extract(m, '_c([0-9]{8})\\.csv\\.gz', 1) AS created\n  FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz')) AS m\n        FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'))\n), latest AS (\n  SELECT table_kind, max(created) AS created\n  FROM files\n  GROUP BY table_kind\n)\nSELECT 'storm_events_' || files.table_kind AS name,\n       'read_csv' AS reader,\n       'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/' || files.file_name AS path\nFROM files\nJOIN latest USING (table_kind, created)\nORDER BY name;\n"
+- id: aws.noaa-ghcn-daily
+  name: NOAA Global Historical Climatology Network Daily
+  status: candidate
+  source_type: other
+  authority: NOAA National Centers for Environmental Information
+  license_url: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
+  attribution: NOAA National Centers for Environmental Information, Global Historical Climatology Network Daily.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: ghcn_daily
+    ref: odd.noaa.latest.ghcn_daily
+    description: GHCN Daily station observations. One row per station, date, and observed climate element.
+    ask_for:
+    - year
+    - station id
+    - climate element
+    warnings:
+    - CSV files are large; filter by year/station/element early.
+    validations:
+    - id: odd.noaa.latest.ghcn_daily
+      description: Compare NOAA GHCN Daily facade with the direct year CSV recipe.
+      release: latest
+      compare: exact
+      order_by:
+      - id
+      - date
+      - element
+      limit: 10
+      direct_sql: 'LOAD httpfs;
+
         SELECT id, date, element, data_value
-        FROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')
-        LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM read_csv_auto('https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv')
-        LIMIT 1;
-      tables:
-        namespace: odd.noaa.latest
-        discover_sql: |
-          SELECT 'ghcn_daily' AS name,
-                 'read_csv' AS reader,
-                 'https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/{release}.csv' AS path;
-    release:
-      latest:
-        method: s3-listing
-        url: https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/
-        resolve_sql: |
-          SELECT max(regexp_extract(m, '([0-9]{4})\.csv', 1)) AS release
-          FROM (SELECT unnest(regexp_extract_all(content, 'by_year/[0-9]{4}\.csv')) AS m
-                FROM read_text('https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/'));
-      pinned:
-        duckdb_setting: noaa_ghcn_year
-        example: "2024"
-  - id: aws.noaa-gsod
-    name: NOAA Global Surface Summary of the Day
-    description: NOAA GSOD daily weather summaries by station, exposed as public S3 CSV objects queryable with DuckDB httpfs.
-    status: candidate
-    source_type: other
-    authority: NOAA National Centers for Environmental Information
-    homepage: https://registry.opendata.aws/noaa-gsod/
-    license_url: https://www.ncei.noaa.gov/products/land-based-weather-stations
-    attribution: NOAA National Centers for Environmental Information, Global Surface Summary of the Day.
-    tables:
-      - id: daily_summaries
-        description: NOAA GSOD daily station weather summaries. One row per station-day summary.
-        ask_for: [station id, year, weather fields]
-        warnings: [Station files are split by year and station.]
-    tags: [aws, noaa, weather, daily, csv]
-    topics: [daily weather summaries, stations, temperature]
-    coverage:
-      spatial: global station network
-      temporal: annual station files
-      grain: station-day summary rows
-    cadence: daily and historical updates
-    ai:
-      summary: Practical NOAA station-day weather summary source for quick weather history queries.
-      use_cases: [query station daily summaries, compare temperatures by station, join station weather to events]
-      caveats: [station files are split by year and station; choose a target file before scanning]
-      prompt_hints: [Ask for station, year, and desired weather fields.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT station, date, latitude, longitude, temp
-        FROM read_csv_auto('https://noaa-gsod-pds.s3.amazonaws.com/2024/01001099999.csv')
-        LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM read_csv_auto('https://noaa-gsod-pds.s3.amazonaws.com/2024/01001099999.csv');
-  - id: aws.noaa-isd-history
-    name: NOAA Integrated Surface Database station history
-    description: NOAA ISD station-history lookup table with station identifiers, names, country/state, and coordinates.
-    status: candidate
-    source_type: other
-    authority: NOAA National Centers for Environmental Information
-    homepage: https://registry.opendata.aws/noaa-isd/
-    license_url: https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
-    attribution: NOAA National Centers for Environmental Information, Integrated Surface Database.
-    tables:
-      - id: station_history
-        description: NOAA ISD station metadata. One row per weather station history record.
-        ask_for: [country, state, station name, nearby place]
-        warnings: [Metadata lookup only; use observation datasets for measurements.]
-    tags: [aws, noaa, stations, lookup, csv]
-    topics: [weather stations, station metadata, geocoding]
-    coverage:
-      spatial: global station network
-      temporal: station metadata history
-      grain: weather station metadata rows
-    cadence: periodic metadata updates
-    ai:
-      summary: Lightweight station lookup source for finding NOAA station IDs and coordinates before querying observations.
-      use_cases: [find nearby station IDs, map weather station locations, join station metadata to GSOD or ISD data]
-      caveats: [metadata lookup only; use observation datasets for measurements]
-      prompt_hints: [Use this first when the user knows a place but not a NOAA station ID.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT "USAF", "WBAN", "STATION NAME", "CTRY", "STATE", "LAT", "LON"
-        FROM read_csv_auto('https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv')
-        LIMIT 10;
-      validation_query: |
-        SELECT count(*) > 0 AS ok
-        FROM read_csv_auto('https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv');
-  - id: ckan.data-gov-au.wyndham-pets
-    name: Data.gov.au Wyndham registered dogs and cats
-    description: Australian Government CKAN catalog package with a public CSV distribution of Wyndham registered dog and cat counts by suburb.
-    status: candidate
-    source_type: ckan
-    authority: Wyndham City Council via data.gov.au
-    homepage: https://data.gov.au/data/dataset/wyndham-registered-dogs-catscsv
-    license_url: https://creativecommons.org/licenses/by/3.0/au/
-    attribution: Wyndham City Council; licensed under Creative Commons Attribution 3.0 Australia.
-    tables:
-      - id: wyndham_pet_registrations
-        description: Wyndham registered dog and cat counts. One row per suburb/count record in the public CSV distribution.
-        ask_for: [suburb or animal type]
-        warnings: [CKAN is discovery metadata; query the direct readable CSV distribution.]
-    tags: [ckan, dcat, australia, csv, animals]
-    topics: [open data catalogs, local government, pets]
-    coverage:
-      spatial: Wyndham, Victoria, Australia
-      temporal: catalog-maintained snapshot
-      grain: suburb pet-registration counts
-    cadence: catalog-maintained updates
-    ai:
-      summary: CKAN/DCAT example where the catalog is discovery metadata and the usable DuckDB path is a direct public CSV resource over httpfs.
-      use_cases: [test CKAN resource discovery, query a simple government CSV distribution]
-      caveats: [CKAN is not a DuckDB table function; only directly readable distributions should be marked candidate]
-      prompt_hints: [Use the catalog to discover resources, then generate SQL against the direct CSV URL.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT *
-        FROM read_csv_auto('https://data.gov.au/data/dataset/ff0b0b45-e772-4835-9525-a6d7e20ea93d/resource/eef6a84b-ad44-446f-9cf9-fb5d135e3123/download/wyndhamcatdogslist.csv')
-        LIMIT 10;
-      validation_query: |
-        LOAD httpfs;
-        SELECT count(*) > 0 AS ok
-        FROM read_csv_auto('https://data.gov.au/data/dataset/ff0b0b45-e772-4835-9525-a6d7e20ea93d/resource/eef6a84b-ad44-446f-9cf9-fb5d135e3123/download/wyndhamcatdogslist.csv');
-  - id: socrata.nyc.311-service-requests
-    name: NYC Open Data 311 Service Requests
-    description: New York City 311 service-request records from 2020 to present, exposed through the official NYC Open Data Socrata portal with bounded SODA export queries.
-    status: candidate
-    source_type: socrata
-    authority: City of New York Office of Technology and Innovation via NYC Open Data
-    homepage: https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2020-to-Present/erm2-nwe9
-    license_url: https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-216807
-    attribution: NYC Open Data, 311 Service Requests from 2020 to Present, City of New York Office of Technology and Innovation.
-    tables:
-      - id: service_requests
-        description: NYC 311 service request records. One row per 311 request.
-        ask_for: [date range, borough, complaint type, limit]
-        warnings: [Large table requires bounded SODA queries with select/order/limit.]
-    tags: [socrata, nyc, "311", service-requests, csv]
-    topics: [municipal services, civic requests, complaints, open data]
-    coverage:
-      spatial: New York City
-      temporal: 2020 to present
-      grain: individual 311 service request records
-    cadence: daily automated updates
-    ai:
-      summary: Authoritative NYC 311 request table for Socrata/SODA paging examples and municipal service analysis.
-      use_cases: [query recent 311 complaints by borough, inspect service-request categories, test Socrata pagination]
-      caveats: [large table requires bounded SODA queries, dataset metadata has no explicit license field, use the NYC Open Data law citation for use-policy context]
-      prompt_hints: [Ask for date range, borough, complaint type, and row limit before generating SQL.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT unique_key, created_date, complaint_type, borough, latitude, longitude
-        FROM read_csv_auto('https://data.cityofnewyork.us/resource/erm2-nwe9.csv?$select=unique_key,created_date,complaint_type,borough,latitude,longitude&$where=created_date%20%3E=%20%272026-01-01T00:00:00%27&$order=unique_key&$limit=10');
-      validation_query: |
-        LOAD httpfs;
-        SELECT count(*) > 0 AS ok
-        FROM read_csv_auto('https://data.cityofnewyork.us/resource/erm2-nwe9.csv?$select=unique_key&$order=unique_key&$limit=1');
-      examples:
-        recent_borough_page: |
-          LOAD httpfs;
-          SELECT unique_key, created_date, complaint_type, borough, status
-          FROM read_csv_auto('https://data.cityofnewyork.us/resource/erm2-nwe9.csv?$select=unique_key,created_date,complaint_type,borough,status&$where=borough=%27BROOKLYN%27%20AND%20created_date%20%3E=%20%272026-01-01T00:00:00%27&$order=unique_key&$limit=100&$offset=0');
-  - id: socrata.cdc.places-county-2025
-    name: CDC PLACES county health estimates, 2025 release
-    description: CDC PLACES model-based county-level estimates for chronic disease outcomes, prevention measures, risk behaviors, disabilities, health status, and health-related social needs, published on the official CDC Socrata portal with bounded SODA export queries.
-    status: candidate
-    source_type: socrata
-    authority: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health
-    homepage: https://data.cdc.gov/d/swc5-untb
-    license_url: https://data.cdc.gov/api/views/metadata/v1/swc5-untb
-    attribution: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health. PLACES - Local Data for Better Health, County Data, 2025 release. Public domain.
-    tables:
-      - id: county_health_estimates
-        description: CDC PLACES county health estimate rows. One row per county, measure, and data-value type.
-        ask_for: [state, measure id, age-adjusted or crude prevalence]
-        warnings: [Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.]
-    tags: [socrata, cdc, health, counties, public-domain, csv]
-    topics: [public health, chronic disease, county estimates, health outcomes, social determinants]
-    coverage:
-      spatial: United States counties, keyed by county FIPS in locationid
-      temporal: 2025 release (estimates mostly for 2022-2023 data years)
-      grain: one row per county, measure, and data-value type (age-adjusted or crude prevalence)
-    cadence: annual PLACES release; each release is a separate Socrata dataset id
-    ai:
-      summary: Authoritative public-domain CDC county health-estimate table, a natural join target for county boundary layers via the locationid FIPS code.
-      use_cases: [compare health measures across counties in a state, join county health estimates to boundary data, inspect confidence limits for a single measure]
-      caveats: [model-based small-area estimates rather than direct survey counts, each measure appears twice per county so filter datavaluetypeid to AgeAdjPrv or CrdPrv, 229k rows require bounded SODA paging, the dataset id is release-specific]
-      prompt_hints: [Ask for state, measureid, and whether age-adjusted or crude prevalence is wanted before generating SQL.]
-    duckdb:
-      extensions:
-        - httpfs
-      install: |
-        INSTALL httpfs;
-      example_query: |
-        LOAD httpfs;
-        SELECT year, stateabbr, locationname, measureid, data_value, totalpopulation, locationid
-        FROM read_csv_auto('https://data.cdc.gov/resource/swc5-untb.csv?$select=year,stateabbr,locationname,measureid,data_value,totalpopulation,locationid&$where=stateabbr=%27AK%27%20AND%20measureid=%27OBESITY%27%20AND%20datavaluetypeid=%27AgeAdjPrv%27&$order=locationid&$limit=10');
-      validation_query: |
-        LOAD httpfs;
-        SELECT count(*) > 0 AS ok
-        FROM read_csv_auto('https://data.cdc.gov/resource/swc5-untb.csv?$select=locationid&$order=locationid&$limit=1');
-      examples:
-        state_measure_page: |
-          LOAD httpfs;
-          SELECT locationid, locationname, measureid, data_value, low_confidence_limit, high_confidence_limit
-          FROM read_csv_auto('https://data.cdc.gov/resource/swc5-untb.csv?$select=locationid,locationname,measureid,data_value,low_confidence_limit,high_confidence_limit&$where=stateabbr=%27TX%27%20AND%20datavaluetypeid=%27AgeAdjPrv%27&$order=locationid,measureid&$limit=1000&$offset=0');
-  - id: sourcecoop.vida.google-microsoft-open-buildings
-    name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
-    description: VIDA's combined Google and Microsoft global building-footprint dataset, partitioned as public GeoParquet on Source Cooperative for direct DuckDB scans.
-    status: candidate
-    source_type: parquet
-    authority: VIDA, combining Google Open Buildings V3 and Microsoft GlobalMLBuildingFootprints
-    homepage: https://source.coop/repositories/vida/google-microsoft-open-buildings/description
-    license_url: https://data.source.coop/vida/google-microsoft-open-buildings/README.md
-    attribution: Google Open Buildings and Microsoft GlobalMLBuildingFootprints, combined by VIDA; licensed under ODbL v1.0.
-    tables:
-      - id: building_footprints
-        description: Combined Google/Microsoft building footprint polygons. One row per building footprint.
-        ask_for: [ISO3 country code, bbox, limit]
-        warnings: [Large countries are partitioned; use country and S2 paths to avoid huge scans.]
-    tags: [source-cooperative, buildings, geospatial, geoparquet, footprints]
-    topics: [building footprints, open buildings, country partitions, S2 partitions]
-    coverage:
-      spatial: global where Google or Microsoft footprints are available
-      temporal: merged source release snapshot
-      grain: building-footprint polygon rows
-    cadence: source README changelog updates
-    ai:
-      summary: Best seed source for direct DuckDB building-footprint examples using public GeoParquet.
-      use_cases: [query building footprints by country, filter footprints by bounding box, compare footprint source and confidence]
-      caveats: [large countries are partitioned; use country and S2 paths to avoid huge scans]
-      prompt_hints: [Ask for ISO3 country code and bbox before generating SQL.]
-    duckdb:
-      extensions:
-        - httpfs
-        - spatial
-      install: |
-        INSTALL httpfs;
-        INSTALL spatial;
-      example_query: |
-        LOAD httpfs;
-        LOAD spatial;
 
-        -- GeoParquet 1.1 partitioned by CGAZ ADM0 country ISO3 code.
-        -- Path pattern: geoparquet/by_country/country_iso={ISO3}/{ISO3}.parquet
-        -- The bbox struct allows pushdown filtering without loading the geometry.
-        SELECT bf_source, confidence, area_in_meters, bbox, ST_AsText(geometry) AS wkt
-        FROM read_parquet('https://data.source.coop/vida/google-microsoft-open-buildings/geoparquet/by_country/country_iso=AND/AND.parquet')
-        WHERE bbox.xmin <= 1.55
-          AND bbox.xmax >= 1.50
-          AND bbox.ymin <= 42.52
-          AND bbox.ymax >= 42.50
-        LIMIT 5;
-      validation_query: |
-        LOAD httpfs;
+        FROM read_csv_auto(''https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv'')
 
-        SELECT count(*) > 0 AS ok
-        FROM read_parquet('https://data.source.coop/vida/google-microsoft-open-buildings/geoparquet/by_country/country_iso=AND/AND.parquet');
-      examples:
-        by_country_s2: |
-          LOAD httpfs;
+        WHERE id IS NOT NULL
 
-          -- S2 sub-partitions cap each file at 20M footprints for large countries.
-          -- Path pattern: geoparquet/by_country_s2/country_iso={ISO3}/{S2_GRID_ID}.parquet
-          SELECT count(*) AS footprints
-          FROM read_parquet('https://data.source.coop/vida/google-microsoft-open-buildings/geoparquet/by_country/country_iso=AND/AND.parquet');
+        ORDER BY id, date, element
+
+        LIMIT 10;
+
+        '
+      odd_sql: 'LOAD open_data_duck;
+
+        ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+        SET VARIABLE noaa_ghcn_year = ''2024'';
+
+        SELECT id, date, element, data_value
+
+        FROM odd.noaa.latest.ghcn_daily
+
+        WHERE id IS NOT NULL
+
+        ORDER BY id, date, element
+
+        LIMIT 10;
+
+        '
+  release:
+    latest:
+      method: s3-listing
+      url: https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/
+      resolve_sql: "SELECT max(regexp_extract(m, '([0-9]{4})\\.csv', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content, 'by_year/[0-9]{4}\\.csv')) AS m\n      FROM read_text('https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/'));\n"
+    pinned:
+      duckdb_setting: noaa_ghcn_year
+      example: '2024'
+  discovery:
+    namespace: odd.noaa.latest
+    discover_sql: "SELECT 'ghcn_daily' AS name,\n       'read_csv' AS reader,\n       'https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/{release}.csv' AS path;\n"
+- id: aws.noaa-gsod
+  name: NOAA Global Surface Summary of the Day
+  status: candidate
+  source_type: other
+  authority: NOAA National Centers for Environmental Information
+  license_url: https://www.ncei.noaa.gov/products/land-based-weather-stations
+  attribution: NOAA National Centers for Environmental Information, Global Surface Summary of the Day.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: daily_summaries
+    description: NOAA GSOD daily station weather summaries. One row per station-day summary.
+    ask_for:
+    - station id
+    - year
+    - weather fields
+    warnings:
+    - Station files are split by year and station.
+- id: aws.noaa-isd-history
+  name: NOAA Integrated Surface Database station history
+  status: candidate
+  source_type: other
+  authority: NOAA National Centers for Environmental Information
+  license_url: https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+  attribution: NOAA National Centers for Environmental Information, Integrated Surface Database.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: station_history
+    description: NOAA ISD station metadata. One row per weather station history record.
+    ask_for:
+    - country
+    - state
+    - station name
+    - nearby place
+    warnings:
+    - Metadata lookup only; use observation datasets for measurements.
+- id: ckan.data-gov-au.wyndham-pets
+  name: Data.gov.au Wyndham registered dogs and cats
+  status: candidate
+  source_type: ckan
+  authority: Wyndham City Council via data.gov.au
+  license_url: https://creativecommons.org/licenses/by/3.0/au/
+  attribution: Wyndham City Council; licensed under Creative Commons Attribution 3.0 Australia.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: wyndham_pet_registrations
+    description: Wyndham registered dog and cat counts. One row per suburb/count record in the public CSV distribution.
+    ask_for:
+    - suburb or animal type
+    warnings:
+    - CKAN is discovery metadata; query the direct readable CSV distribution.
+- id: socrata.nyc.311-service-requests
+  name: NYC Open Data 311 Service Requests
+  status: candidate
+  source_type: socrata
+  authority: City of New York Office of Technology and Innovation via NYC Open Data
+  license_url: https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-216807
+  attribution: NYC Open Data, 311 Service Requests from 2020 to Present, City of New York Office of Technology and Innovation.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: service_requests
+    description: NYC 311 service request records. One row per 311 request.
+    ask_for:
+    - date range
+    - borough
+    - complaint type
+    - limit
+    warnings:
+    - Large table requires bounded SODA queries with select/order/limit.
+- id: socrata.cdc.places-county-2025
+  name: CDC PLACES county health estimates, 2025 release
+  status: candidate
+  source_type: socrata
+  authority: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health
+  license_url: https://data.cdc.gov/api/views/metadata/v1/swc5-untb
+  attribution: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health. PLACES - Local Data for Better Health, County Data, 2025 release. Public domain.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: county_health_estimates
+    description: CDC PLACES county health estimate rows. One row per county, measure, and data-value type.
+    ask_for:
+    - state
+    - measure id
+    - age-adjusted or crude prevalence
+    warnings:
+    - Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.
+- id: sourcecoop.vida.google-microsoft-open-buildings
+  name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
+  status: candidate
+  source_type: parquet
+  authority: VIDA, combining Google Open Buildings V3 and Microsoft GlobalMLBuildingFootprints
+  license_url: https://data.source.coop/vida/google-microsoft-open-buildings/README.md
+  attribution: Google Open Buildings and Microsoft GlobalMLBuildingFootprints, combined by VIDA; licensed under ODbL v1.0.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+    - spatial
+  tables:
+  - id: building_footprints
+    description: Combined Google/Microsoft building footprint polygons. One row per building footprint.
+    ask_for:
+    - ISO3 country code
+    - bbox
+    - limit
+    warnings:
+    - Large countries are partitioned; use country and S2 paths to avoid huge scans.

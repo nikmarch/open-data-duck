@@ -32,7 +32,7 @@ def test_extension_distribution_workflow_smokes_downloaded_artifact() -> None:
     assert "SELECT open_data_duck_ping();" in workflow
     assert "SELECT open_data_duck_registry_source_count() > 0;" in workflow
     assert "SELECT count(*) > 0 FROM open_data_sources();" in workflow
-    assert "SELECT open_data_sql('overture.maps.release') LIKE '%LOAD httpfs;%';" in workflow
+    assert "SELECT open_data_sql('overture.maps.release') LIKE '%FROM odd.overturemaps.latest.place%';" in workflow
 
 
 def test_precommunity_release_workflow_publishes_smoked_release_assets() -> None:

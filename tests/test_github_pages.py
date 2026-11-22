@@ -88,7 +88,7 @@ def test_pages_plugin_api_direction_is_static() -> None:
     assert "SET s3_region='us-west-2';" in index
     assert "ATTACH ':memory:' AS odd (TYPE open_data_duck);" in index
     assert "FROM odd.index" in index
-    assert "list_contains(tags, 'buildings')" in index
+    assert "name ILIKE '%building%'" in index
     assert "alaska building" not in index
     assert "FROM odd.tables" in index
     assert "replacement scan" in index

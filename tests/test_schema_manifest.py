@@ -23,18 +23,25 @@ def write_registry(tmp_path: Path, example_query: str) -> Path:
             {
                 "id": "local.schema",
                 "name": "Local schema source",
-                "description": "Local source used to test DuckDB schema discovery.",
                 "status": "candidate",
                 "source_type": "other",
                 "authority": "Local test",
-                "homepage": "https://example.com",
                 "license_url": "https://example.com/license",
                 "attribution": "Local test fixture.",
-                "duckdb": {
-                    "extensions": [],
-                    "example_query": example_query,
-                    "validation_query": "SELECT 1 AS ok;",
-                },
+                "tables": [
+                    {
+                        "id": "rows",
+                        "ref": "odd.local.latest.rows",
+                        "description": "Local rows.",
+                        "validations": [
+                            {
+                                "id": "odd.local.latest.rows",
+                                "direct_sql": example_query,
+                                "odd_sql": example_query,
+                            }
+                        ],
+                    }
+                ],
             }
         ]
     }
