@@ -64,7 +64,7 @@ jobs:
           SELECT length(open_data_duck_version()) > 0;
           SELECT open_data_duck_registry_source_count() > 0;
           SELECT count(*) > 0 FROM open_data_sources();
-          SELECT open_data_sql('overture.maps.release') LIKE '%LOAD httpfs;%';
+          SELECT open_data_sql('overture.maps.release') LIKE '%FROM odd.overturemaps.latest.place%';
           SQL
           cat smoke.out
           grep -Fx 'open_data_duck: pong' smoke.out
