@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">25 sources across arcgis (3), ckan (1), other (14), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">26 sources across arcgis (3), ckan (1), other (15), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -245,6 +245,13 @@ LIMIT 10;</code></pre>
           <p>NOAA NCEI Storm Events bulk CSV files</p>
           <dl><dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd><dt>License</dt><dd><a href="https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>storm_events_details</strong> <code>odd.noaa.latest.storm_events_details</code>: NOAA Storm Events detail rows. One row per reported storm event. <span>Ask for: year, state, event type, limit</span> <span>Warnings: Files are revised with creation-date suffixes; pin year for reproducible examples.</span></li><li><strong>storm_events_fatalities</strong> <code>odd.noaa.latest.storm_events_fatalities</code>: NOAA Storm Events fatality rows. One row per fatality associated with a storm event. <span>Ask for: year, state or event id, limit</span> <span>Warnings: Join to details by event_id for event context.</span></li><li><strong>storm_events_locations</strong> <code>odd.noaa.latest.storm_events_locations</code>: NOAA Storm Events location rows. One row per location attached to a storm event. <span>Ask for: year, state or event id, limit</span> <span>Warnings: Join to details by event_id for event context.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
+          <h3><code>noaa.coops.water-level-observations</code></h3>
+          <p>NOAA CO-OPS water-level observations API</p>
+          <dl><dt>Authority</dt><dd>NOAA National Ocean Service Center for Operational Oceanographic Products and Services</dd><dt>License</dt><dd><a href="https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>hourly_heights</strong> <code>odd.noaa_coops.latest.hourly_heights</code>: NOAA CO-OPS hourly water-level observations. One row per timestamped station observation for the selected product, datum, time zone, and units. <span>Ask for: station id, begin date, end date, water-level product, datum, time zone, units, limit</span> <span>Warnings: Parameterized API endpoint; preserve station, date range, product, datum, time zone, units, and application identifier instead of treating it as a full-table scan., CO-OPS products have product-specific date-range limits and water-level products require a datum., Preliminary and verified products differ; keep requests bounded and cite the selected station and retrieval endpoint/date., Validation facade is a small fixed smoke sample: station=8518750, product=hourly_height, datum=MLLW, begin_date=20200101, end_date=20200102, time_zone=gmt, units=metric; expected result is 48 hourly rows.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
