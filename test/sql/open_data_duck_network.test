@@ -22,13 +22,14 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
 odd.cdc.latest.leading_causes_of_death	read_csv_auto
 odd.census.latest.county_20m	st_read
 odd.fema.latest.disaster_declarations	read_parquet
+odd.nasa_exoplanet_archive.latest.planetary_systems_composite	read_csv_auto
 odd.noaa.latest.ghcn_daily	read_csv
 odd.noaa_coops.latest.hourly_heights	read_csv_auto
 odd.nps.latest.monthly_visitor_stats	read_csv_auto
@@ -93,6 +94,16 @@ true
 
 query I
 SELECT count(*) = 48 FROM odd.noaa_coops.latest.hourly_heights;
+----
+true
+
+query I
+SELECT count(*) = 1
+FROM odd.nasa_exoplanet_archive.latest.planetary_systems_composite
+WHERE pl_name = 'Kepler-22 b'
+  AND hostname = 'Kepler-22'
+  AND discoverymethod = 'Transit'
+  AND disc_year = 2011;
 ----
 true
 

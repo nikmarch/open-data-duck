@@ -284,6 +284,28 @@ Table-first catalog of public data sources with legal metadata and executable OD
       LIMIT 10;
       ```
 
+### `nasa.exoplanet-archive.pscomppars` — NASA Exoplanet Archive planetary systems composite
+
+- Status: `candidate`
+- Authority: NASA Exoplanet Archive / NASA Exoplanet Science Institute, operated by Caltech/IPAC under NASA's Exoplanet Exploration Program
+- License: https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.nasa_exoplanet_archive.latest`
+- Tables:
+  - `planetary_systems_composite` (`odd.nasa_exoplanet_archive.latest.planetary_systems_composite`): NASA Exoplanet Archive Planetary Systems Composite Parameters rows. One row per confirmed planet with archive-selected composite planet and host parameters from pscomppars.
+    - Ask for: planet name or host name, discovery year range, physical parameters needed, row limit, whether composite defaults are acceptable versus per-reference planetary-system rows
+    - Warnings: TAP queries must stay bounded and URL-encoded; avoid select=* full-table scans., Archive values can change as literature parameters are curated; cite the archive and source literature references for analyses using specific physical parameters., Facade exposes a bounded selected-column TAP CSV over pscomppars; add columns deliberately when a question needs more than the composite sample fields., Smoke sample: Kepler-22 b returned hostname=Kepler-22, discoverymethod=Transit, disc_year=2011, pl_rade=2.1, pl_bmasse=9.1 on 2026-11-23.
+    - Columns: pl_name: Confirmed planet name.; hostname: Host star/system name.; discoverymethod: Discovery method assigned by the archive.; disc_year: Discovery year.; pl_rade: Planet radius in Earth radii where curated.; pl_bmasse: Planet mass or mass*sin(i) in Earth masses where curated.
+    - Validation: `odd.nasa_exoplanet_archive.latest.planetary_systems_composite`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT pl_name, hostname, discoverymethod, disc_year, pl_rade, pl_bmasse
+      FROM odd.nasa_exoplanet_archive.latest.planetary_systems_composite
+      WHERE pl_name = 'Kepler-22 b'
+      ORDER BY pl_name;
+      ```
+
 ### `noaa.coops.water-level-observations` — NOAA CO-OPS water-level observations API
 
 - Status: `candidate`

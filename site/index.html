@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">31 sources across arcgis (3), ckan (1), other (17), overture (1), parquet (2), socrata (4), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">32 sources across arcgis (3), ckan (1), other (18), overture (1), parquet (2), socrata (4), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -259,6 +259,13 @@ LIMIT 10;</code></pre>
           <p>NOAA NCEI Storm Events bulk CSV files</p>
           <dl><dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd><dt>License</dt><dd><a href="https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>storm_events_details</strong> <code>odd.noaa.latest.storm_events_details</code>: NOAA Storm Events detail rows. One row per reported storm event. <span>Ask for: year, state, event type, limit</span> <span>Warnings: Files are revised with creation-date suffixes; pin year for reproducible examples.</span></li><li><strong>storm_events_fatalities</strong> <code>odd.noaa.latest.storm_events_fatalities</code>: NOAA Storm Events fatality rows. One row per fatality associated with a storm event. <span>Ask for: year, state or event id, limit</span> <span>Warnings: Join to details by event_id for event context.</span></li><li><strong>storm_events_locations</strong> <code>odd.noaa.latest.storm_events_locations</code>: NOAA Storm Events location rows. One row per location attached to a storm event. <span>Ask for: year, state or event id, limit</span> <span>Warnings: Join to details by event_id for event context.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
+          <h3><code>nasa.exoplanet-archive.pscomppars</code></h3>
+          <p>NASA Exoplanet Archive planetary systems composite</p>
+          <dl><dt>Authority</dt><dd>NASA Exoplanet Archive / NASA Exoplanet Science Institute, operated by Caltech/IPAC under NASA&#x27;s Exoplanet Exploration Program</dd><dt>License</dt><dd><a href="https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>planetary_systems_composite</strong> <code>odd.nasa_exoplanet_archive.latest.planetary_systems_composite</code>: NASA Exoplanet Archive Planetary Systems Composite Parameters rows. One row per confirmed planet with archive-selected composite planet and host parameters from pscomppars. <span>Ask for: planet name or host name, discovery year range, physical parameters needed, row limit, whether composite defaults are acceptable versus per-reference planetary-system rows</span> <span>Warnings: TAP queries must stay bounded and URL-encoded; avoid select=* full-table scans., Archive values can change as literature parameters are curated; cite the archive and source literature references for analyses using specific physical parameters., Facade exposes a bounded selected-column TAP CSV over pscomppars; add columns deliberately when a question needs more than the composite sample fields., Smoke sample: Kepler-22 b returned hostname=Kepler-22, discoverymethod=Transit, disc_year=2011, pl_rade=2.1, pl_bmasse=9.1 on 2026-11-23.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
