@@ -506,6 +506,18 @@ Table-first catalog of public data sources with legal metadata and executable OD
   - `county_health_estimates`: CDC PLACES county health estimate rows. One row per county, measure, and data-value type.
     - Ask for: state, measure id, age-adjusted or crude prevalence
     - Warnings: Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.
+    - Columns: locationid: County FIPS/GEOID join key for Census county boundary tables.; stateabbr: Two-letter U.S. state abbreviation.; countyname: County display name.; measureid: CDC PLACES measure identifier.; measure: Human-readable health or social determinant measure.; datavaluetypeid: Distinguishes age-adjusted prevalence, crude prevalence, and related estimate types.; data_value: Numeric estimate value, commonly percent for prevalence measures.
+    - Schema.org: spatialCoverage: United States counties; temporalCoverage: 2025; measurementTechnique: CDC PLACES small-area estimation; variableMeasured: PLACES measure estimate
+    - AI grain: one county, measure, and data-value type estimate row
+    - Geography level: county
+    - Safe operations: rank, compare, correlate, map, join
+    - Join keys: locationid
+    - Example questions:
+      - Which Alaska counties have the highest modeled frequent mental distress prevalence?
+      - Can I compare Alaska housing insecurity with mental distress by county using CDC PLACES measures?
+      - Join PLACES county estimates to Census county boundaries and map one selected measure.
+    - Known gaps:
+      - Can I answer death rate vs real estate prices by county? — missing county mortality or death-rate source, county real-estate price or assessment source; death rate, real estate price
 
 ### `socrata.cdc.nchs-leading-causes-of-death` — CDC NCHS leading causes of death, United States
 

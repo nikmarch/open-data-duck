@@ -1085,12 +1085,82 @@ sources:
   tables:
   - id: county_health_estimates
     description: CDC PLACES county health estimate rows. One row per county, measure, and data-value type.
+    columns_hint:
+      locationid: County FIPS/GEOID join key for Census county boundary tables.
+      stateabbr: Two-letter U.S. state abbreviation.
+      countyname: County display name.
+      measureid: CDC PLACES measure identifier.
+      measure: Human-readable health or social determinant measure.
+      datavaluetypeid: Distinguishes age-adjusted prevalence, crude prevalence, and related estimate types.
+      data_value: Numeric estimate value, commonly percent for prevalence measures.
     ask_for:
     - state
     - measure id
     - age-adjusted or crude prevalence
     warnings:
     - Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.
+    schema_org:
+      '@type': Dataset
+      spatialCoverage: United States counties
+      temporalCoverage: '2025'
+      variableMeasured:
+      - '@type': PropertyValue
+        name: PLACES measure estimate
+        description: County-level CDC PLACES modeled prevalence or health-related estimate.
+        unitText: percent or dataset-specific unit
+      measurementTechnique: CDC PLACES small-area estimation
+      keywords:
+      - public health
+      - county
+      - prevalence
+      - social determinants of health
+    ai_capabilities:
+      grain: one county, measure, and data-value type estimate row
+      geography_level: county
+      join_keys:
+      - field: locationid
+        references: odd.census.latest.county_20m.GEOID
+        description: County FIPS/GEOID suitable for joining PLACES estimates to Census county boundaries.
+      time:
+        field: release year
+        grain: annual release
+      metrics:
+      - name: health estimate value
+        field: data_value
+        unit: percent or dataset-specific unit
+        description: Modeled CDC PLACES estimate for the selected measure and data value type.
+      dimensions:
+      - name: measure
+        field: measureid
+        description: CDC PLACES measure identifier, such as mental-health or housing-related indicators.
+      - name: county
+        field: locationid
+        description: County FIPS/GEOID.
+      - name: data value type
+        field: datavaluetypeid
+        description: Age-adjusted, crude, or other estimate type; filter before comparing rows.
+      safe_operations:
+      - rank
+      - compare
+      - correlate
+      - map
+      - join
+      caveats:
+      - PLACES values are modeled estimates, not survey microdata or direct county counts.
+      - Filter to one datavaluetypeid and compatible measures before ranking or correlation.
+      - Cite CDC PLACES and keep public-domain attribution with derived analysis.
+      example_questions:
+      - Which Alaska counties have the highest modeled frequent mental distress prevalence?
+      - Can I compare Alaska housing insecurity with mental distress by county using CDC PLACES measures?
+      - Join PLACES county estimates to Census county boundaries and map one selected measure.
+      missing_for_questions:
+      - question: Can I answer death rate vs real estate prices by county?
+        missing_source_families:
+        - county mortality or death-rate source
+        - county real-estate price or assessment source
+        missing_metrics:
+        - death rate
+        - real estate price
 - id: socrata.cdc.nchs-leading-causes-of-death
   name: CDC NCHS leading causes of death, United States
   status: candidate

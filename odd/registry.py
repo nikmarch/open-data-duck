@@ -10,6 +10,7 @@ from odd.registry_model import (
     search_sources,
 )
 from odd.registry_renderers import (
+    render_ai_catalog_json,
     render_index_json,
     render_index_markdown,
     render_index_text,
@@ -28,6 +29,7 @@ __all__ = [
     "load_json",
     "load_sources",
     "load_yaml",
+    "render_ai_catalog_json",
     "render_index_json",
     "render_index_markdown",
     "render_index_text",

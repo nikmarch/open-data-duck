@@ -41,6 +41,17 @@ def test_readme_links_engine_maintenance_tracker() -> None:
 
     assert "[Engine maintenance track](docs/engine-maintenance.md)" in readme
     assert "[docs/architecture](docs/architecture/README.md)" in readme
+    assert "[docs/ai-capability-metadata.md](docs/ai-capability-metadata.md)" in readme
+
+
+def test_ai_capability_metadata_docs_explain_schema_org_and_odd_fields() -> None:
+    docs = Path("docs/ai-capability-metadata.md").read_text(encoding="utf-8")
+
+    assert "schema.org" in docs
+    assert "variableMeasured" in docs
+    assert "ai_capabilities" in docs
+    assert "CDC PLACES" in docs
+    assert "death-rate-vs-real-estate" in docs
 
 
 def test_readme_uses_current_facade_first_language() -> None:

@@ -82,6 +82,10 @@ def render_source_detail(source: Source) -> str:
                 lines.append(f"  Warnings: {_inline_value(table['warnings'])}")
             if table.get("columns_hint"):
                 lines.append(f"  Columns: {_inline_mapping(table['columns_hint'])}")
+            if table.get("schema_org"):
+                lines.append(f"  Schema.org: {_schema_org_summary(table['schema_org'])}")
+            if table.get("ai_capabilities"):
+                lines.extend(_render_ai_capabilities_text(table["ai_capabilities"], indent="  "))
             for validation in _mapping_list(table.get("validations")):
                 lines.append(f"  Validation: {validation.get('id')}")
                 odd_sql = validation.get("odd_sql")
@@ -125,6 +129,10 @@ def render_index_markdown(sources: list[Source]) -> str:
                         lines.append(f"    - Warnings: {_inline_value(table['warnings'])}")
                     if table.get("columns_hint"):
                         lines.append(f"    - Columns: {_inline_mapping(table['columns_hint'])}")
+                    if table.get("schema_org"):
+                        lines.append(f"    - Schema.org: {_schema_org_summary(table['schema_org'])}")
+                    if table.get("ai_capabilities"):
+                        lines.extend(_render_ai_capabilities_markdown(table["ai_capabilities"], indent="    "))
                     for validation in _mapping_list(table.get("validations")):
                         lines.append(f"    - Validation: `{validation.get('id')}`")
                         odd_sql = validation.get("odd_sql")
@@ -139,6 +147,70 @@ def render_index_markdown(sources: list[Source]) -> str:
 def render_index_json(sources: list[Source], *, include_sql: bool = False) -> str:
     payload = {"name": "Open Data Duck source index", "source_count": len(sources), "sources": [source.to_ai_dict(include_sql=include_sql) for source in sources]}
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def render_ai_catalog_json(sources: list[Source]) -> str:
+    payload = {
+        "@context": {
+            "schema": "https://schema.org/",
+            "odd": "https://nikmarch.github.io/open-data-duck/vocab#",
+        },
+        "@type": "DataCatalog",
+        "name": "Open Data Duck AI capability catalog",
+        "description": "Schema.org Dataset metadata plus ODD analytics capabilities for source-led exploration.",
+        "dataset": [_source_dataset(source) for source in sources],
+    }
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _source_dataset(source: Source) -> dict[str, Any]:
+    return _compact(
+        {
+            "@type": "Dataset",
+            "@id": f"odd:source:{source.id}",
+            "identifier": source.id,
+            "name": source.name,
+            "additionalType": source.source_type,
+            "creativeWorkStatus": source.status,
+            "creator": {"@type": "Organization", "name": source.authority},
+            "publisher": {"@type": "Organization", "name": source.authority},
+            "license": source.license_url,
+            "citation": source.attribution,
+            "hasPart": [_table_dataset(source, table) for table in source.tables],
+        }
+    )
+
+
+def _table_dataset(source: Source, table: dict[str, Any]) -> dict[str, Any]:
+    schema_org = dict(table.get("schema_org", {})) if isinstance(table.get("schema_org"), dict) else {}
+    capabilities = dict(table.get("ai_capabilities", {})) if isinstance(table.get("ai_capabilities"), dict) else {}
+    table_identifier = str(table.get("ref") or f"{source.id}#{table.get('id')}")
+    dataset = _compact(
+        {
+            "@type": schema_org.pop("@type", "Dataset"),
+            "@id": table_identifier,
+            "identifier": table_identifier,
+            "name": str(table.get("id", "")),
+            "description": table.get("description"),
+            "isPartOf": f"odd:source:{source.id}",
+            "license": source.license_url,
+            "citation": source.attribution,
+            "distribution": schema_org.pop(
+                "distribution",
+                {"@type": "DataDownload", "encodingFormat": "application/sql", "contentUrl": table.get("ref")}
+                if table.get("ref")
+                else None,
+            ),
+        }
+    )
+    dataset.update(schema_org)
+    if capabilities:
+        dataset["odd:aiCapabilities"] = capabilities
+    return dataset
+
+
+def _compact(value: dict[str, Any]) -> dict[str, Any]:
+    return {key: item for key, item in value.items() if item not in (None, [], {})}
 
 
 def render_site_index_html(sources: list[Source]) -> str:
@@ -285,6 +357,68 @@ def write_site_index(registry_path: Path, output_path: Path) -> Path:
 
 def _inline_mapping(value: dict[str, Any]) -> str:
     return "; ".join(f"{key}: {_inline_value(item)}" for key, item in value.items())
+
+
+def _schema_org_summary(value: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for key in ("spatialCoverage", "temporalCoverage", "measurementTechnique"):
+        if value.get(key):
+            parts.append(f"{key}: {_inline_value(value[key])}")
+    variables = value.get("variableMeasured")
+    if variables:
+        parts.append(f"variableMeasured: {_schema_org_variables_summary(variables)}")
+    return "; ".join(parts)
+
+
+def _schema_org_variables_summary(value: Any) -> str:
+    if not isinstance(value, list):
+        return str(value)
+    labels: list[str] = []
+    for item in value:
+        if isinstance(item, dict):
+            labels.append(str(item.get("name", "")))
+        else:
+            labels.append(str(item))
+    return ", ".join(label for label in labels if label)
+
+
+def _render_ai_capabilities_markdown(value: dict[str, Any], *, indent: str) -> list[str]:
+    prefix = f"{indent}- "
+    child = f"{indent}  - "
+    lines = _render_ai_capabilities_text(value, indent=indent, prefix=prefix)
+    questions = value.get("example_questions")
+    if isinstance(questions, list) and questions:
+        lines.append(f"{prefix}Example questions:")
+        lines.extend(f"{child}{question}" for question in questions)
+    missing = value.get("missing_for_questions")
+    if isinstance(missing, list) and missing:
+        lines.append(f"{prefix}Known gaps:")
+        lines.extend(f"{child}{item.get('question')} — missing {_missing_summary(item)}" for item in missing if isinstance(item, dict))
+    return lines
+
+
+def _render_ai_capabilities_text(value: dict[str, Any], *, indent: str, prefix: str | None = None) -> list[str]:
+    bullet = prefix or indent
+    lines: list[str] = []
+    if value.get("grain"):
+        lines.append(f"{bullet}AI grain: {value['grain']}")
+    if value.get("geography_level"):
+        lines.append(f"{bullet}Geography level: {value['geography_level']}")
+    if value.get("safe_operations"):
+        lines.append(f"{bullet}Safe operations: {_inline_value(value['safe_operations'])}")
+    if value.get("join_keys"):
+        join_keys = [item.get("field", "") for item in value["join_keys"] if isinstance(item, dict)]
+        lines.append(f"{bullet}Join keys: {_inline_value(join_keys)}")
+    return lines
+
+
+def _missing_summary(value: dict[str, Any]) -> str:
+    parts: list[str] = []
+    if value.get("missing_source_families"):
+        parts.append(_inline_value(value["missing_source_families"]))
+    if value.get("missing_metrics"):
+        parts.append(_inline_value(value["missing_metrics"]))
+    return "; ".join(parts) if parts else "unspecified sources or metrics"
 
 
 def _inline_value(value: Any) -> str:

@@ -151,12 +151,239 @@
             "type": "string"
           }
         },
+        "schema_org": {
+          "$ref": "#/$defs/table_schema_org"
+        },
+        "ai_capabilities": {
+          "$ref": "#/$defs/ai_capabilities"
+        },
         "validations": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/validation"
           },
           "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "table_schema_org": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        },
+        "spatialCoverage": {
+          "type": "string"
+        },
+        "temporalCoverage": {
+          "type": "string"
+        },
+        "variableMeasured": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "@type": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "unitText": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "measurementTechnique": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "distribution": {
+          "type": "object",
+          "properties": {
+            "@type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "contentUrl": {
+              "type": "string"
+            },
+            "encodingFormat": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ai_capabilities": {
+      "type": "object",
+      "required": [
+        "grain",
+        "safe_operations",
+        "example_questions"
+      ],
+      "properties": {
+        "grain": {
+          "type": "string"
+        },
+        "geography_level": {
+          "type": "string"
+        },
+        "join_keys": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "field"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "references": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "time": {
+          "type": "object",
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "grain": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ai_field"
+          }
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ai_field"
+          }
+        },
+        "safe_operations": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "rank",
+              "compare",
+              "correlate",
+              "map",
+              "trend",
+              "summarize",
+              "join"
+            ]
+          },
+          "minItems": 1
+        },
+        "caveats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "example_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "missing_for_questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "question"
+            ],
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "missing_source_families": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "missing_metrics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ai_field": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "field": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
         }
       },
       "additionalProperties": false
