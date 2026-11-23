@@ -107,9 +107,9 @@ LIMIT 10;</code></pre>
               <td><code>odd.census.latest.tract_5m</code></td>
             </tr>
             <tr>
-              <td>NOAA NCEI Storm Events bulk CSV files</td>
-              <td>storm_events_details</td>
-              <td><code>odd.noaa.latest.storm_events_details</code></td>
+              <td>FEMA OpenFEMA Disaster Declarations Summaries</td>
+              <td>disaster_declarations</td>
+              <td><code>odd.fema.latest.disaster_declarations</code></td>
             </tr>
           </tbody>
         </table>
@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">26 sources across arcgis (3), ckan (1), other (15), overture (1), parquet (1), socrata (2), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">29 sources across arcgis (3), ckan (1), other (16), overture (1), parquet (2), socrata (3), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -184,6 +184,13 @@ LIMIT 10;</code></pre>
           <ul class="table-list"><li><strong>flood_hazard_zones</strong>: FEMA NFHL flood hazard zone features. One row per flood hazard zone feature. <span>Ask for: bbox or jurisdiction, fields, whether geometry is needed</span> <span>Warnings: Not a substitute for official determinations; connector path is not stable yet.</span></li></ul>
         </article>
         <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>parquet</span></div>
+          <h3><code>fema.openfema.disaster-declarations</code></h3>
+          <p>FEMA OpenFEMA Disaster Declarations Summaries</p>
+          <dl><dt>Authority</dt><dd>Federal Emergency Management Agency OpenFEMA</dd><dt>License</dt><dd><a href="https://www.fema.gov/about/openfema/terms-conditions">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>disaster_declarations</strong> <code>odd.fema.latest.disaster_declarations</code>: FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward. <span>Ask for: state or territory, declaration date or fiscal year range, incident type, declaration type, assistance program flags, limit</span> <span>Warnings: FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error., County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data.</span></li></ul>
+        </article>
+        <article class="source-card">
           <div class="source-card-header"><span class="status">connector-blocked</span><span>arcgis</span></div>
           <h3><code>arcgis.usgs.national-map-contours</code></h3>
           <p>USGS National Map elevation contours</p>
@@ -241,6 +248,13 @@ LIMIT 10;</code></pre>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
+          <h3><code>wri.global-power-plant-database</code></h3>
+          <p>WRI Global Power Plant Database</p>
+          <dl><dt>Authority</dt><dd>World Resources Institute</dd><dt>License</dt><dd><a href="https://raw.githubusercontent.com/wri/global-power-plant-database/master/README.md">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>global_power_plants</strong> <code>odd.wri.latest.global_power_plants</code>: Global power plant records. One row per plant with country, fuel, capacity, geolocation, ownership/source metadata, and generation fields. <span>Ask for: country or countries, fuel type, capacity threshold, whether stale 2021/2022-era data is acceptable, limit</span> <span>Warnings: WRI says the project is not currently maintained and has no planned updates as of early 2022; use it as a broad reference index, not a freshness-sensitive operational source., The integrated database combines national and manual sources, so inspect source-year and lineage fields before comparing countries.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
           <h3><code>noaa.ncei.storm-events</code></h3>
           <p>NOAA NCEI Storm Events bulk CSV files</p>
           <dl><dt>Authority</dt><dd>NOAA National Centers for Environmental Information</dd><dt>License</dt><dd><a href="https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
@@ -294,6 +308,13 @@ LIMIT 10;</code></pre>
           <p>CDC PLACES county health estimates, 2025 release</p>
           <dl><dt>Authority</dt><dd>Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health</dd><dt>License</dt><dd><a href="https://data.cdc.gov/api/views/metadata/v1/swc5-untb">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>county_health_estimates</strong>: CDC PLACES county health estimate rows. One row per county, measure, and data-value type. <span>Ask for: state, measure id, age-adjusted or crude prevalence</span> <span>Warnings: Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>socrata</span></div>
+          <h3><code>socrata.cdc.nchs-leading-causes-of-death</code></h3>
+          <p>CDC NCHS leading causes of death, United States</p>
+          <dl><dt>Authority</dt><dd>Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics</dd><dt>License</dt><dd><a href="https://www.usa.gov/government-works">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>leading_causes_of_death</strong> <code>odd.cdc.latest.leading_causes_of_death</code>: CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate. <span>Ask for: state, year range, cause name or whether to include the All causes rollup, limit</span> <span>Warnings: Dataset is a compact NCHS summary, not record-level mortality microdata., Latest rows in this Socrata asset currently stop at 2017., Filter out All causes when comparing ranked cause totals., Facade uses a bounded Socrata SODA CSV export with selected columns, deterministic ordering, and a 50000-row cap., Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>parquet</span></div>

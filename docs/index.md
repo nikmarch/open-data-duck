@@ -209,6 +209,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Ask for: date window, debt field, limit
     - Warnings: Fiscal Data CSV responses are gzipped; use compression = 'gzip'.
 
+### `wri.global-power-plant-database` — WRI Global Power Plant Database
+
+- Status: `candidate`
+- Authority: World Resources Institute
+- License: https://raw.githubusercontent.com/wri/global-power-plant-database/master/README.md
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.wri.latest`
+- Tables:
+  - `global_power_plants` (`odd.wri.latest.global_power_plants`): Global power plant records. One row per plant with country, fuel, capacity, geolocation, ownership/source metadata, and generation fields.
+    - Ask for: country or countries, fuel type, capacity threshold, whether stale 2021/2022-era data is acceptable, limit
+    - Warnings: WRI says the project is not currently maintained and has no planned updates as of early 2022; use it as a broad reference index, not a freshness-sensitive operational source., The integrated database combines national and manual sources, so inspect source-year and lineage fields before comparing countries.
+    - Columns: country: ISO-like three-letter country code used by the dataset.; country_long: Country display name.; name: Power plant name.; primary_fuel: Primary fuel category.; capacity_mw: Plant capacity in megawatts.; latitude: Plant latitude.; longitude: Plant longitude.; year_of_capacity_data: Year attached to the reported capacity data where available.
+    - Validation: `odd.wri.latest.global_power_plants`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE wri_global_power_plants_release = 'v1x3x0';
+      SELECT country, count(*) AS plants, round(sum(capacity_mw), 1) AS capacity_mw
+      FROM odd.wri.latest.global_power_plants
+      WHERE country IN ('USA', 'UZB')
+      GROUP BY country
+      ORDER BY country;
+      ```
+
 ### `noaa.ncei.storm-events` — NOAA NCEI Storm Events bulk CSV files
 
 - Status: `candidate`
@@ -424,6 +448,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
 
 ## parquet
 
+### `fema.openfema.disaster-declarations` — FEMA OpenFEMA Disaster Declarations Summaries
+
+- Status: `candidate`
+- Authority: Federal Emergency Management Agency OpenFEMA
+- License: https://www.fema.gov/about/openfema/terms-conditions
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.fema.latest`
+- Tables:
+  - `disaster_declarations` (`odd.fema.latest.disaster_declarations`): FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward.
+    - Ask for: state or territory, declaration date or fiscal year range, incident type, declaration type, assistance program flags, limit
+    - Warnings: FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error., County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data.
+    - Columns: disasterNumber: FEMA disaster declaration number.; state: Two-letter state, territory, or Tribal Nation state-code grouping.; declarationDate: Date FEMA declared the disaster.; incidentType: Incident category such as Flood, Fire, Hurricane, or Earthquake.; designatedArea: County, parish, borough, census area, statewide area, or Tribal area covered by the declaration.; declarationType: FEMA declaration type code.; ihProgramDeclared: Whether the Individual and Households Program was declared for the record.; paProgramDeclared: Whether Public Assistance was declared for the record.; hmProgramDeclared: Whether Hazard Mitigation was declared for the record.
+    - Validation: `odd.fema.latest.disaster_declarations`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE fema_disaster_declarations_release = 'v2';
+      SELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster
+      FROM odd.fema.latest.disaster_declarations
+      WHERE state IN ('AK', 'CA')
+      GROUP BY state
+      ORDER BY state;
+      ```
+
 ### `sourcecoop.vida.google-microsoft-open-buildings` — VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
 
 - Status: `candidate`
@@ -458,6 +506,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
   - `county_health_estimates`: CDC PLACES county health estimate rows. One row per county, measure, and data-value type.
     - Ask for: state, measure id, age-adjusted or crude prevalence
     - Warnings: Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.
+
+### `socrata.cdc.nchs-leading-causes-of-death` — CDC NCHS leading causes of death, United States
+
+- Status: `candidate`
+- Authority: Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics
+- License: https://www.usa.gov/government-works
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.cdc.latest`
+- Tables:
+  - `leading_causes_of_death` (`odd.cdc.latest.leading_causes_of_death`): CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate.
+    - Ask for: state, year range, cause name or whether to include the All causes rollup, limit
+    - Warnings: Dataset is a compact NCHS summary, not record-level mortality microdata., Latest rows in this Socrata asset currently stop at 2017., Filter out All causes when comparing ranked cause totals., Facade uses a bounded Socrata SODA CSV export with selected columns, deterministic ordering, and a 50000-row cap., Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22.
+    - Columns: year: Reporting year from Socrata's Year field.; _113_cause_name: Detailed ICD-coded cause-of-death grouping from Socrata's 113 Cause Name field.; cause_name: Cause-of-death grouping; filter out All causes for ranked-cause comparisons.; state: U.S. state or District of Columbia reported by the dataset.; deaths: Death count for the selected year, state, and cause.; aadr: Age-adjusted death rate for the selected year, state, and cause.
+    - Validation: `odd.cdc.latest.leading_causes_of_death`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(year) AS first_year,
+             max(year) AS last_year,
+             CAST(sum(CASE WHEN year = 2017 AND cause_name <> 'All causes' THEN deaths ELSE 0 END) AS BIGINT) AS ranked_deaths_2017
+      FROM odd.cdc.latest.leading_causes_of_death
+      WHERE state = 'Alaska';
+      ```
 
 ## stac
 

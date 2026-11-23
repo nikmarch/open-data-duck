@@ -370,6 +370,29 @@ def test_project_registry_meets_seed_source_targets() -> None:
     assert sum(source_id.startswith("aws.") for source_id in source_ids) >= 3
 
 
+def test_cdc_nchs_leading_causes_source_exposes_bounded_socrata_facade_validation() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "socrata.cdc.nchs-leading-causes-of-death")
+
+    assert source["source_type"] == "socrata"
+    assert source["requirements"]["duckdb_extensions"] == ["httpfs"]
+    assert source["release"]["latest"]["method"] == "static-soda-export"
+    assert source["discovery"]["namespace"] == "odd.cdc.latest"
+    assert "bi63-dtpu.csv?$select=year,_113_cause_name,cause_name,state,deaths,aadr" in source["discovery"]["discover_sql"]
+    table = source["tables"][0]
+    assert table["id"] == "leading_causes_of_death"
+    assert table["ref"] == "odd.cdc.latest.leading_causes_of_death"
+    assert "state" in table["ask_for"]
+    assert any("row_count=209" in warning for warning in table["warnings"])
+    assert any("50000-row cap" in warning for warning in table["warnings"])
+    assert table["columns_hint"]["cause_name"].startswith("Cause-of-death grouping")
+    validation = table["validations"][0]
+    assert validation["id"] == table["ref"]
+    assert "read_csv_auto('https://data.cdc.gov/resource/bi63-dtpu.csv" in validation["direct_sql"]
+    assert "FROM odd.cdc.latest.leading_causes_of_death" in validation["odd_sql"]
+    assert "ranked_deaths_2017" in validation["odd_sql"]
+
+
 def test_project_registry_has_no_redundant_source_attributes_or_duckdb_junk_drawer() -> None:
     registry = load_project_registry()
     redundant = {"description", "homepage", "tags", "topics", "coverage", "cadence", "ai", "duckdb"}
@@ -444,6 +467,11 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "api.tidesandcurrents.noaa.gov/api/prod/datagetter" in coops_sql
     assert "station=8518750" in coops_sql
     assert "from odd.noaa_coops.latest.hourly_heights" in coops_sql
+
+    cdc_sql = all_validation_sql(by_id["socrata.cdc.nchs-leading-causes-of-death"])
+    assert "read_csv_auto" in cdc_sql
+    assert "from odd.cdc.latest.leading_causes_of_death" in cdc_sql
+    assert "ranked_deaths_2017" in cdc_sql
 
 
 def test_project_noaa_coops_water_level_observations_uses_parameterized_public_csv_api_metadata() -> None:

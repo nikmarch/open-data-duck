@@ -441,6 +441,61 @@ sources:
     - whether geometry is needed
     warnings:
     - Not a substitute for official determinations; connector path is not stable yet.
+- id: fema.openfema.disaster-declarations
+  name: FEMA OpenFEMA Disaster Declarations Summaries
+  status: candidate
+  source_type: parquet
+  authority: Federal Emergency Management Agency OpenFEMA
+  license_url: https://www.fema.gov/about/openfema/terms-conditions
+  attribution: Cite FEMA OpenFEMA and the Disaster Declarations Summaries dataset/retrieval per the OpenFEMA Terms and Conditions citation guidance.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: disaster_declarations
+    ref: odd.fema.latest.disaster_declarations
+    description: FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward.
+    columns_hint:
+      disasterNumber: FEMA disaster declaration number.
+      state: Two-letter state, territory, or Tribal Nation state-code grouping.
+      declarationDate: Date FEMA declared the disaster.
+      incidentType: Incident category such as Flood, Fire, Hurricane, or Earthquake.
+      designatedArea: County, parish, borough, census area, statewide area, or Tribal area covered by the declaration.
+      declarationType: FEMA declaration type code.
+      ihProgramDeclared: Whether the Individual and Households Program was declared for the record.
+      paProgramDeclared: Whether Public Assistance was declared for the record.
+      hmProgramDeclared: Whether Hazard Mitigation was declared for the record.
+    ask_for:
+    - state or territory
+    - declaration date or fiscal year range
+    - incident type
+    - declaration type
+    - assistance program flags
+    - limit
+    warnings:
+    - FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error.
+    - County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data.
+    validations:
+    - id: odd.fema.latest.disaster_declarations
+      description: Compare the FEMA OpenFEMA disaster declarations facade with the direct public Parquet export for stable state aggregates.
+      release: latest
+      source_release: v2
+      compare: exact
+      order_by:
+      - state
+      direct_sql: "LOAD httpfs;\nSELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster\nFROM read_parquet('https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet')\nWHERE state IN ('AK', 'CA')\nGROUP BY state\nORDER BY state;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE fema_disaster_declarations_release = 'v2';\nSELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster\nFROM odd.fema.latest.disaster_declarations\nWHERE state IN ('AK', 'CA')\nGROUP BY state\nORDER BY state;\n"
+  release:
+    latest:
+      method: static-parquet
+      url: https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet
+      resolve_sql: "SELECT 'v2' AS release;\n"
+    pinned:
+      duckdb_setting: fema_disaster_declarations_release
+      example: v2
+  discovery:
+    namespace: odd.fema.latest
+    discover_sql: "SELECT 'disaster_declarations' AS name,\n       'read_parquet' AS reader,\n       'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet' AS path\nWHERE '{release}' = 'v2';\n"
 - id: arcgis.usgs.national-map-contours
   name: USGS National Map elevation contours
   status: connector-blocked
@@ -640,6 +695,59 @@ sources:
     - limit
     warnings:
     - Fiscal Data CSV responses are gzipped; use compression = 'gzip'.
+- id: wri.global-power-plant-database
+  name: WRI Global Power Plant Database
+  status: candidate
+  source_type: other
+  authority: World Resources Institute
+  license_url: https://raw.githubusercontent.com/wri/global-power-plant-database/master/README.md
+  attribution: World Resources Institute / Global Power Plant Database; preserve CC BY 4.0 attribution and do not imply WRI endorsement.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: global_power_plants
+    ref: odd.wri.latest.global_power_plants
+    description: Global power plant records. One row per plant with country, fuel, capacity, geolocation, ownership/source metadata, and generation fields.
+    columns_hint:
+      country: ISO-like three-letter country code used by the dataset.
+      country_long: Country display name.
+      name: Power plant name.
+      primary_fuel: Primary fuel category.
+      capacity_mw: Plant capacity in megawatts.
+      latitude: Plant latitude.
+      longitude: Plant longitude.
+      year_of_capacity_data: Year attached to the reported capacity data where available.
+    ask_for:
+    - country or countries
+    - fuel type
+    - capacity threshold
+    - whether stale 2021/2022-era data is acceptable
+    - limit
+    warnings:
+    - WRI says the project is not currently maintained and has no planned updates as of early 2022; use it as a broad reference index, not a freshness-sensitive operational source.
+    - The integrated database combines national and manual sources, so inspect source-year and lineage fields before comparing countries.
+    validations:
+    - id: odd.wri.latest.global_power_plants
+      description: Compare the WRI Global Power Plant Database facade with the direct public CSV recipe for stable country aggregates.
+      release: latest
+      source_release: v1.3.0
+      compare: exact
+      order_by:
+      - country
+      direct_sql: "LOAD httpfs;\nSELECT country, count(*) AS plants, round(sum(capacity_mw), 1) AS capacity_mw\nFROM read_csv_auto('https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv')\nWHERE country IN ('USA', 'UZB')\nGROUP BY country\nORDER BY country;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE wri_global_power_plants_release = 'v1x3x0';\nSELECT country, count(*) AS plants, round(sum(capacity_mw), 1) AS capacity_mw\nFROM odd.wri.latest.global_power_plants\nWHERE country IN ('USA', 'UZB')\nGROUP BY country\nORDER BY country;\n"
+  release:
+    latest:
+      method: static-csv
+      url: https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv
+      resolve_sql: "SELECT 'v1x3x0' AS release;\n"
+    pinned:
+      duckdb_setting: wri_global_power_plants_release
+      example: v1x3x0
+  discovery:
+    namespace: odd.wri.latest
+    discover_sql: "SELECT 'global_power_plants' AS name,\n       'read_csv' AS reader,\n       'https://raw.githubusercontent.com/wri/global-power-plant-database/master/output_database/global_power_plant_database.csv' AS path\nWHERE '{release}' = 'v1x3x0';\n"
 - id: noaa.ncei.storm-events
   name: NOAA NCEI Storm Events bulk CSV files
   status: candidate
@@ -983,6 +1091,55 @@ sources:
     - age-adjusted or crude prevalence
     warnings:
     - Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows.
+- id: socrata.cdc.nchs-leading-causes-of-death
+  name: CDC NCHS leading causes of death, United States
+  status: candidate
+  source_type: socrata
+  authority: Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics
+  license_url: https://www.usa.gov/government-works
+  attribution: CDC/NCHS, National Vital Statistics System mortality data, and CDC WONDER; do not imply CDC endorsement.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: leading_causes_of_death
+    ref: odd.cdc.latest.leading_causes_of_death
+    description: CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate.
+    columns_hint:
+      year: Reporting year from Socrata's Year field.
+      _113_cause_name: Detailed ICD-coded cause-of-death grouping from Socrata's 113 Cause Name field.
+      cause_name: Cause-of-death grouping; filter out All causes for ranked-cause comparisons.
+      state: U.S. state or District of Columbia reported by the dataset.
+      deaths: Death count for the selected year, state, and cause.
+      aadr: Age-adjusted death rate for the selected year, state, and cause.
+    ask_for:
+    - state
+    - year range
+    - cause name or whether to include the All causes rollup
+    - limit
+    warnings:
+    - Dataset is a compact NCHS summary, not record-level mortality microdata.
+    - Latest rows in this Socrata asset currently stop at 2017.
+    - Filter out All causes when comparing ranked cause totals.
+    - Facade uses a bounded Socrata SODA CSV export with selected columns, deterministic ordering, and a 50000-row cap.
+    - "Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22."
+    validations:
+    - id: odd.cdc.latest.leading_causes_of_death
+      description: Compare the CDC NCHS Socrata facade with the direct bounded SODA CSV recipe for a stable Alaska mortality sample.
+      release: latest
+      compare: exact
+      order_by:
+      - row_count
+      limit: 1
+      direct_sql: "LOAD httpfs;\nSELECT count(*) AS row_count,\n       min(year) AS first_year,\n       max(year) AS last_year,\n       CAST(sum(CASE WHEN year = 2017 AND cause_name <> 'All causes' THEN deaths ELSE 0 END) AS BIGINT) AS ranked_deaths_2017\nFROM read_csv_auto('https://data.cdc.gov/resource/bi63-dtpu.csv?$select=year,_113_cause_name,cause_name,state,deaths,aadr&$order=year,state,cause_name&$limit=50000')\nWHERE state = 'Alaska';\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT count(*) AS row_count,\n       min(year) AS first_year,\n       max(year) AS last_year,\n       CAST(sum(CASE WHEN year = 2017 AND cause_name <> 'All causes' THEN deaths ELSE 0 END) AS BIGINT) AS ranked_deaths_2017\nFROM odd.cdc.latest.leading_causes_of_death\nWHERE state = 'Alaska';\n"
+  release:
+    latest:
+      method: static-soda-export
+      url: https://data.cdc.gov/resource/bi63-dtpu.csv
+  discovery:
+    namespace: odd.cdc.latest
+    discover_sql: "SELECT 'leading_causes_of_death' AS name,\n       'read_csv_auto' AS reader,\n       'https://data.cdc.gov/resource/bi63-dtpu.csv?$select=year,_113_cause_name,cause_name,state,deaths,aadr&$order=year,state,cause_name&$limit=50000' AS path;\n"
 - id: sourcecoop.vida.google-microsoft-open-buildings
   name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
   status: candidate
