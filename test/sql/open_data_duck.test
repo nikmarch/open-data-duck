@@ -103,7 +103,7 @@ true
 query I
 SELECT list(DISTINCT namespace ORDER BY namespace) FROM open_data_sources() WHERE namespace <> '';
 ----
-[odd.cdc.latest, odd.census.latest, odd.naturalearth.latest, odd.noaa.latest, odd.overturemaps.latest, odd.wri.latest]
+[odd.cdc.latest, odd.census.latest, odd.fema.latest, odd.naturalearth.latest, odd.noaa.latest, odd.overturemaps.latest, odd.wri.latest]
 
 query I
 SELECT count(*) > 0 FROM open_data_search('OVERTURE');

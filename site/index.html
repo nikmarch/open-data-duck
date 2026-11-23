@@ -107,9 +107,9 @@ LIMIT 10;</code></pre>
               <td><code>odd.census.latest.tract_5m</code></td>
             </tr>
             <tr>
-              <td>WRI Global Power Plant Database</td>
-              <td>global_power_plants</td>
-              <td><code>odd.wri.latest.global_power_plants</code></td>
+              <td>FEMA OpenFEMA Disaster Declarations Summaries</td>
+              <td>disaster_declarations</td>
+              <td><code>odd.fema.latest.disaster_declarations</code></td>
             </tr>
           </tbody>
         </table>
@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">27 sources across arcgis (3), ckan (1), other (15), overture (1), parquet (1), socrata (3), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">28 sources across arcgis (3), ckan (1), other (15), overture (1), parquet (2), socrata (3), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -182,6 +182,13 @@ LIMIT 10;</code></pre>
           <p>FEMA National Flood Hazard Layer flood hazard zones</p>
           <dl><dt>Authority</dt><dd>Federal Emergency Management Agency</dd><dt>License</dt><dd><a href="https://www.fema.gov/about/openfema/terms-conditions">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>flood_hazard_zones</strong>: FEMA NFHL flood hazard zone features. One row per flood hazard zone feature. <span>Ask for: bbox or jurisdiction, fields, whether geometry is needed</span> <span>Warnings: Not a substitute for official determinations; connector path is not stable yet.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>parquet</span></div>
+          <h3><code>fema.openfema.disaster-declarations</code></h3>
+          <p>FEMA OpenFEMA Disaster Declarations Summaries</p>
+          <dl><dt>Authority</dt><dd>Federal Emergency Management Agency OpenFEMA</dd><dt>License</dt><dd><a href="https://www.fema.gov/about/openfema/terms-conditions">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>disaster_declarations</strong> <code>odd.fema.latest.disaster_declarations</code>: FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward. <span>Ask for: state or territory, declaration date or fiscal year range, incident type, declaration type, assistance program flags, limit</span> <span>Warnings: FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error., County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">connector-blocked</span><span>arcgis</span></div>
