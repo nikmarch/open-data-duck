@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">27 sources across arcgis (3), ckan (1), other (15), overture (1), parquet (1), socrata (3), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">28 sources across arcgis (3), ckan (1), other (15), overture (1), parquet (1), socrata (4), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -301,6 +301,13 @@ LIMIT 10;</code></pre>
           <p>CDC NCHS leading causes of death, United States</p>
           <dl><dt>Authority</dt><dd>Centers for Disease Control and Prevention, National Center for Health Statistics, Division of Vital Statistics</dd><dt>License</dt><dd><a href="https://www.usa.gov/government-works">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>leading_causes_of_death</strong> <code>odd.cdc.latest.leading_causes_of_death</code>: CDC NCHS leading-cause mortality summary rows. One row per year, state, and cause with death count and age-adjusted death rate. <span>Ask for: state, year range, cause name or whether to include the All causes rollup, limit</span> <span>Warnings: Dataset is a compact NCHS summary, not record-level mortality microdata., Latest rows in this Socrata asset currently stop at 2017., Filter out All causes when comparing ranked cause totals., Facade uses a bounded Socrata SODA CSV export with selected columns, deterministic ordering, and a 50000-row cap., Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>socrata</span></div>
+          <h3><code>socrata.cdc.chronic-disease-indicators</code></h3>
+          <p>CDC U.S. Chronic Disease Indicators</p>
+          <dl><dt>Authority</dt><dd>Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health</dd><dt>License</dt><dd><a href="https://opendatacommons.org/licenses/odbl/1.0/">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>chronic_disease_indicators</strong> <code>odd.cdc.latest.chronic_disease_indicators</code>: CDC chronic-disease indicator observations. One row per location, topic, question, stratification, and time period in the bounded Socrata sample. <span>Ask for: year range, location abbreviation or geography, topic or question filters, stratification fields, limit</span> <span>Warnings: ODbL license obligations are explicit in the Socrata metadata; preserve attribution and share-alike review when reusing broadly., Dataset is a wide Socrata table with repeated rows across stratifications; filter by year, location, topic, and question before broad scans., Facade is a fixed Alaska 2023 validation sample using selected columns, deterministic ordering, and a 5000-row cap until ODD supports parameterized Socrata paging., Smoke sample: Alaska 2023 rows returned row_count=983, topics=14, questions=48 on 2026-11-23.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>parquet</span></div>
