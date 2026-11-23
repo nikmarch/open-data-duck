@@ -566,6 +566,66 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "from odd.nasa_exoplanet_archive.latest.planetary_systems_composite" in nasa_sql
     assert "kepler-22 b" in nasa_sql
 
+    nps_sql = all_validation_sql(by_id["nps.visitor-use-statistics"])
+    assert "read_csv_auto" in nps_sql
+    assert "from odd.nps.latest.state_monthly_visitor_stats" in nps_sql
+    assert "from odd.nps.latest.monthly_visitor_stats" in nps_sql
+
+
+def test_project_nps_visitor_use_statistics_exposes_bounded_csv_facade_validations() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "nps.visitor-use-statistics")
+    state_table, monthly_table = source["tables"]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            state_table["description"],
+            monthly_table["description"],
+            "\n".join(state_table.get("ask_for", [])),
+            "\n".join(state_table.get("warnings", [])),
+            "\n".join(monthly_table.get("warnings", [])),
+            state_table["validations"][0]["direct_sql"],
+            state_table["validations"][0]["odd_sql"],
+            monthly_table["validations"][0]["direct_sql"],
+            monthly_table["validations"][0]["odd_sql"],
+            source["discovery"]["discover_sql"],
+        ]
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "National Park Service Social Science Program"
+    assert source["license_url"] == "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    assert source["requirements"] == {"duckdb_extensions": ["httpfs"]}
+    assert source["release"]["latest"]["method"] == "static-data-package"
+    assert source["discovery"] == {
+        "namespace": "odd.nps.latest",
+        "discover_sql": (
+            "SELECT 'state_monthly_visitor_stats' AS name,\n"
+            "       'read_csv_auto' AS reader,\n"
+            "       'https://irma.nps.gov/DataStore/DownloadFile/756960?Reference=2317666' AS path\n"
+            "UNION ALL\n"
+            "SELECT 'monthly_visitor_stats' AS name,\n"
+            "       'read_csv_auto' AS reader,\n"
+            "       'https://irma.nps.gov/DataStore/DownloadFile/756959?Reference=2317666' AS path;\n"
+        ),
+    }
+    assert state_table["id"] == "state_monthly_visitor_stats"
+    assert state_table["ref"] == "odd.nps.latest.state_monthly_visitor_stats"
+    assert state_table["validations"][0]["id"] == "odd.nps.latest.state_monthly_visitor_stats"
+    assert monthly_table["id"] == "monthly_visitor_stats"
+    assert monthly_table["ref"] == "odd.nps.latest.monthly_visitor_stats"
+    assert monthly_table["validations"][0]["id"] == "odd.nps.latest.monthly_visitor_stats"
+    assert "read_csv_auto" in rendered_metadata
+    assert "from odd.nps.latest.state_monthly_visitor_stats" in rendered_metadata
+    assert "from odd.nps.latest.monthly_visitor_stats" in rendered_metadata
+    assert "stateid = 'ak'" in rendered_metadata
+    assert "unitcode = 'alag'" in rendered_metadata
+    assert "compact nps visitor-use statistic codes" in rendered_metadata
+    assert "tens of mb" in rendered_metadata
+
 
 def test_project_noaa_coops_water_level_observations_uses_parameterized_public_csv_api_metadata() -> None:
     registry = load_project_registry()

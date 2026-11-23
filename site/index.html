@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">31 sources across arcgis (3), ckan (1), other (17), overture (1), parquet (2), socrata (4), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">32 sources across arcgis (3), ckan (1), other (18), overture (1), parquet (2), socrata (4), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -273,6 +273,13 @@ LIMIT 10;</code></pre>
           <p>NOAA CO-OPS water-level observations API</p>
           <dl><dt>Authority</dt><dd>NOAA National Ocean Service Center for Operational Oceanographic Products and Services</dd><dt>License</dt><dd><a href="https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>hourly_heights</strong> <code>odd.noaa_coops.latest.hourly_heights</code>: NOAA CO-OPS hourly water-level observations. One row per timestamped station observation for the selected product, datum, time zone, and units. <span>Ask for: station id, begin date, end date, water-level product, datum, time zone, units, limit</span> <span>Warnings: Parameterized API endpoint; preserve station, date range, product, datum, time zone, units, and application identifier instead of treating it as a full-table scan., CO-OPS products have product-specific date-range limits and water-level products require a datum., Preliminary and verified products differ; keep requests bounded and cite the selected station and retrieval endpoint/date., Validation facade is a small fixed smoke sample: station=8518750, product=hourly_height, datum=MLLW, begin_date=20200101, end_date=20200102, time_zone=gmt, units=metric; expected result is 48 hourly rows.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
+          <h3><code>nps.visitor-use-statistics</code></h3>
+          <p>NPS Visitor Use Statistics data package</p>
+          <dl><dt>Authority</dt><dd>National Park Service Social Science Program</dd><dt>License</dt><dd><a href="https://creativecommons.org/publicdomain/zero/1.0/deed.en">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>state_monthly_visitor_stats</strong> <code>odd.nps.latest.state_monthly_visitor_stats</code>: NPS state-split monthly visitor-use statistics. One row per NPS unit, year, month, statistic code, value, and state in the Main_State_Data.csv package file. <span>Ask for: state, year range, month or annual rollup need, NPS unit code, statistic code, whether state-split or all-unit totals are desired</span> <span>Warnings: The CSV uses compact NPS visitor-use statistic codes; preserve or explain code definitions before presenting labels as user-friendly measures., The source CSV is tens of MB; filter by state, year, month, unit code, or statistic code before broad scans.</span></li><li><strong>monthly_visitor_stats</strong> <code>odd.nps.latest.monthly_visitor_stats</code>: NPS monthly visitor-use statistics. One row per NPS unit, year, month, statistic code, and value in the Main_Data.csv package file. <span>Ask for: NPS unit code, year range, month or annual rollup need, statistic code, limit</span> <span>Warnings: The all-unit CSV is larger than the state-split file and does not include StateID; use the state table when state filtering is needed., Statistic codes are compact NPS visitor-use measures, not plain-English metric names.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
