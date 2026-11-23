@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 30;
+static constexpr int REGISTRY_SOURCE_COUNT = 31;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 30,
+  "source_count": 31,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -1044,6 +1044,72 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           ],
           "warnings": [
             "Join to details by event_id for event context."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "This research has made use of the NASA Exoplanet Archive, which is operated by the California Institute of Technology, under contract with the National Aeronautics and Space Administration under the Exoplanet Exploration Program; cite the archive, Christiansen et al. (2025) / dataset DOI where appropriate, and the source literature references for specific parameters.",
+      "authority": "NASA Exoplanet Archive / NASA Exoplanet Science Institute, operated by Caltech/IPAC under NASA's Exoplanet Exploration Program",
+      "discovery": {
+        "discover_sql": "SELECT 'planetary_systems_composite' AS name,\n       'read_csv_auto' AS reader,\n       'https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select%20pl_name%2Chostname%2Cdiscoverymethod%2Cdisc_year%2Cpl_rade%2Cpl_bmasse%20from%20pscomppars%20order%20by%20pl_name&format=csv' AS path;\n",
+        "namespace": "odd.nasa_exoplanet_archive.latest"
+      },
+      "id": "nasa.exoplanet-archive.pscomppars",
+      "license_url": "https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html",
+      "name": "NASA Exoplanet Archive planetary systems composite",
+      "release": {
+        "latest": {
+          "method": "static-tap-csv",
+          "url": "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "other",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "planet name or host name",
+            "discovery year range",
+            "physical parameters needed",
+            "row limit",
+            "whether composite defaults are acceptable versus per-reference planetary-system rows"
+          ],
+          "columns_hint": {
+            "disc_year": "Discovery year.",
+            "discoverymethod": "Discovery method assigned by the archive.",
+            "hostname": "Host star/system name.",
+            "pl_bmasse": "Planet mass or mass*sin(i) in Earth masses where curated.",
+            "pl_name": "Confirmed planet name.",
+            "pl_rade": "Planet radius in Earth radii where curated."
+          },
+          "description": "NASA Exoplanet Archive Planetary Systems Composite Parameters rows. One row per confirmed planet with archive-selected composite planet and host parameters from pscomppars.",
+          "id": "planetary_systems_composite",
+          "ref": "odd.nasa_exoplanet_archive.latest.planetary_systems_composite",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the NASA Exoplanet Archive pscomppars facade with the direct bounded TAP CSV recipe for the stable Kepler-22 b row.",
+              "direct_sql": "LOAD httpfs;\nSELECT pl_name, hostname, discoverymethod, disc_year, pl_rade, pl_bmasse\nFROM read_csv_auto('https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select%20pl_name%2Chostname%2Cdiscoverymethod%2Cdisc_year%2Cpl_rade%2Cpl_bmasse%20from%20pscomppars%20where%20pl_name%3D%27Kepler-22%20b%27%20order%20by%20pl_name&format=csv')\nORDER BY pl_name;\n",
+              "id": "odd.nasa_exoplanet_archive.latest.planetary_systems_composite",
+              "limit": 1,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT pl_name, hostname, discoverymethod, disc_year, pl_rade, pl_bmasse\nFROM odd.nasa_exoplanet_archive.latest.planetary_systems_composite\nWHERE pl_name = 'Kepler-22 b'\nORDER BY pl_name;\n",
+              "order_by": [
+                "pl_name"
+              ],
+              "release": "latest"
+            }
+          ],
+          "warnings": [
+            "TAP queries must stay bounded and URL-encoded; avoid select=* full-table scans.",
+            "Archive values can change as literature parameters are curated; cite the archive and source literature references for analyses using specific physical parameters.",
+            "Facade exposes a bounded selected-column TAP CSV over pscomppars; add columns deliberately when a question needs more than the composite sample fields.",
+            "Smoke sample: Kepler-22 b returned hostname=Kepler-22, discoverymethod=Transit, disc_year=2011, pl_rade=2.1, pl_bmasse=9.1 on 2026-11-23."
           ]
         }
       ]

@@ -561,6 +561,11 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "from odd.cdc.latest.chronic_disease_indicators" in cdc_chronic_sql
     assert "count(distinct topic)" in cdc_chronic_sql
 
+    nasa_sql = all_validation_sql(by_id["nasa.exoplanet-archive.pscomppars"])
+    assert "exoplanetarchive.ipac.caltech.edu/tap/sync" in nasa_sql
+    assert "from odd.nasa_exoplanet_archive.latest.planetary_systems_composite" in nasa_sql
+    assert "kepler-22 b" in nasa_sql
+
 
 def test_project_noaa_coops_water_level_observations_uses_parameterized_public_csv_api_metadata() -> None:
     registry = load_project_registry()
@@ -614,6 +619,56 @@ def test_project_noaa_coops_water_level_observations_uses_parameterized_public_c
     assert "48 hourly rows" in rendered_metadata
     assert "load stac" not in rendered_metadata
     assert "install stac" not in rendered_metadata
+
+
+def test_project_nasa_exoplanet_archive_uses_bounded_tap_csv_facade_metadata() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "nasa.exoplanet-archive.pscomppars")
+    table = source["tables"][0]
+    validation = table["validations"][0]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            table["description"],
+            "\n".join(table.get("ask_for", [])),
+            "\n".join(table.get("warnings", [])),
+            "\n".join(table.get("columns_hint", {}).values()),
+            validation["direct_sql"],
+            validation["odd_sql"],
+            source["discovery"]["discover_sql"],
+        ]
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["license_url"] == "https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html"
+    assert source["requirements"] == {"duckdb_extensions": ["httpfs"]}
+    assert "duckdb" not in source
+    assert "description" not in source
+    assert "homepage" not in source
+    assert "ai" not in source
+    assert table["id"] == "planetary_systems_composite"
+    assert table["ref"] == "odd.nasa_exoplanet_archive.latest.planetary_systems_composite"
+    assert validation["id"] == table["ref"]
+    assert "read_csv_auto('https://exoplanetarchive.ipac.caltech.edu/TAP/sync" in validation["direct_sql"]
+    assert "FROM odd.nasa_exoplanet_archive.latest.planetary_systems_composite" in validation["odd_sql"]
+    assert source["discovery"] == {
+        "namespace": "odd.nasa_exoplanet_archive.latest",
+        "discover_sql": (
+            "SELECT 'planetary_systems_composite' AS name,\n"
+            "       'read_csv_auto' AS reader,\n"
+            "       'https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select%20pl_name%2Chostname%2Cdiscoverymethod%2Cdisc_year%2Cpl_rade%2Cpl_bmasse%20from%20pscomppars%20order%20by%20pl_name&format=csv' AS path;\n"
+        ),
+    }
+    assert "planet name or host name" in table["ask_for"]
+    assert any("whether composite defaults are acceptable" in item for item in table["ask_for"])
+    assert "tap queries must stay bounded" in rendered_metadata
+    assert "select=* full-table scans" in rendered_metadata
+    assert "kepler-22 b" in rendered_metadata
+    assert "pl_rade=2.1" in rendered_metadata
+    assert "pscomppars" in rendered_metadata
 
 
 def test_search_sources_matches_terms_and_filters(tmp_path: Path) -> None:
