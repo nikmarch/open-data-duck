@@ -284,6 +284,28 @@ Table-first catalog of public data sources with legal metadata and executable OD
       LIMIT 10;
       ```
 
+### `noaa.coops.water-level-observations` — NOAA CO-OPS water-level observations API
+
+- Status: `candidate`
+- Authority: NOAA National Ocean Service Center for Operational Oceanographic Products and Services
+- License: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.noaa_coops.latest`
+- Tables:
+  - `hourly_heights` (`odd.noaa_coops.latest.hourly_heights`): NOAA CO-OPS hourly water-level observations. One row per timestamped station observation for the selected product, datum, time zone, and units.
+    - Ask for: station id, begin date, end date, water-level product, datum, time zone, units, limit
+    - Warnings: Parameterized API endpoint; preserve station, date range, product, datum, time zone, units, and application identifier instead of treating it as a full-table scan., CO-OPS products have product-specific date-range limits and water-level products require a datum., Preliminary and verified products differ; keep requests bounded and cite the selected station and retrieval endpoint/date., Validation facade is a small fixed smoke sample: station=8518750, product=hourly_height, datum=MLLW, begin_date=20200101, end_date=20200102, time_zone=gmt, units=metric; expected result is 48 hourly rows.
+    - Columns: Date Time: Observation timestamp in the requested time zone.; Water Level: Water-level height in the requested units and datum.; Sigma: Standard deviation for the observation where provided.; I: Inferred flag returned by CO-OPS.; L: Flat tolerance flag returned by CO-OPS.
+    - Validation: `odd.noaa_coops.latest.hourly_heights`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min("Date Time") AS first_observation,
+             max("Date Time") AS last_observation
+      FROM odd.noaa_coops.latest.hourly_heights;
+      ```
+
 ### `aws.noaa-ghcn-daily` — NOAA Global Historical Climatology Network Daily
 
 - Status: `candidate`

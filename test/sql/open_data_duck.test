@@ -103,7 +103,7 @@ true
 query I
 SELECT list(DISTINCT namespace ORDER BY namespace) FROM open_data_sources() WHERE namespace <> '';
 ----
-[odd.cdc.latest, odd.census.latest, odd.fema.latest, odd.naturalearth.latest, odd.noaa.latest, odd.overturemaps.latest, odd.wri.latest]
+[odd.cdc.latest, odd.census.latest, odd.fema.latest, odd.naturalearth.latest, odd.noaa.latest, odd.noaa_coops.latest, odd.overturemaps.latest, odd.wri.latest]
 
 query I
 SELECT count(*) > 0 FROM open_data_search('OVERTURE');
@@ -145,6 +145,16 @@ true
 
 query I
 SELECT open_data_validation_sql('overture.maps.release') LIKE '%direct DuckDB control for odd.overturemaps.latest.place%';
+----
+true
+
+query I
+SELECT open_data_sql('noaa.coops.water-level-observations') LIKE '%FROM odd.noaa_coops.latest.hourly_heights%' || chr(10);
+----
+true
+
+query I
+SELECT open_data_validation_sql('noaa.coops.water-level-observations') LIKE '%direct DuckDB control for odd.noaa_coops.latest.hourly_heights%';
 ----
 true
 
