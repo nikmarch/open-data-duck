@@ -306,6 +306,48 @@ Table-first catalog of public data sources with legal metadata and executable OD
       FROM odd.noaa_coops.latest.hourly_heights;
       ```
 
+### `nps.visitor-use-statistics` — NPS Visitor Use Statistics data package
+
+- Status: `candidate`
+- Authority: National Park Service Social Science Program
+- License: https://creativecommons.org/publicdomain/zero/1.0/deed.en
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.nps.latest`
+- Tables:
+  - `state_monthly_visitor_stats` (`odd.nps.latest.state_monthly_visitor_stats`): NPS state-split monthly visitor-use statistics. One row per NPS unit, year, month, statistic code, value, and state in the Main_State_Data.csv package file.
+    - Ask for: state, year range, month or annual rollup need, NPS unit code, statistic code, whether state-split or all-unit totals are desired
+    - Warnings: The CSV uses compact NPS visitor-use statistic codes; preserve or explain code definitions before presenting labels as user-friendly measures., The source CSV is tens of MB; filter by state, year, month, unit code, or statistic code before broad scans.
+    - Columns: UnitCode: NPS unit code such as ALAG.; Year: Observation year.; Month: Observation month number.; Statistic: Compact NPS visitor-use statistic code such as TRV or TNRV.; Value: Reported visitor-use statistic value.; StateID: Two-letter state abbreviation for the state-split record.
+    - Validation: `odd.nps.latest.state_monthly_visitor_stats`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(Year) AS min_year,
+             max(Year) AS max_year,
+             count(DISTINCT UnitCode) AS units,
+             count(DISTINCT Statistic) AS statistics
+      FROM odd.nps.latest.state_monthly_visitor_stats
+      WHERE StateID = 'AK'
+        AND Year BETWEEN 2024 AND 2025;
+      ```
+  - `monthly_visitor_stats` (`odd.nps.latest.monthly_visitor_stats`): NPS monthly visitor-use statistics. One row per NPS unit, year, month, statistic code, and value in the Main_Data.csv package file.
+    - Ask for: NPS unit code, year range, month or annual rollup need, statistic code, limit
+    - Warnings: The all-unit CSV is larger than the state-split file and does not include StateID; use the state table when state filtering is needed., Statistic codes are compact NPS visitor-use measures, not plain-English metric names.
+    - Columns: UnitCode: NPS unit code such as ALAG.; Year: Observation year.; Month: Observation month number.; Statistic: Compact NPS visitor-use statistic code such as TRV or TNRV.; Value: Reported visitor-use statistic value.
+    - Validation: `odd.nps.latest.monthly_visitor_stats`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             count(DISTINCT Statistic) AS statistics,
+             CAST(sum(Value) AS BIGINT) AS total_value
+      FROM odd.nps.latest.monthly_visitor_stats
+      WHERE UnitCode = 'ALAG'
+        AND Year = 2025
+        AND Month = 7;
+      ```
+
 ### `aws.noaa-ghcn-daily` — NOAA Global Historical Climatology Network Daily
 
 - Status: `candidate`

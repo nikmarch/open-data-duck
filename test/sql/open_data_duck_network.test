@@ -22,7 +22,7 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
@@ -31,6 +31,8 @@ odd.census.latest.county_20m	st_read
 odd.fema.latest.disaster_declarations	read_parquet
 odd.noaa.latest.ghcn_daily	read_csv
 odd.noaa_coops.latest.hourly_heights	read_csv_auto
+odd.nps.latest.monthly_visitor_stats	read_csv_auto
+odd.nps.latest.state_monthly_visitor_stats	read_csv_auto
 odd.overturemaps.latest.building	read_parquet
 odd.overturemaps.latest.place	read_parquet
 odd.wri.latest.global_power_plants	read_csv
@@ -93,6 +95,18 @@ query I
 SELECT count(*) = 48 FROM odd.noaa_coops.latest.hourly_heights;
 ----
 true
+
+query IIIII
+SELECT count(*) AS row_count,
+       min(Year) AS min_year,
+       max(Year) AS max_year,
+       count(DISTINCT UnitCode) AS units,
+       count(DISTINCT Statistic) AS statistics
+FROM odd.nps.latest.state_monthly_visitor_stats
+WHERE StateID = 'AK'
+  AND Year BETWEEN 2024 AND 2025;
+----
+5760	2024	2025	16	15
 
 query IIIII
 SELECT count(*) AS row_count,
