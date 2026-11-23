@@ -1299,13 +1299,112 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       "status": "candidate",
       "tables": [
         {
+          "ai_capabilities": {
+            "caveats": [
+              "PLACES values are modeled estimates, not survey microdata or direct county counts.",
+              "Filter to one datavaluetypeid and compatible measures before ranking or correlation.",
+              "Cite CDC PLACES and keep public-domain attribution with derived analysis."
+            ],
+            "dimensions": [
+              {
+                "description": "CDC PLACES measure identifier, such as mental-health or housing-related indicators.",
+                "field": "measureid",
+                "name": "measure"
+              },
+              {
+                "description": "County FIPS/GEOID.",
+                "field": "locationid",
+                "name": "county"
+              },
+              {
+                "description": "Age-adjusted, crude, or other estimate type; filter before comparing rows.",
+                "field": "datavaluetypeid",
+                "name": "data value type"
+              }
+            ],
+            "example_questions": [
+              "Which Alaska counties have the highest modeled frequent mental distress prevalence?",
+              "Can I compare Alaska housing insecurity with mental distress by county using CDC PLACES measures?",
+              "Join PLACES county estimates to Census county boundaries and map one selected measure."
+            ],
+            "geography_level": "county",
+            "grain": "one county, measure, and data-value type estimate row",
+            "join_keys": [
+              {
+                "description": "County FIPS/GEOID suitable for joining PLACES estimates to Census county boundaries.",
+                "field": "locationid",
+                "references": "odd.census.latest.county_20m.GEOID"
+              }
+            ],
+            "metrics": [
+              {
+                "description": "Modeled CDC PLACES estimate for the selected measure and data value type.",
+                "field": "data_value",
+                "name": "health estimate value",
+                "unit": "percent or dataset-specific unit"
+              }
+            ],
+            "missing_for_questions": [
+              {
+                "missing_metrics": [
+                  "death rate",
+                  "real estate price"
+                ],
+                "missing_source_families": [
+                  "county mortality or death-rate source",
+                  "county real-estate price or assessment source"
+                ],
+                "question": "Can I answer death rate vs real estate prices by county?"
+              }
+            ],
+            "safe_operations": [
+              "rank",
+              "compare",
+              "correlate",
+              "map",
+              "join"
+            ],
+            "time": {
+              "field": "release year",
+              "grain": "annual release"
+            }
+          },
           "ask_for": [
             "state",
             "measure id",
             "age-adjusted or crude prevalence"
           ],
+          "columns_hint": {
+            "countyname": "County display name.",
+            "data_value": "Numeric estimate value, commonly percent for prevalence measures.",
+            "datavaluetypeid": "Distinguishes age-adjusted prevalence, crude prevalence, and related estimate types.",
+            "locationid": "County FIPS/GEOID join key for Census county boundary tables.",
+            "measure": "Human-readable health or social determinant measure.",
+            "measureid": "CDC PLACES measure identifier.",
+            "stateabbr": "Two-letter U.S. state abbreviation."
+          },
           "description": "CDC PLACES county health estimate rows. One row per county, measure, and data-value type.",
           "id": "county_health_estimates",
+          "schema_org": {
+            "@type": "Dataset",
+            "keywords": [
+              "public health",
+              "county",
+              "prevalence",
+              "social determinants of health"
+            ],
+            "measurementTechnique": "CDC PLACES small-area estimation",
+            "spatialCoverage": "United States counties",
+            "temporalCoverage": "2025",
+            "variableMeasured": [
+              {
+                "@type": "PropertyValue",
+                "description": "County-level CDC PLACES modeled prevalence or health-related estimate.",
+                "name": "PLACES measure estimate",
+                "unitText": "percent or dataset-specific unit"
+              }
+            ]
+          },
           "warnings": [
             "Model-based estimates; filter datavaluetypeid to avoid duplicate measure rows."
           ]

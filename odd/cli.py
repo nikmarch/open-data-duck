@@ -11,6 +11,7 @@ from odd.extension_registry import (
 )
 from odd.registry_model import find_source, load_sources, search_sources
 from odd.registry_renderers import (
+    render_ai_catalog_json,
     render_index_json,
     render_index_markdown,
     render_index_text,
@@ -48,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
     index_parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     index_parser.add_argument("--format", choices=("text", "markdown", "json"), default="text")
     index_parser.add_argument("--include-sql", action="store_true", help="include SQL recipes in JSON output")
+
+    ai_catalog_parser = subparsers.add_parser("ai-catalog", help="print schema.org-aligned AI capability catalog JSON")
+    ai_catalog_parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
 
     show_parser = subparsers.add_parser("show", help="print details for one registry source")
     show_parser.add_argument("source_id")
@@ -147,6 +151,8 @@ def _dispatch(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         return _validate(args.registry, args.schema)
     if args.command == "index":
         return _index(args.registry, args.format, include_sql=args.include_sql)
+    if args.command == "ai-catalog":
+        return _ai_catalog(args.registry)
     if args.command == "show":
         return _show(args.registry, args.source_id, args.format, include_sql=args.include_sql)
     if args.command == "generate-index":
@@ -186,6 +192,11 @@ def _index(registry_path: Path, output_format: str, *, include_sql: bool) -> int
         print(render_index_markdown(sources), end="")
     else:
         print(render_index_text(sources), end="")
+    return 0
+
+
+def _ai_catalog(registry_path: Path) -> int:
+    print(render_ai_catalog_json(load_sources(registry_path)), end="")
     return 0
 
 

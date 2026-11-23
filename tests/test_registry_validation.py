@@ -12,6 +12,7 @@ from odd.arcgis import plan_offset_pages
 from odd.cli import build_parser, main
 from odd.registry import (
     find_source,
+    render_ai_catalog_json,
     render_index_json,
     render_index_markdown,
     render_index_text,
@@ -42,6 +43,31 @@ VALID_REGISTRY = {
                     "columns_hint": {"id": "Stable fixture row id."},
                     "ask_for": ["limit"],
                     "warnings": ["Fixture only."],
+                    "schema_org": {
+                        "@type": "Dataset",
+                        "spatialCoverage": "fixture space",
+                        "temporalCoverage": "2026",
+                        "variableMeasured": [{"@type": "PropertyValue", "name": "fixture value", "unitText": "count"}],
+                        "measurementTechnique": "fixture generation",
+                    },
+                    "ai_capabilities": {
+                        "grain": "one fixture row",
+                        "geography_level": "none",
+                        "join_keys": [{"field": "id", "description": "Fixture row id."}],
+                        "time": {"field": "created_at", "grain": "instant"},
+                        "metrics": [{"name": "fixture value", "field": "id", "unit": "count"}],
+                        "dimensions": [{"name": "fixture id", "field": "id"}],
+                        "safe_operations": ["rank", "compare"],
+                        "caveats": ["Fixture only."],
+                        "example_questions": ["Which fixture rows exist?"],
+                        "missing_for_questions": [
+                            {
+                                "question": "Can fixtures explain production data?",
+                                "missing_source_families": ["production source"],
+                                "missing_metrics": ["production metric"],
+                            }
+                        ],
+                    },
                     "validations": [
                         {
                             "id": "odd.example.latest.rows",
@@ -142,6 +168,9 @@ def test_schema_source_required_fields_are_small_core_without_duckdb() -> None:
     assert "description" not in schema["$defs"]["source"]["properties"]
     assert "validations" not in schema["$defs"]["source"]["properties"]
     assert "validations" in schema["$defs"]["table"]["properties"]
+    assert "schema_org" in schema["$defs"]["table"]["properties"]
+    assert "ai_capabilities" in schema["$defs"]["table"]["properties"]
+    assert schema["$defs"]["ai_capabilities"]["required"] == ["grain", "safe_operations", "example_questions"]
     assert schema["$defs"]["validation"]["required"] == ["id", "direct_sql", "odd_sql"]
     assert schema["$defs"]["source"]["additionalProperties"] is False
 
@@ -308,6 +337,7 @@ def test_build_parser_exposes_expected_top_level_commands() -> None:
     assert set(subparser_action.choices) >= {
         "validate",
         "index",
+        "ai-catalog",
         "show",
         "generate-index",
         "generate-site",
@@ -416,6 +446,34 @@ def test_cdc_chronic_disease_indicators_source_exposes_bounded_socrata_facade_va
     assert "read_csv_auto('https://data.cdc.gov/resource/hksd-2xuw.csv" in validation["direct_sql"]
     assert "FROM odd.cdc.latest.chronic_disease_indicators" in validation["odd_sql"]
     assert "count(DISTINCT topic)" in validation["odd_sql"]
+
+
+def test_cdc_places_source_has_schema_org_ai_capability_metadata() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "socrata.cdc.places-county-2025")
+    table = source["tables"][0]
+    source_obj = find_source(Path("registry/sources.yml"), source["id"])
+    assert source_obj is not None
+    catalog = yaml.safe_load(render_ai_catalog_json([source_obj]))
+    rendered_docs = render_index_markdown([source_obj]).casefold()
+
+    assert table["schema_org"]["@type"] == "Dataset"
+    assert table["schema_org"]["spatialCoverage"] == "United States counties"
+    assert table["schema_org"]["variableMeasured"][0]["name"] == "PLACES measure estimate"
+    assert table["ai_capabilities"]["grain"] == "one county, measure, and data-value type estimate row"
+    assert table["ai_capabilities"]["geography_level"] == "county"
+    assert table["ai_capabilities"]["join_keys"][0]["field"] == "locationid"
+    assert table["ai_capabilities"]["join_keys"][0]["references"] == "odd.census.latest.county_20m.GEOID"
+    assert "correlate" in table["ai_capabilities"]["safe_operations"]
+    assert any("Alaska housing insecurity" in question for question in table["ai_capabilities"]["example_questions"])
+    assert table["ai_capabilities"]["missing_for_questions"][0]["missing_source_families"] == [
+        "county mortality or death-rate source",
+        "county real-estate price or assessment source",
+    ]
+    table_dataset = catalog["dataset"][0]["hasPart"][0]
+    assert table_dataset["odd:aiCapabilities"]["metrics"][0]["field"] == "data_value"
+    assert "alaska housing insecurity" in rendered_docs
+    assert "death rate vs real estate" in rendered_docs
 
 
 def test_project_registry_has_no_redundant_source_attributes_or_duckdb_junk_drawer() -> None:
@@ -582,9 +640,28 @@ def test_source_ai_dict_exposes_table_metadata_without_sql_by_default(tmp_path: 
     payload = source.to_ai_dict(include_sql=False)
 
     assert payload["tables"][0]["validations"][0]["id"] == "odd.example.latest.rows"
+    assert payload["tables"][0]["ai_capabilities"]["grain"] == "one fixture row"
     assert "direct_sql" not in payload["tables"][0]["validations"][0]
     assert "odd_sql" not in payload["tables"][0]["validations"][0]
     assert "duckdb" not in payload
+
+
+def test_render_ai_catalog_maps_schema_org_and_odd_capabilities(tmp_path: Path) -> None:
+    registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
+    source = find_source(registry_path, "example.source")
+
+    assert source is not None
+    catalog = yaml.safe_load(render_ai_catalog_json([source]))
+    dataset = catalog["dataset"][0]
+    table = dataset["hasPart"][0]
+
+    assert catalog["@type"] == "DataCatalog"
+    assert dataset["license"] == "https://example.com/license"
+    assert table["@type"] == "Dataset"
+    assert table["spatialCoverage"] == "fixture space"
+    assert table["variableMeasured"][0]["name"] == "fixture value"
+    assert table["odd:aiCapabilities"]["safe_operations"] == ["rank", "compare"]
+    assert table["odd:aiCapabilities"]["missing_for_questions"][0]["missing_source_families"] == ["production source"]
 
 
 def test_render_index_outputs_pretty_text_markdown_and_json(tmp_path: Path) -> None:
@@ -658,7 +735,7 @@ def test_mcp_server_module_is_import_safe_and_returns_tool_payloads(tmp_path: Pa
 def test_search_sources_requires_all_terms(tmp_path: Path) -> None:
     registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
 
-    matches = search_sources(registry_path, "example missing")
+    matches = search_sources(registry_path, "example absent")
 
     assert matches == []
 
@@ -747,7 +824,7 @@ def test_cli_search_exits_nonzero_when_no_sources_match(
 ) -> None:
     registry_path, _schema_path = write_registry(tmp_path, VALID_REGISTRY)
 
-    exit_code = main(["search", "missing", "--registry", str(registry_path)])
+    exit_code = main(["search", "absent", "--registry", str(registry_path)])
 
     assert exit_code == 1
     assert "No registry sources matched" in capsys.readouterr().out
