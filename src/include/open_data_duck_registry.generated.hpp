@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 28;
+static constexpr int REGISTRY_SOURCE_COUNT = 30;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 28,
+  "source_count": 30,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -511,6 +511,79 @@ static const char *const REGISTRY_JSON = R"odd_registry(
       ]
     },
     {
+      "attribution": "Cite FEMA OpenFEMA and the Disaster Declarations Summaries dataset/retrieval per the OpenFEMA Terms and Conditions citation guidance.",
+      "authority": "Federal Emergency Management Agency OpenFEMA",
+      "discovery": {
+        "discover_sql": "SELECT 'disaster_declarations' AS name,\n       'read_parquet' AS reader,\n       'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet' AS path\nWHERE '{release}' = 'v2';\n",
+        "namespace": "odd.fema.latest"
+      },
+      "id": "fema.openfema.disaster-declarations",
+      "license_url": "https://www.fema.gov/about/openfema/terms-conditions",
+      "name": "FEMA OpenFEMA Disaster Declarations Summaries",
+      "release": {
+        "latest": {
+          "method": "static-parquet",
+          "resolve_sql": "SELECT 'v2' AS release;\n",
+          "url": "https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet"
+        },
+        "pinned": {
+          "duckdb_setting": "fema_disaster_declarations_release",
+          "example": "v2"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "parquet",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "state or territory",
+            "declaration date or fiscal year range",
+            "incident type",
+            "declaration type",
+            "assistance program flags",
+            "limit"
+          ],
+          "columns_hint": {
+            "declarationDate": "Date FEMA declared the disaster.",
+            "declarationType": "FEMA declaration type code.",
+            "designatedArea": "County, parish, borough, census area, statewide area, or Tribal area covered by the declaration.",
+            "disasterNumber": "FEMA disaster declaration number.",
+            "hmProgramDeclared": "Whether Hazard Mitigation was declared for the record.",
+            "ihProgramDeclared": "Whether the Individual and Households Program was declared for the record.",
+            "incidentType": "Incident category such as Flood, Fire, Hurricane, or Earthquake.",
+            "paProgramDeclared": "Whether Public Assistance was declared for the record.",
+            "state": "Two-letter state, territory, or Tribal Nation state-code grouping."
+          },
+          "description": "FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward.",
+          "id": "disaster_declarations",
+          "ref": "odd.fema.latest.disaster_declarations",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the FEMA OpenFEMA disaster declarations facade with the direct public Parquet export for stable state aggregates.",
+              "direct_sql": "LOAD httpfs;\nSELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster\nFROM read_parquet('https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet')\nWHERE state IN ('AK', 'CA')\nGROUP BY state\nORDER BY state;\n",
+              "id": "odd.fema.latest.disaster_declarations",
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE fema_disaster_declarations_release = 'v2';\nSELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster\nFROM odd.fema.latest.disaster_declarations\nWHERE state IN ('AK', 'CA')\nGROUP BY state\nORDER BY state;\n",
+              "order_by": [
+                "state"
+              ],
+              "release": "latest",
+              "source_release": "v2"
+            }
+          ],
+          "warnings": [
+            "FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error.",
+            "County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data."
+          ]
+        }
+      ]
+    },
+    {
       "attribution": "U.S. Geological Survey National Map.",
       "authority": "U.S. Geological Survey",
       "id": "arcgis.usgs.national-map-contours",
@@ -971,6 +1044,70 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           ],
           "warnings": [
             "Join to details by event_id for event context."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "Credit NOAA/NOS Center for Operational Oceanographic Products and Services (CO-OPS); cite the station, product, datum, time zone, units, endpoint, and retrieval date, and do not imply NOAA endorsement.",
+      "authority": "NOAA National Ocean Service Center for Operational Oceanographic Products and Services",
+      "discovery": {
+        "discover_sql": "SELECT 'hourly_heights' AS name,\n       'read_csv_auto' AS reader,\n       'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=20200101&end_date=20200102&station=8518750&product=hourly_height&datum=MLLW&time_zone=gmt&units=metric&format=csv&application=open_data_duck' AS path;\n",
+        "namespace": "odd.noaa_coops.latest"
+      },
+      "id": "noaa.coops.water-level-observations",
+      "license_url": "https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits",
+      "name": "NOAA CO-OPS water-level observations API",
+      "release": {
+        "latest": {
+          "method": "static-api-sample",
+          "url": "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "other",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "station id",
+            "begin date",
+            "end date",
+            "water-level product",
+            "datum",
+            "time zone",
+            "units",
+            "limit"
+          ],
+          "columns_hint": {
+            "Date Time": "Observation timestamp in the requested time zone.",
+            "I": "Inferred flag returned by CO-OPS.",
+            "L": "Flat tolerance flag returned by CO-OPS.",
+            "Sigma": "Standard deviation for the observation where provided.",
+            "Water Level": "Water-level height in the requested units and datum."
+          },
+          "description": "NOAA CO-OPS hourly water-level observations. One row per timestamped station observation for the selected product, datum, time zone, and units.",
+          "id": "hourly_heights",
+          "ref": "odd.noaa_coops.latest.hourly_heights",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the NOAA CO-OPS hourly heights sample facade with the direct bounded CSV API recipe.",
+              "direct_sql": "LOAD httpfs;\nSELECT count(*) AS row_count,\n       min(\"Date Time\") AS first_observation,\n       max(\"Date Time\") AS last_observation\nFROM read_csv_auto(\n  'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=20200101&end_date=20200102&station=8518750&product=hourly_height&datum=MLLW&time_zone=gmt&units=metric&format=csv&application=open_data_duck'\n);\n",
+              "id": "odd.noaa_coops.latest.hourly_heights",
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT count(*) AS row_count,\n       min(\"Date Time\") AS first_observation,\n       max(\"Date Time\") AS last_observation\nFROM odd.noaa_coops.latest.hourly_heights;\n",
+              "release": "latest"
+            }
+          ],
+          "warnings": [
+            "Parameterized API endpoint; preserve station, date range, product, datum, time zone, units, and application identifier instead of treating it as a full-table scan.",
+            "CO-OPS products have product-specific date-range limits and water-level products require a datum.",
+            "Preliminary and verified products differ; keep requests bounded and cite the selected station and retrieval endpoint/date.",
+            "Validation facade is a small fixed smoke sample: station=8518750, product=hourly_height, datum=MLLW, begin_date=20200101, end_date=20200102, time_zone=gmt, units=metric; expected result is 48 hourly rows."
           ]
         }
       ]

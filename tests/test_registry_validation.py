@@ -488,6 +488,11 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "read_csv_auto" in noaa_sql
     assert "from odd.noaa.latest.storm_events_details" in noaa_sql
 
+    coops_sql = all_validation_sql(by_id["noaa.coops.water-level-observations"])
+    assert "api.tidesandcurrents.noaa.gov/api/prod/datagetter" in coops_sql
+    assert "station=8518750" in coops_sql
+    assert "from odd.noaa_coops.latest.hourly_heights" in coops_sql
+
     cdc_sql = all_validation_sql(by_id["socrata.cdc.nchs-leading-causes-of-death"])
     assert "read_csv_auto" in cdc_sql
     assert "from odd.cdc.latest.leading_causes_of_death" in cdc_sql
@@ -497,6 +502,60 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "read_csv_auto" in cdc_chronic_sql
     assert "from odd.cdc.latest.chronic_disease_indicators" in cdc_chronic_sql
     assert "count(distinct topic)" in cdc_chronic_sql
+
+
+def test_project_noaa_coops_water_level_observations_uses_parameterized_public_csv_api_metadata() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "noaa.coops.water-level-observations")
+    table = source["tables"][0]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            table["description"],
+            "\n".join(table.get("ask_for", [])),
+            "\n".join(table.get("warnings", [])),
+            "\n".join(table.get("columns_hint", {}).values()),
+            table["validations"][0]["direct_sql"],
+            table["validations"][0]["odd_sql"],
+            source["discovery"]["discover_sql"],
+        ]
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "NOAA National Ocean Service Center for Operational Oceanographic Products and Services"
+    assert source["requirements"] == {"duckdb_extensions": ["httpfs"]}
+    assert "duckdb" not in source
+    assert "description" not in source
+    assert "homepage" not in source
+    assert "ai" not in source
+    assert table["id"] == "hourly_heights"
+    assert table["ref"] == "odd.noaa_coops.latest.hourly_heights"
+    assert table["validations"][0]["id"] == "odd.noaa_coops.latest.hourly_heights"
+    assert "read_csv_auto" in table["validations"][0]["direct_sql"]
+    assert "FROM odd.noaa_coops.latest.hourly_heights" in table["validations"][0]["odd_sql"]
+    assert source["discovery"] == {
+        "namespace": "odd.noaa_coops.latest",
+        "discover_sql": (
+            "SELECT 'hourly_heights' AS name,\n"
+            "       'read_csv_auto' AS reader,\n"
+            "       'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=20200101&end_date=20200102&station=8518750&product=hourly_height&datum=MLLW&time_zone=gmt&units=metric&format=csv&application=open_data_duck' AS path;\n"
+        ),
+    }
+    assert "station id" in table["ask_for"]
+    assert "datum" in table["ask_for"]
+    assert "parameterized api endpoint" in rendered_metadata
+    assert "date-range limits" in rendered_metadata
+    assert "preliminary and verified products differ" in rendered_metadata
+    assert "api.tidesandcurrents.noaa.gov/api/prod/datagetter" in rendered_metadata
+    assert "station=8518750" in rendered_metadata
+    assert "product=hourly_height" in rendered_metadata
+    assert "datum=mllw" in rendered_metadata
+    assert "48 hourly rows" in rendered_metadata
+    assert "load stac" not in rendered_metadata
+    assert "install stac" not in rendered_metadata
 
 
 def test_search_sources_matches_terms_and_filters(tmp_path: Path) -> None:

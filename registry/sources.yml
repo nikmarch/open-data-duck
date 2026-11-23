@@ -441,6 +441,61 @@ sources:
     - whether geometry is needed
     warnings:
     - Not a substitute for official determinations; connector path is not stable yet.
+- id: fema.openfema.disaster-declarations
+  name: FEMA OpenFEMA Disaster Declarations Summaries
+  status: candidate
+  source_type: parquet
+  authority: Federal Emergency Management Agency OpenFEMA
+  license_url: https://www.fema.gov/about/openfema/terms-conditions
+  attribution: Cite FEMA OpenFEMA and the Disaster Declarations Summaries dataset/retrieval per the OpenFEMA Terms and Conditions citation guidance.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: disaster_declarations
+    ref: odd.fema.latest.disaster_declarations
+    description: FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward.
+    columns_hint:
+      disasterNumber: FEMA disaster declaration number.
+      state: Two-letter state, territory, or Tribal Nation state-code grouping.
+      declarationDate: Date FEMA declared the disaster.
+      incidentType: Incident category such as Flood, Fire, Hurricane, or Earthquake.
+      designatedArea: County, parish, borough, census area, statewide area, or Tribal area covered by the declaration.
+      declarationType: FEMA declaration type code.
+      ihProgramDeclared: Whether the Individual and Households Program was declared for the record.
+      paProgramDeclared: Whether Public Assistance was declared for the record.
+      hmProgramDeclared: Whether Hazard Mitigation was declared for the record.
+    ask_for:
+    - state or territory
+    - declaration date or fiscal year range
+    - incident type
+    - declaration type
+    - assistance program flags
+    - limit
+    warnings:
+    - FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error.
+    - County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data.
+    validations:
+    - id: odd.fema.latest.disaster_declarations
+      description: Compare the FEMA OpenFEMA disaster declarations facade with the direct public Parquet export for stable state aggregates.
+      release: latest
+      source_release: v2
+      compare: exact
+      order_by:
+      - state
+      direct_sql: "LOAD httpfs;\nSELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster\nFROM read_parquet('https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet')\nWHERE state IN ('AK', 'CA')\nGROUP BY state\nORDER BY state;\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSET VARIABLE fema_disaster_declarations_release = 'v2';\nSELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster\nFROM odd.fema.latest.disaster_declarations\nWHERE state IN ('AK', 'CA')\nGROUP BY state\nORDER BY state;\n"
+  release:
+    latest:
+      method: static-parquet
+      url: https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet
+      resolve_sql: "SELECT 'v2' AS release;\n"
+    pinned:
+      duckdb_setting: fema_disaster_declarations_release
+      example: v2
+  discovery:
+    namespace: odd.fema.latest
+    discover_sql: "SELECT 'disaster_declarations' AS name,\n       'read_parquet' AS reader,\n       'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet' AS path\nWHERE '{release}' = 'v2';\n"
 - id: arcgis.usgs.national-map-contours
   name: USGS National Map elevation contours
   status: connector-blocked
@@ -822,6 +877,54 @@ sources:
   discovery:
     namespace: odd.noaa.latest
     discover_sql: "WITH files AS (\n  SELECT regexp_extract(m, 'StormEvents_([a-z]+)-ftp_v1\\.0_d{release}_c([0-9]{8})\\.csv\\.gz', 1) AS table_kind,\n         regexp_extract(m, '(StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz)', 1) AS file_name,\n         regexp_extract(m, '_c([0-9]{8})\\.csv\\.gz', 1) AS created\n  FROM (SELECT DISTINCT unnest(regexp_extract_all(content, 'StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz')) AS m\n        FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'))\n), latest AS (\n  SELECT table_kind, max(created) AS created\n  FROM files\n  GROUP BY table_kind\n)\nSELECT 'storm_events_' || files.table_kind AS name,\n       'read_csv' AS reader,\n       'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/' || files.file_name AS path\nFROM files\nJOIN latest USING (table_kind, created)\nORDER BY name;\n"
+- id: noaa.coops.water-level-observations
+  name: NOAA CO-OPS water-level observations API
+  status: candidate
+  source_type: other
+  authority: NOAA National Ocean Service Center for Operational Oceanographic Products and Services
+  license_url: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+  attribution: Credit NOAA/NOS Center for Operational Oceanographic Products and Services (CO-OPS); cite the station, product, datum, time zone, units, endpoint, and retrieval date, and do not imply NOAA endorsement.
+  requirements:
+    duckdb_extensions:
+    - httpfs
+  tables:
+  - id: hourly_heights
+    ref: odd.noaa_coops.latest.hourly_heights
+    description: NOAA CO-OPS hourly water-level observations. One row per timestamped station observation for the selected product, datum, time zone, and units.
+    columns_hint:
+      Date Time: Observation timestamp in the requested time zone.
+      Water Level: Water-level height in the requested units and datum.
+      Sigma: Standard deviation for the observation where provided.
+      I: Inferred flag returned by CO-OPS.
+      L: Flat tolerance flag returned by CO-OPS.
+    ask_for:
+    - station id
+    - begin date
+    - end date
+    - water-level product
+    - datum
+    - time zone
+    - units
+    - limit
+    warnings:
+    - Parameterized API endpoint; preserve station, date range, product, datum, time zone, units, and application identifier instead of treating it as a full-table scan.
+    - CO-OPS products have product-specific date-range limits and water-level products require a datum.
+    - Preliminary and verified products differ; keep requests bounded and cite the selected station and retrieval endpoint/date.
+    - "Validation facade is a small fixed smoke sample: station=8518750, product=hourly_height, datum=MLLW, begin_date=20200101, end_date=20200102, time_zone=gmt, units=metric; expected result is 48 hourly rows."
+    validations:
+    - id: odd.noaa_coops.latest.hourly_heights
+      description: Compare the NOAA CO-OPS hourly heights sample facade with the direct bounded CSV API recipe.
+      release: latest
+      compare: exact
+      direct_sql: "LOAD httpfs;\nSELECT count(*) AS row_count,\n       min(\"Date Time\") AS first_observation,\n       max(\"Date Time\") AS last_observation\nFROM read_csv_auto(\n  'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=20200101&end_date=20200102&station=8518750&product=hourly_height&datum=MLLW&time_zone=gmt&units=metric&format=csv&application=open_data_duck'\n);\n"
+      odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT count(*) AS row_count,\n       min(\"Date Time\") AS first_observation,\n       max(\"Date Time\") AS last_observation\nFROM odd.noaa_coops.latest.hourly_heights;\n"
+  release:
+    latest:
+      method: static-api-sample
+      url: https://api.tidesandcurrents.noaa.gov/api/prod/datagetter
+  discovery:
+    namespace: odd.noaa_coops.latest
+    discover_sql: "SELECT 'hourly_heights' AS name,\n       'read_csv_auto' AS reader,\n       'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=20200101&end_date=20200102&station=8518750&product=hourly_height&datum=MLLW&time_zone=gmt&units=metric&format=csv&application=open_data_duck' AS path;\n"
 - id: aws.noaa-ghcn-daily
   name: NOAA Global Historical Climatology Network Daily
   status: candidate

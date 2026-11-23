@@ -284,6 +284,28 @@ Table-first catalog of public data sources with legal metadata and executable OD
       LIMIT 10;
       ```
 
+### `noaa.coops.water-level-observations` — NOAA CO-OPS water-level observations API
+
+- Status: `candidate`
+- Authority: NOAA National Ocean Service Center for Operational Oceanographic Products and Services
+- License: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.noaa_coops.latest`
+- Tables:
+  - `hourly_heights` (`odd.noaa_coops.latest.hourly_heights`): NOAA CO-OPS hourly water-level observations. One row per timestamped station observation for the selected product, datum, time zone, and units.
+    - Ask for: station id, begin date, end date, water-level product, datum, time zone, units, limit
+    - Warnings: Parameterized API endpoint; preserve station, date range, product, datum, time zone, units, and application identifier instead of treating it as a full-table scan., CO-OPS products have product-specific date-range limits and water-level products require a datum., Preliminary and verified products differ; keep requests bounded and cite the selected station and retrieval endpoint/date., Validation facade is a small fixed smoke sample: station=8518750, product=hourly_height, datum=MLLW, begin_date=20200101, end_date=20200102, time_zone=gmt, units=metric; expected result is 48 hourly rows.
+    - Columns: Date Time: Observation timestamp in the requested time zone.; Water Level: Water-level height in the requested units and datum.; Sigma: Standard deviation for the observation where provided.; I: Inferred flag returned by CO-OPS.; L: Flat tolerance flag returned by CO-OPS.
+    - Validation: `odd.noaa_coops.latest.hourly_heights`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min("Date Time") AS first_observation,
+             max("Date Time") AS last_observation
+      FROM odd.noaa_coops.latest.hourly_heights;
+      ```
+
 ### `aws.noaa-ghcn-daily` — NOAA Global Historical Climatology Network Daily
 
 - Status: `candidate`
@@ -425,6 +447,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
       ```
 
 ## parquet
+
+### `fema.openfema.disaster-declarations` — FEMA OpenFEMA Disaster Declarations Summaries
+
+- Status: `candidate`
+- Authority: Federal Emergency Management Agency OpenFEMA
+- License: https://www.fema.gov/about/openfema/terms-conditions
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.fema.latest`
+- Tables:
+  - `disaster_declarations` (`odd.fema.latest.disaster_declarations`): FEMA disaster declaration summary records. One row per federally declared disaster declaration and designated geographic area from 1953 forward.
+    - Ask for: state or territory, declaration date or fiscal year range, incident type, declaration type, assistance program flags, limit
+    - Warnings: FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records can contain a small percentage of human error., County data is not available before 1964, Fire Management records are partial, and Tribal Nation declarations are currently included in state data.
+    - Columns: disasterNumber: FEMA disaster declaration number.; state: Two-letter state, territory, or Tribal Nation state-code grouping.; declarationDate: Date FEMA declared the disaster.; incidentType: Incident category such as Flood, Fire, Hurricane, or Earthquake.; designatedArea: County, parish, borough, census area, statewide area, or Tribal area covered by the declaration.; declarationType: FEMA declaration type code.; ihProgramDeclared: Whether the Individual and Households Program was declared for the record.; paProgramDeclared: Whether Public Assistance was declared for the record.; hmProgramDeclared: Whether Hazard Mitigation was declared for the record.
+    - Validation: `odd.fema.latest.disaster_declarations`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE fema_disaster_declarations_release = 'v2';
+      SELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster
+      FROM odd.fema.latest.disaster_declarations
+      WHERE state IN ('AK', 'CA')
+      GROUP BY state
+      ORDER BY state;
+      ```
 
 ### `sourcecoop.vida.google-microsoft-open-buildings` — VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
 
