@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 29;
+static constexpr int REGISTRY_SOURCE_COUNT = 30;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 29,
+  "source_count": 30,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -1374,6 +1374,72 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             "Filter out All causes when comparing ranked cause totals.",
             "Facade uses a bounded Socrata SODA CSV export with selected columns, deterministic ordering, and a 50000-row cap.",
             "Smoke sample: Alaska rows returned row_count=209, first_year=1999, last_year=2017, ranked_deaths_2017=3118 on 2026-11-22."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health; licensed under ODbL v1.0.",
+      "authority": "Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health",
+      "discovery": {
+        "discover_sql": "SELECT 'chronic_disease_indicators' AS name,\n       'read_csv_auto' AS reader,\n       'https://data.cdc.gov/resource/hksd-2xuw.csv?$select=yearstart,locationabbr,topic,question,datavalue,datavalueunit&$where=yearstart=2023%20AND%20locationabbr=%27AK%27&$order=topic,question&$limit=5000' AS path;\n",
+        "namespace": "odd.cdc.latest"
+      },
+      "id": "socrata.cdc.chronic-disease-indicators",
+      "license_url": "https://opendatacommons.org/licenses/odbl/1.0/",
+      "name": "CDC U.S. Chronic Disease Indicators",
+      "release": {
+        "latest": {
+          "method": "static-soda-export",
+          "url": "https://data.cdc.gov/resource/hksd-2xuw.csv"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "socrata",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "year range",
+            "location abbreviation or geography",
+            "topic or question filters",
+            "stratification fields",
+            "limit"
+          ],
+          "columns_hint": {
+            "datavalue": "Indicator value; many rows vary by stratification and some values are suppressed or null.",
+            "datavalueunit": "Unit for datavalue, commonly percent.",
+            "locationabbr": "U.S. state or territory abbreviation reported by the dataset.",
+            "question": "Indicator question text.",
+            "topic": "Chronic-disease topic grouping.",
+            "yearstart": "Start year for the indicator observation."
+          },
+          "description": "CDC chronic-disease indicator observations. One row per location, topic, question, stratification, and time period in the bounded Socrata sample.",
+          "id": "chronic_disease_indicators",
+          "ref": "odd.cdc.latest.chronic_disease_indicators",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the CDC Chronic Disease Indicators Socrata facade with the direct bounded SODA CSV recipe for a stable Alaska 2023 sample.",
+              "direct_sql": "LOAD httpfs;\nSELECT count(*) AS row_count,\n       min(yearstart) AS min_year,\n       max(yearstart) AS max_year,\n       count(DISTINCT topic) AS topics,\n       count(DISTINCT question) AS questions\nFROM read_csv_auto('https://data.cdc.gov/resource/hksd-2xuw.csv?$select=yearstart,locationabbr,topic,question,datavalue,datavalueunit&$where=yearstart=2023%20AND%20locationabbr=%27AK%27&$order=topic,question&$limit=5000');\n",
+              "id": "odd.cdc.latest.chronic_disease_indicators",
+              "limit": 1,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT count(*) AS row_count,\n       min(yearstart) AS min_year,\n       max(yearstart) AS max_year,\n       count(DISTINCT topic) AS topics,\n       count(DISTINCT question) AS questions\nFROM odd.cdc.latest.chronic_disease_indicators;\n",
+              "order_by": [
+                "row_count"
+              ],
+              "release": "latest"
+            }
+          ],
+          "warnings": [
+            "ODbL license obligations are explicit in the Socrata metadata; preserve attribution and share-alike review when reusing broadly.",
+            "Dataset is a wide Socrata table with repeated rows across stratifications; filter by year, location, topic, and question before broad scans.",
+            "Facade is a fixed Alaska 2023 validation sample using selected columns, deterministic ordering, and a 5000-row cap until ODD supports parameterized Socrata paging.",
+            "Smoke sample: Alaska 2023 rows returned row_count=983, topics=14, questions=48 on 2026-11-23."
           ]
         }
       ]

@@ -22,9 +22,10 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
+odd.cdc.latest.chronic_disease_indicators	read_csv_auto
 odd.cdc.latest.leading_causes_of_death	read_csv_auto
 odd.census.latest.county_20m	st_read
 odd.fema.latest.disaster_declarations	read_parquet
@@ -92,6 +93,16 @@ query I
 SELECT count(*) = 48 FROM odd.noaa_coops.latest.hourly_heights;
 ----
 true
+
+query IIIII
+SELECT count(*) AS row_count,
+       min(yearstart) AS min_year,
+       max(yearstart) AS max_year,
+       count(DISTINCT topic) AS topics,
+       count(DISTINCT question) AS questions
+FROM odd.cdc.latest.chronic_disease_indicators;
+----
+983	2023	2023	14	48
 
 query IIII
 SELECT count(*) AS row_count,

@@ -393,6 +393,31 @@ def test_cdc_nchs_leading_causes_source_exposes_bounded_socrata_facade_validatio
     assert "ranked_deaths_2017" in validation["odd_sql"]
 
 
+def test_cdc_chronic_disease_indicators_source_exposes_bounded_socrata_facade_validation() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "socrata.cdc.chronic-disease-indicators")
+
+    assert source["source_type"] == "socrata"
+    assert source["requirements"]["duckdb_extensions"] == ["httpfs"]
+    assert source["license_url"] == "https://opendatacommons.org/licenses/odbl/1.0/"
+    assert source["release"]["latest"]["method"] == "static-soda-export"
+    assert source["discovery"]["namespace"] == "odd.cdc.latest"
+    assert "hksd-2xuw.csv?$select=yearstart,locationabbr,topic,question,datavalue,datavalueunit" in source["discovery"]["discover_sql"]
+    assert "$where=yearstart=2023%20AND%20locationabbr=%27AK%27" in source["discovery"]["discover_sql"]
+    table = source["tables"][0]
+    assert table["id"] == "chronic_disease_indicators"
+    assert table["ref"] == "odd.cdc.latest.chronic_disease_indicators"
+    assert "location abbreviation or geography" in table["ask_for"]
+    assert any("row_count=983" in warning for warning in table["warnings"])
+    assert any("parameterized Socrata paging" in warning for warning in table["warnings"])
+    assert table["columns_hint"]["datavalue"].startswith("Indicator value")
+    validation = table["validations"][0]
+    assert validation["id"] == table["ref"]
+    assert "read_csv_auto('https://data.cdc.gov/resource/hksd-2xuw.csv" in validation["direct_sql"]
+    assert "FROM odd.cdc.latest.chronic_disease_indicators" in validation["odd_sql"]
+    assert "count(DISTINCT topic)" in validation["odd_sql"]
+
+
 def test_project_registry_has_no_redundant_source_attributes_or_duckdb_junk_drawer() -> None:
     registry = load_project_registry()
     redundant = {"description", "homepage", "tags", "topics", "coverage", "cadence", "ai", "duckdb"}
@@ -472,6 +497,11 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "read_csv_auto" in cdc_sql
     assert "from odd.cdc.latest.leading_causes_of_death" in cdc_sql
     assert "ranked_deaths_2017" in cdc_sql
+
+    cdc_chronic_sql = all_validation_sql(by_id["socrata.cdc.chronic-disease-indicators"])
+    assert "read_csv_auto" in cdc_chronic_sql
+    assert "from odd.cdc.latest.chronic_disease_indicators" in cdc_chronic_sql
+    assert "count(distinct topic)" in cdc_chronic_sql
 
 
 def test_project_noaa_coops_water_level_observations_uses_parameterized_public_csv_api_metadata() -> None:

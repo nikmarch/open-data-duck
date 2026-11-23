@@ -531,6 +531,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
       WHERE state = 'Alaska';
       ```
 
+### `socrata.cdc.chronic-disease-indicators` — CDC U.S. Chronic Disease Indicators
+
+- Status: `candidate`
+- Authority: Centers for Disease Control and Prevention, National Center for Chronic Disease Prevention and Health Promotion, Division of Population Health
+- License: https://opendatacommons.org/licenses/odbl/1.0/
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.cdc.latest`
+- Tables:
+  - `chronic_disease_indicators` (`odd.cdc.latest.chronic_disease_indicators`): CDC chronic-disease indicator observations. One row per location, topic, question, stratification, and time period in the bounded Socrata sample.
+    - Ask for: year range, location abbreviation or geography, topic or question filters, stratification fields, limit
+    - Warnings: ODbL license obligations are explicit in the Socrata metadata; preserve attribution and share-alike review when reusing broadly., Dataset is a wide Socrata table with repeated rows across stratifications; filter by year, location, topic, and question before broad scans., Facade is a fixed Alaska 2023 validation sample using selected columns, deterministic ordering, and a 5000-row cap until ODD supports parameterized Socrata paging., Smoke sample: Alaska 2023 rows returned row_count=983, topics=14, questions=48 on 2026-11-23.
+    - Columns: yearstart: Start year for the indicator observation.; locationabbr: U.S. state or territory abbreviation reported by the dataset.; topic: Chronic-disease topic grouping.; question: Indicator question text.; datavalue: Indicator value; many rows vary by stratification and some values are suppressed or null.; datavalueunit: Unit for datavalue, commonly percent.
+    - Validation: `odd.cdc.latest.chronic_disease_indicators`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(yearstart) AS min_year,
+             max(yearstart) AS max_year,
+             count(DISTINCT topic) AS topics,
+             count(DISTINCT question) AS questions
+      FROM odd.cdc.latest.chronic_disease_indicators;
+      ```
+
 ## stac
 
 ### `stac.earth-search.aws` — Earth Search STAC API
