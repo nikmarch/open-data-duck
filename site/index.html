@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">33 sources across arcgis (3), ckan (1), other (19), overture (1), parquet (2), socrata (4), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">34 sources across arcgis (3), ckan (1), other (19), overture (1), parquet (2), socrata (5), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -322,6 +322,13 @@ LIMIT 10;</code></pre>
           <p>NYC Open Data 311 Service Requests</p>
           <dl><dt>Authority</dt><dd>City of New York Office of Technology and Innovation via NYC Open Data</dd><dt>License</dt><dd><a href="https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-216807">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>service_requests</strong>: NYC 311 service request records. One row per 311 request. <span>Ask for: date range, borough, complaint type, limit</span> <span>Warnings: Large table requires bounded SODA queries with select/order/limit.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>socrata</span></div>
+          <h3><code>socrata.chicago.building-permits</code></h3>
+          <p>City of Chicago building permits</p>
+          <dl><dt>Authority</dt><dd>City of Chicago Department of Buildings / Chicago Data Portal</dd><dt>License</dt><dd><a href="https://www.chicago.gov/city/en/narr/foia/data_disclaimer.html">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>building_permits</strong> <code>odd.chicago.latest.building_permits</code>: City of Chicago building permit records. One row per issued, non-voided, non-revoked building permit in the bounded Socrata sample. <span>Ask for: issue or application date range, community area or ward/geography filter, permit type or review type, whether addresses and work descriptions are needed, limit</span> <span>Warnings: Dataset is updated daily and includes street-level permit records and work descriptions; filter by date, geography, and permit type before broad scans., City terms require preserving the City disclaimer and no-warranty language for downstream apps., Facade is a fixed community-area 32 January 2024 validation sample using selected columns, deterministic ordering, and a 50000-row cap until ODD supports parameterized Socrata paging., Smoke sample: community_area=32 January 2024 rows returned row_count=287, permit_types=5, reported_cost_sum=54476382 on 2026-11-24.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>socrata</span></div>

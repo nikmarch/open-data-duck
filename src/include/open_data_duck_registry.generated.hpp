@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 33;
+static constexpr int REGISTRY_SOURCE_COUNT = 34;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 33,
+  "source_count": 34,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -1510,6 +1510,74 @@ static const char *const REGISTRY_JSON = R"odd_registry(
           "id": "service_requests",
           "warnings": [
             "Large table requires bounded SODA queries with select/order/limit."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "City of Chicago, Department of Buildings, Building Permits dataset; preserve City disclaimer/no-warranty language and do not imply City endorsement.",
+      "authority": "City of Chicago Department of Buildings / Chicago Data Portal",
+      "discovery": {
+        "discover_sql": "SELECT 'building_permits' AS name,\n       'read_csv_auto' AS reader,\n       'https://data.cityofchicago.org/resource/ydr8-5enu.csv?$select=id,permit_,permit_type,review_type,application_start_date,issue_date,reported_cost,community_area&$where=issue_date%20between%20%272024-01-01T00:00:00%27%20and%20%272024-02-01T00:00:00%27%20AND%20community_area=32&$order=id&$limit=50000' AS path;\n",
+        "namespace": "odd.chicago.latest"
+      },
+      "id": "socrata.chicago.building-permits",
+      "license_url": "https://www.chicago.gov/city/en/narr/foia/data_disclaimer.html",
+      "name": "City of Chicago building permits",
+      "release": {
+        "latest": {
+          "method": "static-soda-export",
+          "url": "https://data.cityofchicago.org/resource/ydr8-5enu.csv"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "httpfs"
+        ]
+      },
+      "source_type": "socrata",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "issue or application date range",
+            "community area or ward/geography filter",
+            "permit type or review type",
+            "whether addresses and work descriptions are needed",
+            "limit"
+          ],
+          "columns_hint": {
+            "application_start_date": "Date the permit application process started.",
+            "community_area": "Chicago community area number.",
+            "id": "Socrata row identifier for the permit record.",
+            "issue_date": "Date the permit was issued.",
+            "permit_": "City permit number.",
+            "permit_type": "Permit category, such as renovation/alteration or wrecking/demolition.",
+            "reported_cost": "Applicant-reported project cost.",
+            "review_type": "Review workflow used for the permit."
+          },
+          "description": "City of Chicago building permit records. One row per issued, non-voided, non-revoked building permit in the bounded Socrata sample.",
+          "id": "building_permits",
+          "ref": "odd.chicago.latest.building_permits",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the Chicago building permits Socrata facade with the direct bounded SODA CSV recipe for a stable community-area 32 January 2024 sample.",
+              "direct_sql": "LOAD httpfs;\nSELECT count(*) AS row_count,\n       CAST(min(issue_date) AS DATE) AS min_issue_date,\n       CAST(max(issue_date) AS DATE) AS max_issue_date,\n       count(DISTINCT permit_type) AS permit_types,\n       CAST(round(sum(reported_cost), 2) AS BIGINT) AS reported_cost_sum\nFROM read_csv_auto('https://data.cityofchicago.org/resource/ydr8-5enu.csv?$select=id,permit_,permit_type,review_type,application_start_date,issue_date,reported_cost,community_area&$where=issue_date%20between%20%272024-01-01T00:00:00%27%20and%20%272024-02-01T00:00:00%27%20AND%20community_area=32&$order=id&$limit=50000');\n",
+              "id": "odd.chicago.latest.building_permits",
+              "limit": 1,
+              "odd_sql": "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT count(*) AS row_count,\n       CAST(min(issue_date) AS DATE) AS min_issue_date,\n       CAST(max(issue_date) AS DATE) AS max_issue_date,\n       count(DISTINCT permit_type) AS permit_types,\n       CAST(round(sum(reported_cost), 2) AS BIGINT) AS reported_cost_sum\nFROM odd.chicago.latest.building_permits;\n",
+              "order_by": [
+                "row_count"
+              ],
+              "release": "latest"
+            }
+          ],
+          "warnings": [
+            "Dataset is updated daily and includes street-level permit records and work descriptions; filter by date, geography, and permit type before broad scans.",
+            "City terms require preserving the City disclaimer and no-warranty language for downstream apps.",
+            "Facade is a fixed community-area 32 January 2024 validation sample using selected columns, deterministic ordering, and a 50000-row cap until ODD supports parameterized Socrata paging.",
+            "Smoke sample: community_area=32 January 2024 rows returned row_count=287, permit_types=5, reported_cost_sum=54476382 on 2026-11-24."
           ]
         }
       ]
