@@ -1,0 +1,177 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: overture.maps.release
+name: Overture Maps source family
+status: candidate
+source_type: overture
+authority: Overture Maps Foundation
+license_url: https://docs.overturemaps.org/attribution/
+attribution: Overture Maps Foundation and contributing data providers.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: place
+  ref: odd.overturemaps.latest.place
+  description: Places and points of interest. One row per Overture place feature.
+  columns_hint:
+    id: Stable Overture feature id.
+    names: Nested names object; primary/common/local names are not plain text columns.
+    bbox: Bounding box for fast spatial prefilters.
+    geometry: Place geometry.
+  ask_for:
+  - bbox or area
+  - release or latest
+  - limit
+  warnings:
+  - Large global table; always use tight bbox filters.
+  validations:
+  - id: odd.overturemaps.latest.place
+    description: Compare the latest Overture places facade with the direct public
+      S3 parquet recipe over a sampled tiny bbox.
+    release: latest
+    compare: exact
+    order_by:
+    - id
+    limit: 10
+    direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_latest_release_url\
+      \ = (\n  SELECT l.href\n  FROM (SELECT unnest(links) AS l FROM read_json('https://stac.overturemaps.org/catalog.json'))\n\
+      \  WHERE l.rel = 'child' AND l.latest\n);\nSET VARIABLE s3_uri = (\n  SELECT\
+      \ regexp_replace(\n           regexp_replace(min(assets.aws.href), '^https://([^.]+)\\\
+      \\.s3\\\\.[^/]+/', 's3://\\\\1/'),\n           '/part-[^/]+$',\n           '/*'\n\
+      \         )\n  FROM read_parquet(replace(getvariable('overture_latest_release_url'),\
+      \ '/catalog.json', '/collections.parquet'))\n  WHERE collection = 'place'\n\
+      );\n\nSELECT id, names, bbox\nFROM read_parquet(getvariable('s3_uri'))\nWHERE\
+      \ bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n\
+      \  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SELECT id, names, bbox\nFROM odd.overturemaps.latest.place\nWHERE bbox.xmin\
+      \ <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax\
+      \ >= 39.652\nORDER BY id\nLIMIT 10;\n"
+  - id: odd.overturemaps.x2026x10x21.place
+    description: Compare a pinned, SQL-safe Overture release facade with the same
+      direct release path over a sampled tiny bbox.
+    release: x2026x10x21
+    source_release: 2026-10-21.0
+    compare: exact
+    order_by:
+    - id
+    limit: 10
+    direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_s3_base\
+      \ = 's3://overturemaps-us-west-2';\n\nSELECT id, names, bbox\nFROM read_parquet(\n\
+      \  getvariable('overture_s3_base') || '/release/2026-10-21.0/theme=places/type=place/*'\n\
+      )\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <=\
+      \ 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SELECT id, names, bbox\nFROM odd.overturemaps.x2026x10x21.place\nWHERE bbox.xmin\
+      \ <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n  AND bbox.ymax\
+      \ >= 39.652\nORDER BY id\nLIMIT 10;\n"
+- id: building
+  ref: odd.overturemaps.latest.building
+  description: Building footprint polygons. One row per Overture building feature.
+  ask_for:
+  - bbox or area
+  - release or latest
+  - limit
+  warnings:
+  - Large global table; always use tight bbox filters.
+  validations:
+  - id: odd.overturemaps.latest.building
+    description: Compare the latest Overture buildings facade with the direct public
+      S3 parquet recipe over a sampled tiny bbox.
+    release: latest
+    compare: exact
+    order_by:
+    - id
+    limit: 10
+    direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release\
+      \ = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\
+      \nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') ||\
+      \ '/release/' || getvariable('overture_release') || '/theme=buildings/type=building/*'\n\
+      )\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <=\
+      \ 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base\
+      \ = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.building\n\
+      WHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n\
+      \  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+- id: segment
+  ref: odd.overturemaps.latest.segment
+  description: Transportation road/path segments. One row per Overture segment feature.
+  ask_for:
+  - bbox or area
+  - release or latest
+  - limit
+  warnings:
+  - Large global table; always use tight bbox filters.
+  validations:
+  - id: odd.overturemaps.latest.segment
+    description: Compare the latest Overture transportation segments facade with the
+      direct public S3 parquet recipe over a sampled tiny bbox.
+    release: latest
+    compare: exact
+    order_by:
+    - id
+    limit: 10
+    direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release\
+      \ = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\
+      \nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') ||\
+      \ '/release/' || getvariable('overture_release') || '/theme=transportation/type=segment/*'\n\
+      )\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <=\
+      \ 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base\
+      \ = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.segment\n\
+      WHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n\
+      \  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+- id: address
+  ref: odd.overturemaps.latest.address
+  description: Address point/record features. One row per Overture address feature.
+  ask_for:
+  - bbox or area
+  - release or latest
+  - limit
+  warnings:
+  - Large global table; always use tight bbox filters.
+  validations:
+  - id: odd.overturemaps.latest.address
+    description: Compare the latest Overture addresses facade with the direct public
+      S3 parquet recipe over a sampled tiny bbox.
+    release: latest
+    compare: exact
+    order_by:
+    - id
+    limit: 10
+    direct_sql: "LOAD httpfs;\nSET s3_region='us-west-2';\nSET VARIABLE overture_release\
+      \ = '2026-10-21.0';\nSET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';\n\
+      \nSELECT id, bbox\nFROM read_parquet(\n  getvariable('overture_s3_base') ||\
+      \ '/release/' || getvariable('overture_release') || '/theme=addresses/type=address/*'\n\
+      )\nWHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <=\
+      \ 39.657\n  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SET VARIABLE overture_release = '2026-10-21.0';\nSET VARIABLE overture_s3_base\
+      \ = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.address\n\
+      WHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n\
+      \  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+release:
+  latest:
+    method: stac-catalog
+    url: https://stac.overturemaps.org/catalog.json
+    resolve_sql: 'SELECT regexp_extract(l.href, ''/([0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+)/catalog\.json$'',
+      1) AS release
+
+      FROM (SELECT unnest(links) AS l FROM read_json(''https://stac.overturemaps.org/catalog.json''))
+
+      WHERE l.rel = ''child'' AND l.latest;
+
+      '
+  pinned:
+    duckdb_setting: overture_release
+    s3_base_setting: overture_s3_base
+    example: 2026-10-21.0
+discovery:
+  namespace: odd.overturemaps.latest
+  discover_sql: "SELECT collection AS name,\n       'read_parquet' AS reader,\n  \
+    \     regexp_replace(regexp_replace(min(assets.aws.href), '^https://([^.]+)\\\
+    .s3\\.[^/]+/', 's3://\\1/'), '/part-[^/]+$', '/*') AS path\nFROM read_parquet('https://stac.overturemaps.org/{release}/collections.parquet')\n\
+    GROUP BY collection;\n"

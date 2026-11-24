@@ -1,0 +1,21 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: ckan.data-gov-au.wyndham-pets
+name: Data.gov.au Wyndham registered dogs and cats
+status: candidate
+source_type: ckan
+authority: Wyndham City Council via data.gov.au
+license_url: https://creativecommons.org/licenses/by/3.0/au/
+attribution: Wyndham City Council; licensed under Creative Commons Attribution 3.0
+  Australia.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: wyndham_pet_registrations
+  description: Wyndham registered dog and cat counts. One row per suburb/count record
+    in the public CSV distribution.
+  ask_for:
+  - suburb or animal type
+  warnings:
+  - CKAN is discovery metadata; query the direct readable CSV distribution.

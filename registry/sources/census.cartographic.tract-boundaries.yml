@@ -1,0 +1,80 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: census.cartographic.tract-boundaries
+name: U.S. Census cartographic tract boundary files
+status: candidate
+source_type: other
+authority: U.S. Census Bureau Geography Program
+license_url: https://www.census.gov/data/developers/about/terms-of-service.html
+attribution: U.S. Census Bureau Geography Program, Cartographic Boundary Files; cite
+  the selected year and scale and do not imply Census Bureau endorsement.
+requirements:
+  duckdb_extensions:
+  - spatial
+tables:
+- id: tract_5m
+  ref: odd.census.latest.tract_5m
+  description: Generalized U.S. census tract polygons at 5m scale. One row per census
+    tract feature.
+  ask_for:
+  - year
+  - scale
+  - state filter
+  - tract GEOID join key
+  warnings:
+  - National tract files are larger; filter by state when possible.
+  validations:
+  - id: odd.census.latest.tract_5m
+    description: Compare the latest Census tract boundary facade with the direct zipped
+      shapefile recipe.
+    release: latest
+    compare: exact
+    order_by:
+    - GEOID
+    limit: 10
+    direct_sql: 'LOAD spatial;
+
+      SELECT GEOID, NAME, STATEFP, COUNTYFP
+
+      FROM ST_Read(''/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_tract_5m.zip/cb_2025_us_tract_5m.shp'')
+
+      WHERE STATEFP = ''02''
+
+      ORDER BY GEOID
+
+      LIMIT 10;
+
+      '
+    odd_sql: 'LOAD open_data_duck;
+
+      ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+      SET VARIABLE census_cartographic_year = ''2025'';
+
+      SELECT GEOID, NAME, STATEFP, COUNTYFP
+
+      FROM odd.census.latest.tract_5m
+
+      WHERE STATEFP = ''02''
+
+      ORDER BY GEOID
+
+      LIMIT 10;
+
+      '
+release:
+  latest:
+    method: html-listing
+    url: https://www2.census.gov/geo/tiger/
+    resolve_sql: "SELECT max(regexp_extract(m, 'GENZ([0-9]{4})', 1)) AS release\n\
+      FROM (SELECT unnest(regexp_extract_all(content, 'GENZ[0-9]{4}')) AS m\n    \
+      \  FROM read_text('https://www2.census.gov/geo/tiger/'));\n"
+  pinned:
+    duckdb_setting: census_cartographic_year
+    example: '2025'
+discovery:
+  namespace: odd.census.latest
+  discover_sql: "SELECT regexp_extract(z, 'cb_{release}_us_(.+)\\.zip', 1) AS name,\n\
+    \       'st_read' AS reader,\n       '/vsizip/vsicurl/https://www2.census.gov/geo/tiger/GENZ{release}/shp/'\
+    \ || z || '/' || replace(z, '.zip', '.shp') AS path\nFROM (SELECT DISTINCT unnest(regexp_extract_all(content,\
+    \ 'cb_{release}_us_tract[a-z0-9_]*\\.zip')) AS z\n      FROM read_text('https://www2.census.gov/geo/tiger/GENZ{release}/shp/'));\n"

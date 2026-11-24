@@ -10,3 +10,7 @@ __pycache__/
 build/
 cmake-build-debug/
 duckdb_unittest_tempdir/
+_site/
+src/include/open_data_duck_registry.generated.hpp
+site/index.html
+docs/index.md

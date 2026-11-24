@@ -1,0 +1,70 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: socrata.chicago.building-permits
+name: City of Chicago building permits
+status: candidate
+source_type: socrata
+authority: City of Chicago Department of Buildings / Chicago Data Portal
+license_url: https://www.chicago.gov/city/en/narr/foia/data_disclaimer.html
+attribution: City of Chicago, Department of Buildings, Building Permits dataset; preserve
+  City disclaimer/no-warranty language and do not imply City endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: building_permits
+  ref: odd.chicago.latest.building_permits
+  description: City of Chicago building permit records. One row per issued, non-voided,
+    non-revoked building permit in the bounded Socrata sample.
+  columns_hint:
+    id: Socrata row identifier for the permit record.
+    permit_: City permit number.
+    permit_type: Permit category, such as renovation/alteration or wrecking/demolition.
+    review_type: Review workflow used for the permit.
+    application_start_date: Date the permit application process started.
+    issue_date: Date the permit was issued.
+    reported_cost: Applicant-reported project cost.
+    community_area: Chicago community area number.
+  ask_for:
+  - issue or application date range
+  - community area or ward/geography filter
+  - permit type or review type
+  - whether addresses and work descriptions are needed
+  - limit
+  warnings:
+  - Dataset is updated daily and includes street-level permit records and work descriptions;
+    filter by date, geography, and permit type before broad scans.
+  - City terms require preserving the City disclaimer and no-warranty language for
+    downstream apps.
+  - Facade is a fixed community-area 32 January 2024 validation sample using selected
+    columns, deterministic ordering, and a 50000-row cap until ODD supports parameterized
+    Socrata paging.
+  - 'Smoke sample: community_area=32 January 2024 rows returned row_count=287, permit_types=5,
+    reported_cost_sum=54476382 on 2026-11-24.'
+  validations:
+  - id: odd.chicago.latest.building_permits
+    description: Compare the Chicago building permits Socrata facade with the direct
+      bounded SODA CSV recipe for a stable community-area 32 January 2024 sample.
+    release: latest
+    compare: exact
+    order_by:
+    - row_count
+    limit: 1
+    direct_sql: "LOAD httpfs;\nSELECT count(*) AS row_count,\n       CAST(min(issue_date)\
+      \ AS DATE) AS min_issue_date,\n       CAST(max(issue_date) AS DATE) AS max_issue_date,\n\
+      \       count(DISTINCT permit_type) AS permit_types,\n       CAST(round(sum(reported_cost),\
+      \ 2) AS BIGINT) AS reported_cost_sum\nFROM read_csv_auto('https://data.cityofchicago.org/resource/ydr8-5enu.csv?$select=id,permit_,permit_type,review_type,application_start_date,issue_date,reported_cost,community_area&$where=issue_date%20between%20%272024-01-01T00:00:00%27%20and%20%272024-02-01T00:00:00%27%20AND%20community_area=32&$order=id&$limit=50000');\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SELECT count(*) AS row_count,\n       CAST(min(issue_date) AS DATE) AS min_issue_date,\n\
+      \       CAST(max(issue_date) AS DATE) AS max_issue_date,\n       count(DISTINCT\
+      \ permit_type) AS permit_types,\n       CAST(round(sum(reported_cost), 2) AS\
+      \ BIGINT) AS reported_cost_sum\nFROM odd.chicago.latest.building_permits;\n"
+release:
+  latest:
+    method: static-soda-export
+    url: https://data.cityofchicago.org/resource/ydr8-5enu.csv
+discovery:
+  namespace: odd.chicago.latest
+  discover_sql: "SELECT 'building_permits' AS name,\n       'read_csv_auto' AS reader,\n\
+    \       'https://data.cityofchicago.org/resource/ydr8-5enu.csv?$select=id,permit_,permit_type,review_type,application_start_date,issue_date,reported_cost,community_area&$where=issue_date%20between%20%272024-01-01T00:00:00%27%20and%20%272024-02-01T00:00:00%27%20AND%20community_area=32&$order=id&$limit=50000'\
+    \ AS path;\n"

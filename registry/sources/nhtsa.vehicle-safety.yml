@@ -1,0 +1,44 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: nhtsa.vehicle-safety
+name: NHTSA vehicle safety recalls and ratings APIs
+status: candidate
+source_type: other
+authority: National Highway Traffic Safety Administration, U.S. Department of Transportation
+license_url: https://www.nhtsa.gov/about-nhtsa/terms-use
+attribution: National Highway Traffic Safety Administration (NHTSA), U.S. Department
+  of Transportation; credit NHTSA/DOT and do not imply endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: recalls_by_vehicle
+  description: NHTSA recall campaign results for a requested model year, make, and
+    model. One row per recall campaign result.
+  columns_hint:
+    NHTSACampaignNumber: NHTSA recall campaign identifier.
+    ReportReceivedDate: Date NHTSA received the campaign report.
+    Component: Vehicle component affected by the recall.
+    Summary: Long recall summary text.
+  ask_for:
+  - model year
+  - make
+  - model
+  - limit
+  warnings:
+  - Parameterized API endpoint; preserve model year
+  - make
+  - and model filters instead of treating it as a full-table scan.
+- id: safety_rating_variants
+  description: NHTSA safety-rating vehicle variants for a requested model year, make,
+    and model. One row per returned vehicle variant.
+  columns_hint:
+    VehicleId: Identifier used by NHTSA rating-detail lookups.
+    VehicleDescription: Human-readable vehicle variant description.
+  ask_for:
+  - model year
+  - make
+  - model
+  - limit
+  warnings:
+  - Parameterized API endpoint; use the returned VehicleId for rating-detail lookups.

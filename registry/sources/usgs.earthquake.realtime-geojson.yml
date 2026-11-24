@@ -1,0 +1,29 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: usgs.earthquake.realtime-geojson
+name: USGS realtime earthquake GeoJSON feeds
+status: candidate
+source_type: other
+authority: U.S. Geological Survey Earthquake Hazards Program
+license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+attribution: U.S. Geological Survey Earthquake Hazards Program; credit USGS earthquake
+  feeds and do not imply USGS endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: earthquake_events
+  description: Recent USGS earthquake event features. One row per reported seismic
+    event in the selected rolling feed.
+  columns_hint:
+    mag: Earthquake magnitude.
+    place: Human-readable event location.
+    time: Event time in epoch milliseconds.
+    geometry: GeoJSON point with longitude, latitude, and depth.
+  ask_for:
+  - feed window
+  - magnitude threshold
+  - bbox or region
+  - limit
+  warnings:
+  - Rolling feeds are not stable historical snapshots.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from odd.registry import load_sources, render_index_markdown
 
 
 BRAND_ASSETS = [
@@ -24,7 +25,7 @@ def test_brand_svg_assets_are_checked_in_and_safe() -> None:
 
 def test_brand_assets_are_linked_from_readme_and_pages_docs() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
-    index = Path("docs/index.md").read_text(encoding="utf-8")
+    index = render_index_markdown(load_sources(Path("registry/sources.yml")))
     brand_page = Path("docs/brand-assets.md").read_text(encoding="utf-8")
 
     assert "docs/assets/brand/odd-wordmark.svg" in readme

@@ -248,13 +248,14 @@ make release
 make test-extension-sql
 ```
 
-Generate derived registry artifacts after changing `registry/sources.yml`:
+Source definitions live one-per-file under `registry/sources/`. Keep `registry/sources.yml` as the small index file so parallel source PRs stay additive.
+
+The native build generates the embedded registry header as needed. To exercise derived registry outputs without committing them:
 
 ```bash
-uv run odd generate-extension-registry
-uv run odd generate-extension-registry --check
-uv run odd generate-index
-uv run odd generate-site
+uv run odd generate-extension-registry --output /tmp/open_data_duck_registry.generated.hpp
+uv run odd generate-index --output-dir /tmp/odd-docs
+uv run odd generate-site --output /tmp/odd-site-index.html
 ```
 
 Useful CLI commands:

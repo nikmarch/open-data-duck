@@ -72,11 +72,11 @@ def test_pages_builder_publishes_static_site_with_brand_assets(tmp_path: Path) -
     assert "#try-it" not in parser.links
     assert "#workflow" not in parser.links
     assert "https://github.com/nikmarch/open-data-duck" in parser.links
-    assert "https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md" in parser.links
+    assert "#source-catalog" in parser.links
 
 
 def test_pages_plugin_api_direction_is_static() -> None:
-    index = Path("site/index.html").read_text(encoding="utf-8")
+    index = render_site_index_html(load_sources(Path("registry/sources.yml")))
     styles = Path("site/styles.css").read_text(encoding="utf-8")
     parser = LinkAndAssetParser()
     parser.feed(index)
@@ -108,18 +108,17 @@ def test_pages_plugin_api_direction_is_static() -> None:
     assert "@keyframes terminal-type" not in styles
 
 
-def test_checked_in_pages_site_is_generated_from_registry() -> None:
+def test_pages_site_is_rendered_from_split_registry() -> None:
     sources = load_sources(Path("registry/sources.yml"))
-    index = Path("site/index.html").read_text(encoding="utf-8")
+    index = render_site_index_html(sources)
 
-    assert index == render_site_index_html(sources)
-    assert "Generated queryable table refs from registry/sources.yml" in index
-    assert "Source and table metadata rendered from registry/sources.yml" in index
+    assert "Generated queryable table refs from registry/sources/" in index
+    assert "Source and table metadata rendered from split registry files" in index
     assert "odd.local.anchorage.building_permits" not in index
 
 
 def test_pages_catalog_includes_registry_table_metadata() -> None:
-    index = Path("site/index.html").read_text(encoding="utf-8")
+    index = render_site_index_html(load_sources(Path("registry/sources.yml")))
 
     assert "id=\"source-catalog\"" in index
     assert "U.S. Census cartographic county boundary files" in index
@@ -130,7 +129,7 @@ def test_pages_catalog_includes_registry_table_metadata() -> None:
 
 def test_pages_site_has_social_preview_metadata() -> None:
     parser = LinkAndAssetParser()
-    parser.feed(Path("site/index.html").read_text(encoding="utf-8"))
+    parser.feed(render_site_index_html(load_sources(Path("registry/sources.yml"))))
 
     preview_image = "https://nikmarch.github.io/open-data-duck/assets/brand/odd-wordmark.svg"
     assert parser.meta[("property", "og:type")] == "website"

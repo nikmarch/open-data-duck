@@ -1,0 +1,78 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: aws.noaa-ghcn-daily
+name: NOAA Global Historical Climatology Network Daily
+status: candidate
+source_type: other
+authority: NOAA National Centers for Environmental Information
+license_url: https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
+attribution: NOAA National Centers for Environmental Information, Global Historical
+  Climatology Network Daily.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: ghcn_daily
+  ref: odd.noaa.latest.ghcn_daily
+  description: GHCN Daily station observations. One row per station, date, and observed
+    climate element.
+  ask_for:
+  - year
+  - station id
+  - climate element
+  warnings:
+  - CSV files are large; filter by year/station/element early.
+  validations:
+  - id: odd.noaa.latest.ghcn_daily
+    description: Compare NOAA GHCN Daily facade with the direct year CSV recipe.
+    release: latest
+    compare: exact
+    order_by:
+    - id
+    - date
+    - element
+    limit: 10
+    direct_sql: 'LOAD httpfs;
+
+      SELECT id, date, element, data_value
+
+      FROM read_csv_auto(''https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/2024.csv'')
+
+      WHERE id IS NOT NULL
+
+      ORDER BY id, date, element
+
+      LIMIT 10;
+
+      '
+    odd_sql: 'LOAD open_data_duck;
+
+      ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+      SET VARIABLE noaa_ghcn_year = ''2024'';
+
+      SELECT id, date, element, data_value
+
+      FROM odd.noaa.latest.ghcn_daily
+
+      WHERE id IS NOT NULL
+
+      ORDER BY id, date, element
+
+      LIMIT 10;
+
+      '
+release:
+  latest:
+    method: s3-listing
+    url: https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/
+    resolve_sql: "SELECT max(regexp_extract(m, '([0-9]{4})\\.csv', 1)) AS release\n\
+      FROM (SELECT unnest(regexp_extract_all(content, 'by_year/[0-9]{4}\\.csv')) AS\
+      \ m\n      FROM read_text('https://noaa-ghcn-pds.s3.amazonaws.com/?list-type=2&prefix=csv/by_year/'));\n"
+  pinned:
+    duckdb_setting: noaa_ghcn_year
+    example: '2024'
+discovery:
+  namespace: odd.noaa.latest
+  discover_sql: "SELECT 'ghcn_daily' AS name,\n       'read_csv' AS reader,\n    \
+    \   'https://noaa-ghcn-pds.s3.amazonaws.com/csv/by_year/{release}.csv' AS path;\n"

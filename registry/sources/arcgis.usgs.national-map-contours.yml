@@ -1,0 +1,22 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: arcgis.usgs.national-map-contours
+name: USGS National Map elevation contours
+status: connector-blocked
+source_type: arcgis
+authority: U.S. Geological Survey
+license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+attribution: U.S. Geological Survey National Map.
+requirements:
+  duckdb_extensions:
+  - arcgis
+tables:
+- id: contours
+  description: USGS National Map elevation contour line features. One row per contour
+    segment feature.
+  ask_for:
+  - bbox
+  - contour interval or elevation need
+  - fields
+  warnings:
+  - Connector is blocked; large geometry layers need paging.

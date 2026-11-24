@@ -1,0 +1,24 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: sourcecoop.vida.google-microsoft-open-buildings
+name: VIDA Google-Microsoft Open Buildings (Source Cooperative GeoParquet)
+status: candidate
+source_type: parquet
+authority: VIDA, combining Google Open Buildings V3 and Microsoft GlobalMLBuildingFootprints
+license_url: https://data.source.coop/vida/google-microsoft-open-buildings/README.md
+attribution: Google Open Buildings and Microsoft GlobalMLBuildingFootprints, combined
+  by VIDA; licensed under ODbL v1.0.
+requirements:
+  duckdb_extensions:
+  - httpfs
+  - spatial
+tables:
+- id: building_footprints
+  description: Combined Google/Microsoft building footprint polygons. One row per
+    building footprint.
+  ask_for:
+  - ISO3 country code
+  - bbox
+  - limit
+  warnings:
+  - Large countries are partitioned; use country and S2 paths to avoid huge scans.

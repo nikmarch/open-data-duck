@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 
+
 @dataclass(frozen=True)
 class ValidationError:
     path: str
@@ -106,12 +107,39 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def load_sources(registry_path: Path) -> list[Source]:
+def load_registry(registry_path: Path) -> dict[str, Any]:
+    """Load the registry as the legacy aggregate {sources: [...]} shape.
+
+    New source definitions live one-per-file under registry/sources/ to make
+    parallel source PRs additive. The public loader still returns the aggregate
+    shape expected by validators, renderers, and existing callers.
+    """
+
+    return {"sources": load_source_mappings(registry_path)}
+
+
+def load_source_mappings(registry_path: Path) -> list[dict[str, Any]]:
+    if registry_path.is_dir():
+        return _load_source_directory(registry_path)
+
     registry = load_yaml(registry_path)
     sources = registry.get("sources")
-    if not isinstance(sources, list):
-        raise ValueError(f"{registry_path} must contain a sources list")
-    return [Source.from_mapping(source) for source in sources if isinstance(source, dict)]
+    if isinstance(sources, list):
+        return _sort_source_mappings([dict(source) for source in sources if isinstance(source, dict)])
+
+    sources_dir = registry.get("sources_dir")
+    if isinstance(sources_dir, str) and sources_dir.strip():
+        return _load_source_directory((registry_path.parent / sources_dir).resolve())
+
+    default_sources_dir = registry_path.parent / "sources"
+    if default_sources_dir.is_dir():
+        return _load_source_directory(default_sources_dir)
+
+    raise ValueError(f"{registry_path} must contain either a sources list or sources_dir")
+
+
+def load_sources(registry_path: Path) -> list[Source]:
+    return [Source.from_mapping(source) for source in load_source_mappings(registry_path)]
 
 
 def search_sources(
@@ -143,6 +171,26 @@ def find_source(registry_path: Path, source_id: str) -> Source | None:
         if source.id == source_id:
             return source
     return None
+
+
+def _load_source_directory(source_dir: Path) -> list[dict[str, Any]]:
+    if not source_dir.is_dir():
+        raise ValueError(f"{source_dir} must be a directory of source YAML files")
+    sources: list[dict[str, Any]] = []
+    for path in sorted((*source_dir.glob("*.yml"), *source_dir.glob("*.yaml"))):
+        data = load_yaml(path)
+        if "sources" in data:
+            nested_sources = data.get("sources")
+            if not isinstance(nested_sources, list):
+                raise ValueError(f"{path} sources must be a list when present")
+            sources.extend(dict(source) for source in nested_sources if isinstance(source, dict))
+            continue
+        sources.append(data)
+    return _sort_source_mappings(sources)
+
+
+def _sort_source_mappings(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(sources, key=lambda source: str(source.get("id", "")))
 
 
 def _string_list(value: Any) -> list[str]:

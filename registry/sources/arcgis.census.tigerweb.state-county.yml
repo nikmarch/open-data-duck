@@ -1,0 +1,22 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: arcgis.census.tigerweb.state-county
+name: U.S. Census TIGERweb state and county layers
+status: connector-blocked
+source_type: arcgis
+authority: U.S. Census Bureau
+license_url: https://www.census.gov/data/developers/about/terms-of-service.html
+attribution: U.S. Census Bureau TIGERweb.
+requirements:
+  duckdb_extensions:
+  - arcgis
+tables:
+- id: county_boundaries
+  description: TIGERweb state/county boundary layer features. One row per ArcGIS boundary
+    feature.
+  ask_for:
+  - state or county
+  - fields
+  - whether geometry is needed
+  warnings:
+  - Connector is blocked; use REST pagination until ArcGIS support is stable.

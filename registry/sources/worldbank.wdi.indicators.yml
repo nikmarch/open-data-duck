@@ -1,0 +1,23 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: worldbank.wdi.indicators
+name: World Bank World Development Indicators API
+status: candidate
+source_type: other
+authority: World Bank Group
+license_url: https://www.worldbank.org/ext/en/legal/terms-conditions/datasets
+attribution: 'World Bank Group, World Development Indicators; attribute as: The World
+  Bank: World Development Indicators: World Bank Group. Do not imply World Bank endorsement.'
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: indicators
+  description: World Bank indicator observations. One row per country, indicator,
+    and year.
+  ask_for:
+  - country code
+  - indicator id
+  - year range
+  warnings:
+  - Values may be null; API responses use a JSON envelope.
