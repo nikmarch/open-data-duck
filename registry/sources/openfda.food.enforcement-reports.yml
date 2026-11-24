@@ -1,0 +1,35 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: openfda.food.enforcement-reports
+name: FDA openFDA food enforcement recall reports
+status: candidate
+source_type: other
+authority: U.S. Food and Drug Administration openFDA
+license_url: https://open.fda.gov/license/
+attribution: Data provided by the U.S. Food and Drug Administration (https://open.fda.gov);
+  openFDA materials are public domain / CC0 unless otherwise noted.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: food_enforcement_reports
+  description: FDA food enforcement recall reports. One row per public recall report
+    returned from the openFDA food enforcement endpoint after unnesting the JSON results
+    envelope.
+  columns_hint:
+    recall_number: FDA recall number for the enforcement report.
+    status: Recall status, such as Ongoing, Completed, or Terminated.
+    classification: Recall classification, such as Class I, Class II, or Class III.
+    product_description: Product description text from the recall report.
+    recalling_firm: Firm responsible for the recall.
+    report_date: FDA report date as YYYYMMDD text.
+  ask_for:
+  - classification
+  - status
+  - date window
+  - product or firm search term
+  - limit
+  warnings:
+  - API keys are optional but keyless access can be rate-limited; responses are nested
+    JSON envelopes
+  - so unnest results before treating reports as rows.

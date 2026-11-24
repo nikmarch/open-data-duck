@@ -1,0 +1,23 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: aws.noaa-gsod
+name: NOAA Global Surface Summary of the Day
+status: candidate
+source_type: other
+authority: NOAA National Centers for Environmental Information
+license_url: https://www.ncei.noaa.gov/products/land-based-weather-stations
+attribution: NOAA National Centers for Environmental Information, Global Surface Summary
+  of the Day.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: daily_summaries
+  description: NOAA GSOD daily station weather summaries. One row per station-day
+    summary.
+  ask_for:
+  - station id
+  - year
+  - weather fields
+  warnings:
+  - Station files are split by year and station.

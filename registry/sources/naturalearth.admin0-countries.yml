@@ -1,0 +1,83 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: naturalearth.admin0-countries
+name: Natural Earth Admin 0 countries
+status: candidate
+source_type: other
+authority: Natural Earth
+license_url: https://www.naturalearthdata.com/about/terms-of-use/
+attribution: 'Natural Earth public-domain map data; optional credit: Made with Natural
+  Earth.'
+requirements:
+  duckdb_extensions:
+  - spatial
+tables:
+- id: countries_110m
+  ref: odd.naturalearth.latest.countries_110m
+  description: Generalized Admin 0 country polygons at 1:110m scale. One row per country
+    or country-like map unit in the Natural Earth countries layer.
+  columns_hint:
+    NAME: Display name for the country or map unit.
+    ISO_A3: Three-letter ISO-style country code where assigned.
+    CONTINENT: Continent grouping from Natural Earth.
+    POP_EST: Estimated population attribute from Natural Earth.
+    geom: Generalized polygon or multipolygon geometry.
+  ask_for:
+  - scale
+  - whether de facto boundaries are acceptable
+  - country or sovereignty fields
+  - limit
+  warnings:
+  - Natural Earth is cartographic generalized data for small-scale maps, not legal
+    or survey boundaries.
+  - The Admin 0 countries layer uses de facto boundaries by default; choose a different
+    Natural Earth Admin 0 product if map units, sovereignty, or disputed areas matter.
+  validations:
+  - id: odd.naturalearth.latest.countries_110m
+    description: Compare the Natural Earth Admin 0 countries facade with the direct
+      zipped shapefile recipe for two stable country rows.
+    release: latest
+    compare: exact
+    order_by:
+    - ISO_A3
+    limit: 2
+    direct_sql: 'LOAD spatial;
+
+      SELECT NAME, ISO_A3, CONTINENT, POP_EST
+
+      FROM ST_Read(''/vsizip/vsicurl/https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip/ne_110m_admin_0_countries.shp'')
+
+      WHERE ISO_A3 IN (''USA'', ''UZB'')
+
+      ORDER BY ISO_A3;
+
+      '
+    odd_sql: 'LOAD open_data_duck;
+
+      ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+      SELECT NAME, ISO_A3, CONTINENT, POP_EST
+
+      FROM odd.naturalearth.latest.countries_110m
+
+      WHERE ISO_A3 IN (''USA'', ''UZB'')
+
+      ORDER BY ISO_A3;
+
+      '
+release:
+  latest:
+    method: static-download
+    url: https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip
+    resolve_sql: 'SELECT regexp_extract(''https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip'',
+      ''/naturalearth/([0-9]+m)/'', 1) AS release;
+
+      '
+  pinned:
+    duckdb_setting: naturalearth_scale
+    example: 110m
+discovery:
+  namespace: odd.naturalearth.latest
+  discover_sql: "SELECT 'countries_{release}' AS name,\n       'st_read' AS reader,\n\
+    \       '/vsizip/vsicurl/https://naciscdn.org/naturalearth/{release}/cultural/ne_{release}_admin_0_countries.zip/ne_{release}_admin_0_countries.shp'\
+    \ AS path;\n"

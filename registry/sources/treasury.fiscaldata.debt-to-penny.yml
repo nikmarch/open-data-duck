@@ -1,0 +1,23 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: treasury.fiscaldata.debt-to-penny
+name: U.S. Treasury Fiscal Data Debt to the Penny API
+status: candidate
+source_type: other
+authority: U.S. Department of the Treasury, Bureau of the Fiscal Service
+license_url: https://catalog.data.gov/dataset/debt-to-the-penny
+attribution: U.S. Department of the Treasury, Bureau of the Fiscal Service, Fiscal
+  Data / Debt to the Penny; do not imply Treasury endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: debt_observations
+  description: U.S. Treasury daily public debt outstanding records. One row per record
+    date.
+  ask_for:
+  - date window
+  - debt field
+  - limit
+  warnings:
+  - Fiscal Data CSV responses are gzipped; use compression = 'gzip'.

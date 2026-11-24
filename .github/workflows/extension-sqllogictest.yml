@@ -10,6 +10,9 @@ on:
       - extension_config.cmake
       - extension-ci-tools
       - src/**
+      - registry/**
+      - odd/**
+      - schema/**
       - test/sql/**
   push:
     branches: [main]
@@ -21,6 +24,9 @@ on:
       - extension_config.cmake
       - extension-ci-tools
       - src/**
+      - registry/**
+      - odd/**
+      - schema/**
       - test/sql/**
   workflow_dispatch:
 
@@ -40,6 +46,12 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Python dependencies
+        run: uv sync --extra dev
+
       - name: Install build cache tools
         run: |
           sudo apt-get update
@@ -56,7 +68,7 @@ jobs:
         with:
           path: ~/.cache/ccache
           key: >-
-            ${{ runner.os }}-open-data-duck-sqllogictest-ccache-${{ steps.cache-inputs.outputs.duckdb_sha }}-${{ steps.cache-inputs.outputs.extension_ci_tools_sha }}-${{ hashFiles('CMakeLists.txt', 'extension_config.cmake', 'src/**', 'test/sql/**') }}
+            ${{ runner.os }}-open-data-duck-sqllogictest-ccache-${{ steps.cache-inputs.outputs.duckdb_sha }}-${{ steps.cache-inputs.outputs.extension_ci_tools_sha }}-${{ hashFiles('CMakeLists.txt', 'extension_config.cmake', 'src/**', 'registry/**', 'odd/**', 'test/sql/**') }}
           restore-keys: |
             ${{ runner.os }}-open-data-duck-sqllogictest-ccache-${{ steps.cache-inputs.outputs.duckdb_sha }}-${{ steps.cache-inputs.outputs.extension_ci_tools_sha }}-
             ${{ runner.os }}-open-data-duck-sqllogictest-ccache-${{ steps.cache-inputs.outputs.duckdb_sha }}-

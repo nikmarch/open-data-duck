@@ -1,0 +1,23 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: socrata.nyc.311-service-requests
+name: NYC Open Data 311 Service Requests
+status: candidate
+source_type: socrata
+authority: City of New York Office of Technology and Innovation via NYC Open Data
+license_url: https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-216807
+attribution: NYC Open Data, 311 Service Requests from 2020 to Present, City of New
+  York Office of Technology and Innovation.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: service_requests
+  description: NYC 311 service request records. One row per 311 request.
+  ask_for:
+  - date range
+  - borough
+  - complaint type
+  - limit
+  warnings:
+  - Large table requires bounded SODA queries with select/order/limit.

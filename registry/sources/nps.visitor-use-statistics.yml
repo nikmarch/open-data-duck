@@ -1,0 +1,102 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: nps.visitor-use-statistics
+name: NPS Visitor Use Statistics data package
+status: candidate
+source_type: other
+authority: National Park Service Social Science Program
+license_url: https://creativecommons.org/publicdomain/zero/1.0/deed.en
+attribution: National Park Service Visitor Use Statistics data package; cite the selected
+  data package year and NPS IRMA/DataStore retrieval URL.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: state_monthly_visitor_stats
+  ref: odd.nps.latest.state_monthly_visitor_stats
+  description: NPS state-split monthly visitor-use statistics. One row per NPS unit,
+    year, month, statistic code, value, and state in the Main_State_Data.csv package
+    file.
+  columns_hint:
+    UnitCode: NPS unit code such as ALAG.
+    Year: Observation year.
+    Month: Observation month number.
+    Statistic: Compact NPS visitor-use statistic code such as TRV or TNRV.
+    Value: Reported visitor-use statistic value.
+    StateID: Two-letter state abbreviation for the state-split record.
+  ask_for:
+  - state
+  - year range
+  - month or annual rollup need
+  - NPS unit code
+  - statistic code
+  - whether state-split or all-unit totals are desired
+  warnings:
+  - The CSV uses compact NPS visitor-use statistic codes; preserve or explain code
+    definitions before presenting labels as user-friendly measures.
+  - The source CSV is tens of MB; filter by state, year, month, unit code, or statistic
+    code before broad scans.
+  validations:
+  - id: odd.nps.latest.state_monthly_visitor_stats
+    description: Compare the NPS state monthly visitor stats facade with the direct
+      public IRMA/DataStore CSV recipe for a bounded Alaska sample.
+    release: latest
+    compare: exact
+    direct_sql: "LOAD httpfs;\nSELECT count(*) AS row_count,\n       min(Year) AS\
+      \ min_year,\n       max(Year) AS max_year,\n       count(DISTINCT UnitCode)\
+      \ AS units,\n       count(DISTINCT Statistic) AS statistics\nFROM read_csv_auto(\n\
+      \  'https://irma.nps.gov/DataStore/DownloadFile/756960?Reference=2317666',\n\
+      \  sample_size = 20000,\n  header = true\n)\nWHERE StateID = 'AK'\n  AND Year\
+      \ BETWEEN 2024 AND 2025;\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SELECT count(*) AS row_count,\n       min(Year) AS min_year,\n       max(Year)\
+      \ AS max_year,\n       count(DISTINCT UnitCode) AS units,\n       count(DISTINCT\
+      \ Statistic) AS statistics\nFROM odd.nps.latest.state_monthly_visitor_stats\n\
+      WHERE StateID = 'AK'\n  AND Year BETWEEN 2024 AND 2025;\n"
+- id: monthly_visitor_stats
+  ref: odd.nps.latest.monthly_visitor_stats
+  description: NPS monthly visitor-use statistics. One row per NPS unit, year, month,
+    statistic code, and value in the Main_Data.csv package file.
+  columns_hint:
+    UnitCode: NPS unit code such as ALAG.
+    Year: Observation year.
+    Month: Observation month number.
+    Statistic: Compact NPS visitor-use statistic code such as TRV or TNRV.
+    Value: Reported visitor-use statistic value.
+  ask_for:
+  - NPS unit code
+  - year range
+  - month or annual rollup need
+  - statistic code
+  - limit
+  warnings:
+  - The all-unit CSV is larger than the state-split file and does not include StateID;
+    use the state table when state filtering is needed.
+  - Statistic codes are compact NPS visitor-use measures, not plain-English metric
+    names.
+  validations:
+  - id: odd.nps.latest.monthly_visitor_stats
+    description: Compare the NPS monthly visitor stats facade with the direct public
+      IRMA/DataStore CSV recipe for a bounded ALAG sample.
+    release: latest
+    compare: exact
+    direct_sql: "LOAD httpfs;\nSELECT count(*) AS row_count,\n       count(DISTINCT\
+      \ Statistic) AS statistics,\n       CAST(sum(Value) AS BIGINT) AS total_value\n\
+      FROM read_csv_auto(\n  'https://irma.nps.gov/DataStore/DownloadFile/756959?Reference=2317666',\n\
+      \  sample_size = 20000,\n  header = true\n)\nWHERE UnitCode = 'ALAG'\n  AND\
+      \ Year = 2025\n  AND Month = 7;\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SELECT count(*) AS row_count,\n       count(DISTINCT Statistic) AS statistics,\n\
+      \       CAST(sum(Value) AS BIGINT) AS total_value\nFROM odd.nps.latest.monthly_visitor_stats\n\
+      WHERE UnitCode = 'ALAG'\n  AND Year = 2025\n  AND Month = 7;\n"
+release:
+  latest:
+    method: static-data-package
+    url: https://irma.nps.gov/DataStore/Reference/Profile/2317666
+discovery:
+  namespace: odd.nps.latest
+  discover_sql: "SELECT 'state_monthly_visitor_stats' AS name,\n       'read_csv_auto'\
+    \ AS reader,\n       'https://irma.nps.gov/DataStore/DownloadFile/756960?Reference=2317666'\
+    \ AS path\nUNION ALL\nSELECT 'monthly_visitor_stats' AS name,\n       'read_csv_auto'\
+    \ AS reader,\n       'https://irma.nps.gov/DataStore/DownloadFile/756959?Reference=2317666'\
+    \ AS path;\n"

@@ -5,13 +5,13 @@ from typing import Any
 
 import jsonschema
 
-from odd.registry_model import ValidationError, load_json, load_yaml, _mapping_list
+from odd.registry_model import ValidationError, load_json, load_registry, _mapping_list
 
 REQUIRED_TEXT_FIELDS = (("authority",), ("license_url",), ("attribution",))
 
 
 def validate_registry(registry_path: Path, schema_path: Path) -> list[ValidationError]:
-    registry = load_yaml(registry_path)
+    registry = load_registry(registry_path)
     schema = load_json(schema_path)
     errors: list[ValidationError] = []
     validator = jsonschema.Draft202012Validator(schema)

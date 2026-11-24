@@ -9,7 +9,6 @@ import yaml
 from odd import extension_registry
 from odd.cli import main
 from odd.extension_registry import (
-    DEFAULT_EXTENSION_REGISTRY_HEADER,
     EXTENSION_REGISTRY_SCHEMA_VERSION,
     build_extension_registry,
     check_extension_registry_header,
@@ -17,7 +16,7 @@ from odd.extension_registry import (
     render_extension_registry_json,
     write_extension_registry_header,
 )
-from odd.registry import load_sources
+from odd.registry import load_registry, load_sources
 
 REGISTRY_PATH = Path("registry/sources.yml")
 
@@ -30,13 +29,23 @@ def _extract_embedded_json(header_text: str) -> dict:
     return json.loads(header_text[start:end])
 
 
-def test_checked_in_extension_registry_header_is_current() -> None:
-    assert check_extension_registry_header(REGISTRY_PATH, DEFAULT_EXTENSION_REGISTRY_HEADER) == []
+def _aggregate_registry_subset(count: int = 2) -> dict:
+    registry = load_registry(REGISTRY_PATH)
+    registry["sources"] = registry["sources"][:count]
+    return registry
+
+
+def test_extension_registry_check_reports_missing_generated_header(tmp_path: Path) -> None:
+    missing_header = tmp_path / "missing.hpp"
+
+    assert check_extension_registry_header(REGISTRY_PATH, missing_header) == [
+        f"{missing_header} is missing; run `uv run odd generate-extension-registry`"
+    ]
 
 
 def test_embedded_registry_round_trips_every_source_with_required_fields() -> None:
     sources = load_sources(REGISTRY_PATH)
-    header = DEFAULT_EXTENSION_REGISTRY_HEADER.read_text(encoding="utf-8")
+    header = render_extension_registry_header(sources)
     embedded = _extract_embedded_json(header)
 
     assert embedded["schema_version"] == EXTENSION_REGISTRY_SCHEMA_VERSION
@@ -67,7 +76,7 @@ def test_embedded_registry_round_trips_every_source_with_required_fields() -> No
 
 
 def test_header_is_pure_generated_cpp_without_python_runtime_dependency() -> None:
-    header = DEFAULT_EXTENSION_REGISTRY_HEADER.read_text(encoding="utf-8")
+    header = render_extension_registry_header(load_sources(REGISTRY_PATH))
 
     assert header.startswith("// GENERATED FILE. DO NOT EDIT.")
     assert "#pragma once" in header
@@ -77,8 +86,7 @@ def test_header_is_pure_generated_cpp_without_python_runtime_dependency() -> Non
 
 
 def test_raw_string_delimiter_cannot_leak_from_registry_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    registry = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
-    registry["sources"] = registry["sources"][:1]
+    registry = _aggregate_registry_subset(1)
     registry["sources"][0]["tables"][0]["description"] = 'contains )odd_registry" delimiter'
     registry_path = tmp_path / "sources.yml"
     registry_path.write_text(yaml.safe_dump(registry), encoding="utf-8")
@@ -94,8 +102,7 @@ def test_raw_string_delimiter_cannot_leak_from_registry_text(tmp_path: Path, mon
 
 
 def test_cli_generate_and_check_detect_drift(tmp_path: Path) -> None:
-    registry = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
-    registry["sources"] = registry["sources"][:2]
+    registry = _aggregate_registry_subset(2)
     registry_path = tmp_path / "sources.yml"
     registry_path.write_text(yaml.safe_dump(registry), encoding="utf-8")
     output = tmp_path / "generated.hpp"

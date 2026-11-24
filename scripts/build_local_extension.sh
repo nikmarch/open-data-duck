@@ -29,7 +29,7 @@ if [ ! -f duckdb/CMakeLists.txt ] || [ ! -f extension-ci-tools/makefiles/duckdb_
   git submodule update --init --recursive
 fi
 
-# 2. Keep embedded registry header in sync with registry/sources.yml.
+# 2. Keep embedded registry header in sync with split registry source files.
 if command -v uv >/dev/null; then
   echo ">> regenerating extension registry header"
   uv run odd generate-extension-registry

@@ -1,0 +1,23 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: aws.noaa-isd-history
+name: NOAA Integrated Surface Database station history
+status: candidate
+source_type: other
+authority: NOAA National Centers for Environmental Information
+license_url: https://www.ncei.noaa.gov/products/land-based-station/integrated-surface-database
+attribution: NOAA National Centers for Environmental Information, Integrated Surface
+  Database.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: station_history
+  description: NOAA ISD station metadata. One row per weather station history record.
+  ask_for:
+  - country
+  - state
+  - station name
+  - nearby place
+  warnings:
+  - Metadata lookup only; use observation datasets for measurements.

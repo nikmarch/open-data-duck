@@ -253,7 +253,7 @@ def render_site_index_html(sources: list[Source]) -> str:
         <a class=\"button primary\" href=\"#plugin-api\">Plugin API direction</a>
         <a class=\"button\" href=\"#source-catalog\">Browse generated catalog</a>
         <a class=\"button\" href=\"https://github.com/nikmarch/open-data-duck\">View the repository</a>
-        <a class=\"button\" href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md\">Browse the source index</a>
+        <a class=\"button\" href=\"#source-catalog\">Browse the source index</a>
       </div>
     </section>
 
@@ -288,7 +288,7 @@ WHERE bbox.xmin <= -149
   AND bbox.ymax >= 60
 LIMIT 10;</code></pre>
         <table>
-          <caption>Generated queryable table refs from registry/sources.yml</caption>
+          <caption>Generated queryable table refs from registry/sources/</caption>
           <thead><tr><th>source</th><th>table</th><th>table_reference</th></tr></thead>
           <tbody>
 {table_rows}
@@ -298,14 +298,14 @@ LIMIT 10;</code></pre>
     </section>
     <section class=\"catalog\" id=\"source-catalog\" aria-labelledby=\"source-catalog-title\">
       <p class=\"eyebrow\">Generated catalog</p>
-      <h2 id=\"source-catalog-title\">Source and table metadata rendered from registry/sources.yml.</h2>
+      <h2 id=\"source-catalog-title\">Source and table metadata rendered from split registry files.</h2>
       <p class=\"catalog-summary\">{len(sources)} sources across {source_type_counts}. Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class=\"catalog-grid\">
 {source_cards}
       </div>
     </section>
     <section class=\"grid\" aria-label=\"Project documentation\">
-      <article><h2>Source index</h2><p>Human- and AI-friendly catalog entries for public data sources, licenses, table hints, and executable validation pairs.</p><a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/index.md\">Read the generated index</a></article>
+      <article><h2>Source index</h2><p>Human- and AI-friendly catalog entries for public data sources, licenses, table hints, and executable validation pairs.</p><a href=\"#source-catalog\">Read the generated catalog</a></article>
       <article><h2>Engine track</h2><p>Connector status for ArcGIS, CKAN/DCAT, Socrata, Overture, STAC, and public object-storage paths.</p><a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/engine-maintenance.md\">See engine maintenance</a></article>
       <article><h2>Brand assets</h2><p>The project wordmark and icon are checked into the repo and reused here by the Pages build.</p><a href=\"https://github.com/nikmarch/open-data-duck/blob/main/docs/brand-assets.md\">View brand assets</a></article>
     </section>

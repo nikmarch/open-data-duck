@@ -12,6 +12,8 @@ from odd.arcgis import plan_offset_pages
 from odd.cli import build_parser, main
 from odd.registry import (
     find_source,
+    load_registry,
+    load_sources,
     render_ai_catalog_json,
     render_index_json,
     render_index_markdown,
@@ -125,7 +127,7 @@ def write_registry(tmp_path: Path, registry: dict) -> tuple[Path, Path]:
 
 
 def load_project_registry() -> dict:
-    return yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
+    return load_registry(Path("registry/sources.yml"))
 
 
 def all_validation_sql(source: dict) -> str:
@@ -377,12 +379,53 @@ def test_project_registry_is_valid() -> None:
     assert [error.format() for error in errors] == []
 
 
-def test_checked_in_index_artifacts_are_current() -> None:
-    from odd.registry import load_sources
+def test_project_registry_index_points_to_split_source_files() -> None:
+    index = yaml.safe_load(Path("registry/sources.yml").read_text(encoding="utf-8"))
 
+    assert index == {"sources_dir": "sources"}
+    assert Path("registry/sources/overture.maps.release.yml").exists()
+    assert not isinstance(index.get("sources"), list)
+
+
+def test_split_registry_loads_from_index_or_directory_in_deterministic_order(tmp_path: Path) -> None:
+    source_a = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY["sources"][0]))
+    source_b = yaml.safe_load(yaml.safe_dump(MINIMAL_REGISTRY["sources"][0]))
+    source_dir = tmp_path / "sources"
+    source_dir.mkdir()
+    (source_dir / "z.yml").write_text(yaml.safe_dump(source_b), encoding="utf-8")
+    (source_dir / "a.yml").write_text(yaml.safe_dump(source_a), encoding="utf-8")
+    index = tmp_path / "sources.yml"
+    index.write_text("sources_dir: sources\n", encoding="utf-8")
+
+    assert [source.id for source in load_sources(index)] == ["example.source", "minimal.source"]
+    assert [source.id for source in load_sources(source_dir)] == ["example.source", "minimal.source"]
+    assert [source["id"] for source in load_registry(index)["sources"]] == ["example.source", "minimal.source"]
+
+
+def test_split_registry_detects_duplicate_source_ids_across_files(tmp_path: Path) -> None:
+    source_dir = tmp_path / "sources"
+    source_dir.mkdir()
+    source = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY["sources"][0]))
+    (source_dir / "one.yml").write_text(yaml.safe_dump(source), encoding="utf-8")
+    (source_dir / "two.yml").write_text(yaml.safe_dump(source), encoding="utf-8")
+    registry_path = tmp_path / "sources.yml"
+    schema_path = tmp_path / "source.schema.json"
+    registry_path.write_text("sources_dir: sources\n", encoding="utf-8")
+    schema_path.write_text(Path("schema/source.schema.json").read_text(encoding="utf-8"), encoding="utf-8")
+
+    errors = validate_registry(registry_path, schema_path)
+
+    assert any(error.message == "duplicate source id" for error in errors)
+
+
+def test_index_generator_renders_from_split_sources(tmp_path: Path) -> None:
     sources = load_sources(Path("registry/sources.yml"))
+    output_dir = tmp_path / "docs"
 
-    assert Path("docs/index.md").read_text(encoding="utf-8") == render_index_markdown(sources)
+    paths = write_index_artifacts(Path("registry/sources.yml"), output_dir)
+
+    assert paths == [output_dir / "index.md"]
+    assert (output_dir / "index.md").read_text(encoding="utf-8") == render_index_markdown(sources)
     assert not Path("docs/index.json").exists()
 
 

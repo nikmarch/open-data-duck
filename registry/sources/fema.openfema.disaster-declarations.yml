@@ -1,0 +1,98 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: fema.openfema.disaster-declarations
+name: FEMA OpenFEMA Disaster Declarations Summaries
+status: candidate
+source_type: parquet
+authority: Federal Emergency Management Agency OpenFEMA
+license_url: https://www.fema.gov/about/openfema/terms-conditions
+attribution: Cite FEMA OpenFEMA and the Disaster Declarations Summaries dataset/retrieval
+  per the OpenFEMA Terms and Conditions citation guidance.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: disaster_declarations
+  ref: odd.fema.latest.disaster_declarations
+  description: FEMA disaster declaration summary records. One row per federally declared
+    disaster declaration and designated geographic area from 1953 forward.
+  columns_hint:
+    disasterNumber: FEMA disaster declaration number.
+    state: Two-letter state, territory, or Tribal Nation state-code grouping.
+    declarationDate: Date FEMA declared the disaster.
+    incidentType: Incident category such as Flood, Fire, Hurricane, or Earthquake.
+    designatedArea: County, parish, borough, census area, statewide area, or Tribal
+      area covered by the declaration.
+    declarationType: FEMA declaration type code.
+    ihProgramDeclared: Whether the Individual and Households Program was declared
+      for the record.
+    paProgramDeclared: Whether Public Assistance was declared for the record.
+    hmProgramDeclared: Whether Hazard Mitigation was declared for the record.
+  ask_for:
+  - state or territory
+  - declaration date or fiscal year range
+  - incident type
+  - declaration type
+  - assistance program flags
+  - limit
+  warnings:
+  - FEMA describes OpenFEMA as raw, unedited NEMIS data; historical/manual records
+    can contain a small percentage of human error.
+  - County data is not available before 1964, Fire Management records are partial,
+    and Tribal Nation declarations are currently included in state data.
+  validations:
+  - id: odd.fema.latest.disaster_declarations
+    description: Compare the FEMA OpenFEMA disaster declarations facade with the direct
+      public Parquet export for stable state aggregates.
+    release: latest
+    source_release: v2
+    compare: exact
+    order_by:
+    - state
+    direct_sql: 'LOAD httpfs;
+
+      SELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster,
+      max(disasterNumber) AS latest_disaster
+
+      FROM read_parquet(''https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet'')
+
+      WHERE state IN (''AK'', ''CA'')
+
+      GROUP BY state
+
+      ORDER BY state;
+
+      '
+    odd_sql: 'LOAD open_data_duck;
+
+      ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+      SET VARIABLE fema_disaster_declarations_release = ''v2'';
+
+      SELECT state, count(*) AS declarations, min(disasterNumber) AS first_disaster,
+      max(disasterNumber) AS latest_disaster
+
+      FROM odd.fema.latest.disaster_declarations
+
+      WHERE state IN (''AK'', ''CA'')
+
+      GROUP BY state
+
+      ORDER BY state;
+
+      '
+release:
+  latest:
+    method: static-parquet
+    url: https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet
+    resolve_sql: 'SELECT ''v2'' AS release;
+
+      '
+  pinned:
+    duckdb_setting: fema_disaster_declarations_release
+    example: v2
+discovery:
+  namespace: odd.fema.latest
+  discover_sql: "SELECT 'disaster_declarations' AS name,\n       'read_parquet' AS\
+    \ reader,\n       'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries.parquet'\
+    \ AS path\nWHERE '{release}' = 'v2';\n"

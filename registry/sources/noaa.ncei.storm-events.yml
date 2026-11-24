@@ -1,0 +1,159 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: noaa.ncei.storm-events
+name: NOAA NCEI Storm Events bulk CSV files
+status: candidate
+source_type: other
+authority: NOAA National Centers for Environmental Information
+license_url: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+attribution: NOAA National Centers for Environmental Information, Storm Events Database;
+  credit NOAA/NCEI and do not imply NOAA endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: storm_events_details
+  ref: odd.noaa.latest.storm_events_details
+  description: NOAA Storm Events detail rows. One row per reported storm event.
+  ask_for:
+  - year
+  - state
+  - event type
+  - limit
+  warnings:
+  - Files are revised with creation-date suffixes; pin year for reproducible examples.
+  validations:
+  - id: odd.noaa.latest.storm_events_details
+    description: Compare NOAA Storm Events details facade with the direct bulk CSV
+      recipe.
+    release: latest
+    compare: exact
+    order_by:
+    - event_id
+    limit: 10
+    direct_sql: "LOAD httpfs;\nSELECT event_id, state, event_type, begin_date_time,\
+      \ cz_name\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20261119.csv.gz',\n\
+      \  sample_size = 20000\n)\nWHERE event_type IS NOT NULL\nORDER BY event_id\n\
+      LIMIT 10;\n"
+    odd_sql: 'LOAD open_data_duck;
+
+      ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+      SET VARIABLE noaa_storm_events_year = ''2024'';
+
+      SELECT event_id, state, event_type, begin_date_time, cz_name
+
+      FROM odd.noaa.latest.storm_events_details
+
+      WHERE event_type IS NOT NULL
+
+      ORDER BY event_id
+
+      LIMIT 10;
+
+      '
+- id: storm_events_fatalities
+  ref: odd.noaa.latest.storm_events_fatalities
+  description: NOAA Storm Events fatality rows. One row per fatality associated with
+    a storm event.
+  ask_for:
+  - year
+  - state or event id
+  - limit
+  warnings:
+  - Join to details by event_id for event context.
+  validations:
+  - id: odd.noaa.latest.storm_events_fatalities
+    description: Compare NOAA Storm Events fatalities facade with the direct bulk
+      CSV recipe.
+    release: latest
+    compare: exact
+    order_by:
+    - fatality_id
+    limit: 10
+    direct_sql: "LOAD httpfs;\nSELECT fatality_id, event_id, fatality_type, fatality_date,\
+      \ fatality_age\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_fatalities-ftp_v1.0_d2024_c20261119.csv.gz',\n\
+      \  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\nORDER BY fatality_id\n\
+      LIMIT 10;\n"
+    odd_sql: 'LOAD open_data_duck;
+
+      ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+      SET VARIABLE noaa_storm_events_year = ''2024'';
+
+      SELECT fatality_id, event_id, fatality_type, fatality_date, fatality_age
+
+      FROM odd.noaa.latest.storm_events_fatalities
+
+      WHERE event_id IS NOT NULL
+
+      ORDER BY fatality_id
+
+      LIMIT 10;
+
+      '
+- id: storm_events_locations
+  ref: odd.noaa.latest.storm_events_locations
+  description: NOAA Storm Events location rows. One row per location attached to a
+    storm event.
+  ask_for:
+  - year
+  - state or event id
+  - limit
+  warnings:
+  - Join to details by event_id for event context.
+  validations:
+  - id: odd.noaa.latest.storm_events_locations
+    description: Compare NOAA Storm Events locations facade with the direct bulk CSV
+      recipe.
+    release: latest
+    compare: exact
+    order_by:
+    - event_id
+    - location_index
+    limit: 10
+    direct_sql: "LOAD httpfs;\nSELECT event_id, location_index, location, latitude,\
+      \ longitude\nFROM read_csv_auto(\n  'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_locations-ftp_v1.0_d2024_c20261119.csv.gz',\n\
+      \  sample_size = 20000\n)\nWHERE event_id IS NOT NULL\nORDER BY event_id, location_index\n\
+      LIMIT 10;\n"
+    odd_sql: 'LOAD open_data_duck;
+
+      ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+      SET VARIABLE noaa_storm_events_year = ''2024'';
+
+      SELECT event_id, location_index, location, latitude, longitude
+
+      FROM odd.noaa.latest.storm_events_locations
+
+      WHERE event_id IS NOT NULL
+
+      ORDER BY event_id, location_index
+
+      LIMIT 10;
+
+      '
+release:
+  latest:
+    method: html-listing
+    url: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+    resolve_sql: "SELECT max(regexp_extract(m, 'StormEvents_details-ftp_v1\\.0_d([0-9]{4})_c[0-9]{8}\\\
+      .csv\\.gz', 1)) AS release\nFROM (SELECT unnest(regexp_extract_all(content,\
+      \ 'StormEvents_details-ftp_v1\\.0_d[0-9]{4}_c[0-9]{8}\\.csv\\.gz')) AS m\n \
+      \     FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'));\n"
+  pinned:
+    duckdb_setting: noaa_storm_events_year
+    example: '2024'
+discovery:
+  namespace: odd.noaa.latest
+  discover_sql: "WITH files AS (\n  SELECT regexp_extract(m, 'StormEvents_([a-z]+)-ftp_v1\\\
+    .0_d{release}_c([0-9]{8})\\.csv\\.gz', 1) AS table_kind,\n         regexp_extract(m,\
+    \ '(StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\.csv\\.gz)', 1) AS file_name,\n\
+    \         regexp_extract(m, '_c([0-9]{8})\\.csv\\.gz', 1) AS created\n  FROM (SELECT\
+    \ DISTINCT unnest(regexp_extract_all(content, 'StormEvents_[a-z]+-ftp_v1\\.0_d{release}_c[0-9]{8}\\\
+    .csv\\.gz')) AS m\n        FROM read_text('https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'))\n\
+    ), latest AS (\n  SELECT table_kind, max(created) AS created\n  FROM files\n \
+    \ GROUP BY table_kind\n)\nSELECT 'storm_events_' || files.table_kind AS name,\n\
+    \       'read_csv' AS reader,\n       'https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/'\
+    \ || files.file_name AS path\nFROM files\nJOIN latest USING (table_kind, created)\n\
+    ORDER BY name;\n"

@@ -1,0 +1,22 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: arcgis.fema.nfhl.flood-hazard-zones
+name: FEMA National Flood Hazard Layer flood hazard zones
+status: connector-blocked
+source_type: arcgis
+authority: Federal Emergency Management Agency
+license_url: https://www.fema.gov/about/openfema/terms-conditions
+attribution: Federal Emergency Management Agency National Flood Hazard Layer.
+requirements:
+  duckdb_extensions:
+  - arcgis
+tables:
+- id: flood_hazard_zones
+  description: FEMA NFHL flood hazard zone features. One row per flood hazard zone
+    feature.
+  ask_for:
+  - bbox or jurisdiction
+  - fields
+  - whether geometry is needed
+  warnings:
+  - Not a substitute for official determinations; connector path is not stable yet.

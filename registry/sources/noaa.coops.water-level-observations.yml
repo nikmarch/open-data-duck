@@ -1,0 +1,68 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: noaa.coops.water-level-observations
+name: NOAA CO-OPS water-level observations API
+status: candidate
+source_type: other
+authority: NOAA National Ocean Service Center for Operational Oceanographic Products
+  and Services
+license_url: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+attribution: Credit NOAA/NOS Center for Operational Oceanographic Products and Services
+  (CO-OPS); cite the station, product, datum, time zone, units, endpoint, and retrieval
+  date, and do not imply NOAA endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: hourly_heights
+  ref: odd.noaa_coops.latest.hourly_heights
+  description: NOAA CO-OPS hourly water-level observations. One row per timestamped
+    station observation for the selected product, datum, time zone, and units.
+  columns_hint:
+    Date Time: Observation timestamp in the requested time zone.
+    Water Level: Water-level height in the requested units and datum.
+    Sigma: Standard deviation for the observation where provided.
+    I: Inferred flag returned by CO-OPS.
+    L: Flat tolerance flag returned by CO-OPS.
+  ask_for:
+  - station id
+  - begin date
+  - end date
+  - water-level product
+  - datum
+  - time zone
+  - units
+  - limit
+  warnings:
+  - Parameterized API endpoint; preserve station, date range, product, datum, time
+    zone, units, and application identifier instead of treating it as a full-table
+    scan.
+  - CO-OPS products have product-specific date-range limits and water-level products
+    require a datum.
+  - Preliminary and verified products differ; keep requests bounded and cite the selected
+    station and retrieval endpoint/date.
+  - 'Validation facade is a small fixed smoke sample: station=8518750, product=hourly_height,
+    datum=MLLW, begin_date=20200101, end_date=20200102, time_zone=gmt, units=metric;
+    expected result is 48 hourly rows.'
+  validations:
+  - id: odd.noaa_coops.latest.hourly_heights
+    description: Compare the NOAA CO-OPS hourly heights sample facade with the direct
+      bounded CSV API recipe.
+    release: latest
+    compare: exact
+    direct_sql: "LOAD httpfs;\nSELECT count(*) AS row_count,\n       min(\"Date Time\"\
+      ) AS first_observation,\n       max(\"Date Time\") AS last_observation\nFROM\
+      \ read_csv_auto(\n  'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=20200101&end_date=20200102&station=8518750&product=hourly_height&datum=MLLW&time_zone=gmt&units=metric&format=csv&application=open_data_duck'\n\
+      );\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SELECT count(*) AS row_count,\n       min(\"Date Time\") AS first_observation,\n\
+      \       max(\"Date Time\") AS last_observation\nFROM odd.noaa_coops.latest.hourly_heights;\n"
+release:
+  latest:
+    method: static-api-sample
+    url: https://api.tidesandcurrents.noaa.gov/api/prod/datagetter
+discovery:
+  namespace: odd.noaa_coops.latest
+  discover_sql: "SELECT 'hourly_heights' AS name,\n       'read_csv_auto' AS reader,\n\
+    \       'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=20200101&end_date=20200102&station=8518750&product=hourly_height&datum=MLLW&time_zone=gmt&units=metric&format=csv&application=open_data_duck'\
+    \ AS path;\n"

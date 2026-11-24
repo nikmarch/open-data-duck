@@ -1,0 +1,25 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: stac.nasa.lpcloud
+name: NASA LP DAAC LPCLOUD STAC catalog
+status: candidate
+source_type: stac
+authority: NASA Land Processes Distributed Active Archive Center
+license_url: https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy
+attribution: NASA LP DAAC data; cite dataset-specific DOI and attribution.
+requirements:
+  duckdb_extensions:
+  - httpfs
+  - spatial
+  - stac
+tables:
+- id: stac_items
+  description: NASA LP DAAC STAC item metadata. One row per land-processes product
+    item returned by the STAC API.
+  ask_for:
+  - product or collection
+  - bbox or area
+  - date range
+  - limit
+  warnings:
+  - Some downstream assets may require Earthdata access workflows.

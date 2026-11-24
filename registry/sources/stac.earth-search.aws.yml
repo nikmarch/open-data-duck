@@ -1,0 +1,26 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: stac.earth-search.aws
+name: Earth Search STAC API
+status: candidate
+source_type: stac
+authority: Element 84 / AWS Open Data ecosystem
+license_url: https://registry.opendata.aws/sentinel-2-l2a-cogs/
+attribution: Dataset-specific attribution required; verify per collection.
+requirements:
+  duckdb_extensions:
+  - httpfs
+  - spatial
+  - stac
+tables:
+- id: stac_items
+  description: STAC item search results from Earth Search. One row per imagery item
+    returned by the STAC API.
+  ask_for:
+  - collection
+  - bbox
+  - date range
+  - cloud cover
+  - limit
+  warnings:
+  - Assets can be large; inspect metadata before reading imagery assets.

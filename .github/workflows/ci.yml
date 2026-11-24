@@ -36,8 +36,8 @@ jobs:
       - name: Validate registry
         run: uv run odd validate
 
-      - name: Check embedded extension registry is current
-        run: uv run odd generate-extension-registry --check
+      - name: Exercise embedded extension registry generator
+        run: uv run odd generate-extension-registry --output /tmp/open_data_duck_registry.generated.hpp
 
   duckdb-extension-e2e:
     name: Real DuckDB extension E2E

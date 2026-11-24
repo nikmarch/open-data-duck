@@ -1,0 +1,85 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: nasa.exoplanet-archive.pscomppars
+name: NASA Exoplanet Archive planetary systems composite
+status: candidate
+source_type: other
+authority: NASA Exoplanet Archive / NASA Exoplanet Science Institute, operated by
+  Caltech/IPAC under NASA's Exoplanet Exploration Program
+license_url: https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html
+attribution: This research has made use of the NASA Exoplanet Archive, which is operated
+  by the California Institute of Technology, under contract with the National Aeronautics
+  and Space Administration under the Exoplanet Exploration Program; cite the archive,
+  Christiansen et al. (2025) / dataset DOI where appropriate, and the source literature
+  references for specific parameters.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: planetary_systems_composite
+  ref: odd.nasa_exoplanet_archive.latest.planetary_systems_composite
+  description: NASA Exoplanet Archive Planetary Systems Composite Parameters rows.
+    One row per confirmed planet with archive-selected composite planet and host parameters
+    from pscomppars.
+  columns_hint:
+    pl_name: Confirmed planet name.
+    hostname: Host star/system name.
+    discoverymethod: Discovery method assigned by the archive.
+    disc_year: Discovery year.
+    pl_rade: Planet radius in Earth radii where curated.
+    pl_bmasse: Planet mass or mass*sin(i) in Earth masses where curated.
+  ask_for:
+  - planet name or host name
+  - discovery year range
+  - physical parameters needed
+  - row limit
+  - whether composite defaults are acceptable versus per-reference planetary-system
+    rows
+  warnings:
+  - TAP queries must stay bounded and URL-encoded; avoid select=* full-table scans.
+  - Archive values can change as literature parameters are curated; cite the archive
+    and source literature references for analyses using specific physical parameters.
+  - Facade exposes a bounded selected-column TAP CSV over pscomppars; add columns
+    deliberately when a question needs more than the composite sample fields.
+  - 'Smoke sample: Kepler-22 b returned hostname=Kepler-22, discoverymethod=Transit,
+    disc_year=2011, pl_rade=2.1, pl_bmasse=9.1 on 2026-11-23.'
+  validations:
+  - id: odd.nasa_exoplanet_archive.latest.planetary_systems_composite
+    description: Compare the NASA Exoplanet Archive pscomppars facade with the direct
+      bounded TAP CSV recipe for the stable Kepler-22 b row.
+    release: latest
+    compare: exact
+    order_by:
+    - pl_name
+    limit: 1
+    direct_sql: 'LOAD httpfs;
+
+      SELECT pl_name, hostname, discoverymethod, disc_year, pl_rade, pl_bmasse
+
+      FROM read_csv_auto(''https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select%20pl_name%2Chostname%2Cdiscoverymethod%2Cdisc_year%2Cpl_rade%2Cpl_bmasse%20from%20pscomppars%20where%20pl_name%3D%27Kepler-22%20b%27%20order%20by%20pl_name&format=csv'')
+
+      ORDER BY pl_name;
+
+      '
+    odd_sql: 'LOAD open_data_duck;
+
+      ATTACH '':memory:'' AS odd (TYPE open_data_duck);
+
+      SELECT pl_name, hostname, discoverymethod, disc_year, pl_rade, pl_bmasse
+
+      FROM odd.nasa_exoplanet_archive.latest.planetary_systems_composite
+
+      WHERE pl_name = ''Kepler-22 b''
+
+      ORDER BY pl_name;
+
+      '
+release:
+  latest:
+    method: static-tap-csv
+    url: https://exoplanetarchive.ipac.caltech.edu/TAP/sync
+discovery:
+  namespace: odd.nasa_exoplanet_archive.latest
+  discover_sql: "SELECT 'planetary_systems_composite' AS name,\n       'read_csv_auto'\
+    \ AS reader,\n       'https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select%20pl_name%2Chostname%2Cdiscoverymethod%2Cdisc_year%2Cpl_rade%2Cpl_bmasse%20from%20pscomppars%20order%20by%20pl_name&format=csv'\
+    \ AS path;\n"

@@ -1,0 +1,23 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: bls.cpi.timeseries
+name: BLS Consumer Price Index time series API
+status: candidate
+source_type: other
+authority: U.S. Bureau of Labor Statistics
+license_url: https://www.bls.gov/developers/termsOfService.htm
+attribution: Cite BLS.gov and the API retrieval date; state that BLS.gov cannot vouch
+  for data or analyses derived after retrieval; do not use the BLS logo or imply BLS
+  sponsorship.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: cpi_observations
+  description: BLS CPI time-series observations. One row per BLS series and period.
+  ask_for:
+  - series id
+  - start year
+  - end year
+  warnings:
+  - Values are returned as strings and should be cast before numeric analysis.

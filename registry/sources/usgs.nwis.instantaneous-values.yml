@@ -1,0 +1,36 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: usgs.nwis.instantaneous-values
+name: USGS NWIS instantaneous water values API
+status: candidate
+source_type: other
+authority: U.S. Geological Survey Water Data for the Nation
+license_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+attribution: Credit U.S. Geological Survey / USGS Water Data for the Nation; cite
+  the site, parameter, time range, and retrieval endpoint used.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: instantaneous_values
+  description: USGS NWIS instantaneous observations. One row per timestamped monitoring-site
+    and parameter observation after flattening the WaterML JSON timeSeries payload.
+  columns_hint:
+    site_no: USGS monitoring site number such as 01646500.
+    parameter_cd: USGS parameter code such as 00060 for streamflow.
+    observed_at: Observation timestamp returned by the service, generally UTC when
+      date ranges are supplied without local timezone offsets.
+    observed_value: Observation value cast to DOUBLE from the nested JSON string value.
+    qualifiers: USGS value qualifiers such as approved or provisional status flags.
+  ask_for:
+  - site number
+  - parameter code
+  - start datetime
+  - end datetime
+  - site status
+  - whether provisional operational values are acceptable
+  warnings:
+  - Responses are nested by time series and values arrays; unnest timeSeries and values
+    before treating observations as rows.
+  - Large multi-site or multi-parameter requests should be bounded by date range.
+  - Instantaneous operational values can be provisional and not fully quality-assured.

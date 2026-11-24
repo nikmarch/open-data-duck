@@ -1,0 +1,26 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: stac.microsoft.planetary-computer
+name: Microsoft Planetary Computer STAC API
+status: candidate
+source_type: stac
+authority: Microsoft Planetary Computer
+license_url: https://planetarycomputer.microsoft.com/terms
+attribution: Dataset-specific attribution required; verify per Planetary Computer
+  collection.
+requirements:
+  duckdb_extensions:
+  - httpfs
+  - spatial
+  - stac
+tables:
+- id: stac_items
+  description: STAC item search results from Microsoft Planetary Computer. One row
+    per catalog item returned by the STAC API.
+  ask_for:
+  - collection
+  - bbox
+  - date range
+  - limit
+  warnings:
+  - Some assets require Planetary Computer signing or access patterns.
