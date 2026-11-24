@@ -401,6 +401,7 @@ struct OpenDataTable {
 	string name;
 	string reader;
 	string path;
+	string layer;
 };
 
 struct DiscoveredTables {
@@ -439,7 +440,7 @@ static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSou
 		                            query_result->GetError());
 	}
 	if (query_result->ColumnCount() < 3) {
-		throw InvalidInputException("open_data_duck: discovery.discover_sql for '%s' must return (name, reader, path)",
+		throw InvalidInputException("open_data_duck: discovery.discover_sql for '%s' must return at least (name, reader, path)",
 		                            source.id);
 	}
 	for (auto &row : *query_result) {
@@ -450,6 +451,9 @@ static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSou
 		table.name = row.GetValue<string>(0);
 		table.reader = row.IsNull(1) ? string() : row.GetValue<string>(1);
 		table.path = row.GetValue<string>(2);
+		if (query_result->ColumnCount() >= 4) {
+			table.layer = row.IsNull(3) ? string() : row.GetValue<string>(3);
+		}
 		if (table.name.empty() || table.path.empty()) {
 			continue;
 		}
@@ -769,6 +773,9 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 			auto table_function = make_uniq<TableFunctionRef>();
 			vector<FunctionArgument> children;
 			children.emplace_back(ConstantExpression::String(table.path));
+			if (!table.layer.empty() && StringUtil::Lower(table.reader) == "st_read") {
+				children.emplace_back(Identifier("layer"), ConstantExpression::String(table.layer));
+			}
 			table_function->function = make_uniq<FunctionExpression>(Identifier(table.reader), std::move(children));
 			table_function->alias = Identifier(table.name);
 			return std::move(table_function);

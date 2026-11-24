@@ -118,7 +118,7 @@ LIMIT 10;</code></pre>
     <section class="catalog" id="source-catalog" aria-labelledby="source-catalog-title">
       <p class="eyebrow">Generated catalog</p>
       <h2 id="source-catalog-title">Source and table metadata rendered from registry/sources.yml.</h2>
-      <p class="catalog-summary">32 sources across arcgis (3), ckan (1), other (18), overture (1), parquet (2), socrata (4), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
+      <p class="catalog-summary">33 sources across arcgis (3), ckan (1), other (19), overture (1), parquet (2), socrata (4), stac (3). Markdown docs and this page use the same table-first registry renderer so table descriptions, ask-for hints, warnings, licenses, and references drift in one place only.</p>
       <div class="catalog-grid">
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>overture</span></div>
@@ -217,6 +217,13 @@ LIMIT 10;</code></pre>
           <p>USGS NWIS instantaneous water values API</p>
           <dl><dt>Authority</dt><dd>U.S. Geological Survey Water Data for the Nation</dd><dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
           <ul class="table-list"><li><strong>instantaneous_values</strong>: USGS NWIS instantaneous observations. One row per timestamped monitoring-site and parameter observation after flattening the WaterML JSON timeSeries payload. <span>Ask for: site number, parameter code, start datetime, end datetime, site status, whether provisional operational values are acceptable</span> <span>Warnings: Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows., Large multi-site or multi-parameter requests should be bounded by date range., Instantaneous operational values can be provisional and not fully quality-assured.</span></li></ul>
+        </article>
+        <article class="source-card">
+          <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>
+          <h3><code>usgs.gnis.domestic-names</code></h3>
+          <p>USGS GNIS domestic geographic names GeoPackage</p>
+          <dl><dt>Authority</dt><dd>U.S. Geological Survey / U.S. Board on Geographic Names</dd><dt>License</dt><dd><a href="https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits">Terms</a></dd></dl>
+          <ul class="table-list"><li><strong>domestic_names</strong> <code>odd.usgs_gnis.latest.domestic_names</code>: USGS GNIS domestic geographic-name features from the DomesticNames GeoPackage layer. One row per official domestic geographic-name feature. <span>Ask for: state or territory, national or state/territory extent, feature class, county or local jurisdiction, whether alternate names, history, or federal-code layers are needed, limit</span> <span>Warnings: National GeoPackage ZIP is large; prefer state or territory products for smoke tests and interactive queries., GNIS refreshes roughly every other month; cite the download or refresh date used for analysis., GeoPackage downloads contain multiple layers; this facade pins the DomesticNames layer for the American Samoa smoke product., Smoke sample: American Samoa GNIS GeoPackage returned feature_id 1388627 Etena and other stable rows on 2026-11-24.</span></li></ul>
         </article>
         <article class="source-card">
           <div class="source-card-header"><span class="status">candidate</span><span>other</span></div>

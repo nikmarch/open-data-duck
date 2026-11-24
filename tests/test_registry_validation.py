@@ -627,6 +627,57 @@ def test_project_nps_visitor_use_statistics_exposes_bounded_csv_facade_validatio
     assert "tens of mb" in rendered_metadata
 
 
+def test_project_usgs_gnis_uses_geopackage_domestic_names_metadata() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "usgs.gnis.domestic-names")
+    table = source["tables"][0]
+    validation = table["validations"][0]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            table["description"],
+            "\n".join(table.get("ask_for", [])),
+            "\n".join(table.get("warnings", [])),
+            "\n".join(table.get("columns_hint", {}).values()),
+            validation["direct_sql"],
+            validation["odd_sql"],
+            source["discovery"]["discover_sql"],
+        ]
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "U.S. Geological Survey / U.S. Board on Geographic Names"
+    assert source["requirements"] == {"duckdb_extensions": ["spatial"]}
+    assert "duckdb" not in source
+    assert "description" not in source
+    assert "homepage" not in source
+    assert "ai" not in source
+    assert table["id"] == "domestic_names"
+    assert table["ref"] == "odd.usgs_gnis.latest.domestic_names"
+    assert validation["id"] == table["ref"]
+    assert "ST_Read(" in validation["direct_sql"]
+    assert "layer = 'DomesticNames'" in validation["direct_sql"]
+    assert "FROM odd.usgs_gnis.latest.domestic_names" in validation["odd_sql"]
+    assert source["discovery"] == {
+        "namespace": "odd.usgs_gnis.latest",
+        "discover_sql": (
+            "SELECT 'domestic_names' AS name,\n"
+            "       'st_read' AS reader,\n"
+            "       '/vsizip/vsicurl/https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/FullModel/Gazetteer_AS_GPKG.zip/Gazetteer_AS_GPKG.gpkg' AS path,\n"
+            "       'DomesticNames' AS layer;\n"
+        ),
+    }
+    assert "state or territory" in table["ask_for"]
+    assert "feature class" in table["ask_for"]
+    assert "geopackage downloads contain multiple layers" in rendered_metadata
+    assert "american samoa" in rendered_metadata
+    assert "feature_id 1388627" in rendered_metadata
+    assert "domesticnames" in rendered_metadata
+
+
 def test_project_noaa_coops_water_level_observations_uses_parameterized_public_csv_api_metadata() -> None:
     registry = load_project_registry()
     source = next(source for source in registry["sources"] if source["id"] == "noaa.coops.water-level-observations")
