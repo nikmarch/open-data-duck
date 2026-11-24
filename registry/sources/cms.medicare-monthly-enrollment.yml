@@ -1,0 +1,82 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: cms.medicare-monthly-enrollment
+name: CMS Medicare Monthly Enrollment
+status: candidate
+source_type: dcat
+authority: Centers for Medicare & Medicaid Services Office of Enterprise Data and
+  Analytics
+license_url: https://www.usa.gov/government-works
+attribution: Centers for Medicare & Medicaid Services Office of Enterprise Data and
+  Analytics; cite the selected release month and do not imply CMS endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: medicare_monthly_enrollment
+  ref: odd.cms.latest.medicare_monthly_enrollment
+  description: CMS Medicare monthly enrollment aggregate rows. One row per month and
+    Medicare beneficiary geography level/geography, including total beneficiaries
+    and program-enrollment breakdown counts.
+  columns_hint:
+    YEAR: Observation year.
+    MONTH: Observation month name; use an explicit month-order mapping for chronological
+      sorting.
+    BENE_GEO_LVL: Geography level such as National, State, or County.
+    BENE_STATE_ABRVTN: State, territory, or national abbreviation for the beneficiary
+      geography.
+    BENE_FIPS_CD: County FIPS code where county geography is present.
+    TOT_BENES: Total Medicare beneficiaries as a string count that should be TRY_CAST
+      before arithmetic.
+    ORGNL_MDCR_BENES: Original Medicare beneficiary count as a string count.
+    MA_AND_OTH_BENES: Medicare Advantage and other plan beneficiary count as a string
+      count.
+  ask_for:
+  - release month or latest
+  - geography level
+  - state abbreviation or county FIPS when not national
+  - enrollment measure columns
+  - whether suppressed or missing string counts should be retained or cast
+  warnings:
+  - CMS publishes release-specific CSV URLs in data.json; the facade discovers the
+    latest CSV distribution from the DCAT catalog.
+  - Month values are names, not numbers; chronological ordering needs a month mapping
+    instead of lexicographic sorting.
+  - Many count columns arrive as strings and should be TRY_CAST before arithmetic.
+  - Validation facade is the latest CMS DCAT CSV distribution; smoke sample covers
+    National 2026 rows and expected row_count=7 for the July 2026 release.
+  validations:
+  - id: odd.cms.latest.medicare_monthly_enrollment
+    description: Compare the CMS Medicare Monthly Enrollment facade with the direct
+      latest CSV distribution discovered from CMS DCAT metadata.
+    release: latest
+    compare: exact
+    direct_sql: "LOAD httpfs;\nSET VARIABLE cms_medicare_monthly_enrollment_csv_url\
+      \ = (\n  WITH datasets AS (\n    SELECT unnest(dataset) AS d\n    FROM read_json('https://data.cms.gov/data.json',\
+      \ maximum_object_size = 50000000)\n  ), distributions AS (\n    SELECT d.title\
+      \ AS title, d.modified AS modified, unnest(d.distribution) AS dist\n    FROM\
+      \ datasets\n    WHERE d.title LIKE 'Medicare Monthly Enrollment : %'\n  )\n\
+      \  SELECT dist.downloadURL\n  FROM distributions\n  WHERE dist.format = 'CSV'\n\
+      \    AND dist.downloadURL IS NOT NULL\n  ORDER BY modified DESC, title DESC\n\
+      \  LIMIT 1\n);\nSELECT count(*) AS row_count,\n       min(\"YEAR\") AS min_year,\n\
+      \       max(\"YEAR\") AS max_year,\n       sum(TRY_CAST(TOT_BENES AS BIGINT))\
+      \ AS total_benes_sum\nFROM read_csv_auto(getvariable('cms_medicare_monthly_enrollment_csv_url'))\n\
+      WHERE BENE_GEO_LVL = 'National'\n  AND \"YEAR\" = 2026;\n"
+    odd_sql: "LOAD open_data_duck;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\n\
+      SELECT count(*) AS row_count,\n       min(\"YEAR\") AS min_year,\n       max(\"\
+      YEAR\") AS max_year,\n       sum(TRY_CAST(TOT_BENES AS BIGINT)) AS total_benes_sum\n\
+      FROM odd.cms.latest.medicare_monthly_enrollment\nWHERE BENE_GEO_LVL = 'National'\n\
+      \  AND \"YEAR\" = 2026;\n"
+release:
+  latest:
+    method: dcat-latest-csv
+    url: https://data.cms.gov/data.json
+discovery:
+  namespace: odd.cms.latest
+  discover_sql: "WITH datasets AS (\n  SELECT unnest(dataset) AS d\n  FROM read_json('https://data.cms.gov/data.json',\
+    \ maximum_object_size = 50000000)\n), distributions AS (\n  SELECT d.title AS\
+    \ title, d.modified AS modified, unnest(d.distribution) AS dist\n  FROM datasets\n\
+    \  WHERE d.title LIKE 'Medicare Monthly Enrollment : %'\n)\nSELECT 'medicare_monthly_enrollment'\
+    \ AS name,\n       'read_csv_auto' AS reader,\n       dist.downloadURL AS path\n\
+    FROM distributions\nWHERE dist.format = 'CSV'\n  AND dist.downloadURL IS NOT NULL\n\
+    ORDER BY modified DESC, title DESC\nLIMIT 1;\n"
