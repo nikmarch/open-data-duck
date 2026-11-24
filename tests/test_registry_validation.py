@@ -614,6 +614,11 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "read_csv_auto" in noaa_sql
     assert "from odd.noaa.latest.storm_events_details" in noaa_sql
 
+    fema_public_assistance_sql = all_validation_sql(by_id["fema.openfema.public-assistance-funded-projects"])
+    assert "read_parquet" in fema_public_assistance_sql
+    assert "from odd.fema.latest.public_assistance_funded_projects" in fema_public_assistance_sql
+    assert "federalshareobligated" in fema_public_assistance_sql
+
     coops_sql = all_validation_sql(by_id["noaa.coops.water-level-observations"])
     assert "api.tidesandcurrents.noaa.gov/api/prod/datagetter" in coops_sql
     assert "station=8518750" in coops_sql

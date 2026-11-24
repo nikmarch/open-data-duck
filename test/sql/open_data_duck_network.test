@@ -24,7 +24,7 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.fema.latest.disaster_declarations', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
@@ -33,6 +33,7 @@ odd.census.latest.county_20m	st_read
 odd.chicago.latest.building_permits	read_csv_auto
 odd.cms.latest.medicare_monthly_enrollment	read_csv_auto
 odd.fema.latest.disaster_declarations	read_parquet
+odd.fema.latest.public_assistance_funded_projects	read_parquet
 odd.nasa_exoplanet_archive.latest.planetary_systems_composite	read_csv_auto
 odd.noaa.latest.ghcn_daily	read_csv
 odd.noaa_coops.latest.hourly_heights	read_csv_auto
@@ -179,6 +180,16 @@ query I
 SELECT count(*) > 0
 FROM odd.fema.latest.disaster_declarations
 WHERE state = 'AK';
+----
+true
+
+statement ok
+SET VARIABLE fema_public_assistance_funded_projects_release = 'v2';
+
+query I
+SELECT count(*) > 0
+FROM odd.fema.latest.public_assistance_funded_projects
+WHERE stateAbbreviation = 'AK';
 ----
 true
 
