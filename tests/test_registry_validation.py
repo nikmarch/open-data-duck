@@ -645,6 +645,78 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "from odd.nps.latest.state_monthly_visitor_stats" in nps_sql
     assert "from odd.nps.latest.monthly_visitor_stats" in nps_sql
 
+    cms_sql = all_validation_sql(by_id["cms.medicare-monthly-enrollment"])
+    assert "read_json('https://data.cms.gov/data.json'" in cms_sql
+    assert "read_csv_auto" in cms_sql
+    assert "from odd.cms.latest.medicare_monthly_enrollment" in cms_sql
+
+
+def test_project_cms_medicare_monthly_enrollment_uses_dcat_latest_csv_facade_metadata() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "cms.medicare-monthly-enrollment")
+    table = source["tables"][0]
+    validation = table["validations"][0]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            table["description"],
+            "\n".join(table.get("ask_for", [])),
+            "\n".join(table.get("warnings", [])),
+            "\n".join(table.get("columns_hint", {}).values()),
+            validation["direct_sql"],
+            validation["odd_sql"],
+            source["discovery"]["discover_sql"],
+        ]
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "dcat"
+    assert source["license_url"] == "https://www.usa.gov/government-works"
+    assert source["requirements"] == {"duckdb_extensions": ["httpfs"]}
+    assert "duckdb" not in source
+    assert "description" not in source
+    assert "homepage" not in source
+    assert "ai" not in source
+    assert table["id"] == "medicare_monthly_enrollment"
+    assert table["ref"] == "odd.cms.latest.medicare_monthly_enrollment"
+    assert validation["id"] == table["ref"]
+    assert "read_json('https://data.cms.gov/data.json'" in validation["direct_sql"]
+    assert "read_csv_auto(getvariable('cms_medicare_monthly_enrollment_csv_url'))" in validation["direct_sql"]
+    assert "FROM odd.cms.latest.medicare_monthly_enrollment" in validation["odd_sql"]
+    assert source["release"]["latest"] == {
+        "method": "dcat-latest-csv",
+        "url": "https://data.cms.gov/data.json",
+    }
+    assert source["discovery"] == {
+        "namespace": "odd.cms.latest",
+        "discover_sql": (
+            "WITH datasets AS (\n"
+            "  SELECT unnest(dataset) AS d\n"
+            "  FROM read_json('https://data.cms.gov/data.json', maximum_object_size = 50000000)\n"
+            "), distributions AS (\n"
+            "  SELECT d.title AS title, d.modified AS modified, unnest(d.distribution) AS dist\n"
+            "  FROM datasets\n"
+            "  WHERE d.title LIKE 'Medicare Monthly Enrollment : %'\n"
+            ")\n"
+            "SELECT 'medicare_monthly_enrollment' AS name,\n"
+            "       'read_csv_auto' AS reader,\n"
+            "       dist.downloadURL AS path\n"
+            "FROM distributions\n"
+            "WHERE dist.format = 'CSV'\n"
+            "  AND dist.downloadURL IS NOT NULL\n"
+            "ORDER BY modified DESC, title DESC\n"
+            "LIMIT 1;\n"
+        ),
+    }
+    assert "geography level" in table["ask_for"]
+    assert "enrollment measure columns" in table["ask_for"]
+    assert "release-specific csv urls" in rendered_metadata
+    assert "month values are names" in rendered_metadata
+    assert "try_cast" in rendered_metadata
+    assert "row_count=7" in rendered_metadata
+
 
 def test_project_nps_visitor_use_statistics_exposes_bounded_csv_facade_validations() -> None:
     registry = load_project_registry()
