@@ -4,9 +4,10 @@
   <img src="docs/assets/brand/odd-wordmark.svg" alt="Open Data Duck" width="360">
 </p>
 
-Open Data Duck is a DuckDB-friendly index of public data tables.
+Open Data Duck is not an open-data catalog. It is a DuckDB-native, validated query facade for public datasets discovered from open-data catalogs.
+
 The goal is simple: install the plugin, search for a table, then query that table from DuckDB.
-It does not mirror datasets; it maps friendly table names to authoritative public data.
+It does not mirror datasets; it maps friendly table names to authoritative public data. See [registry-backed source scouting](docs/source-harvesting.md) for how ODD borrows candidate sources from existing catalogs without becoming another giant metadata portal.
 
 ## Quick start: install the latest pre-community extension
 
