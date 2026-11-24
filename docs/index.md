@@ -164,6 +164,29 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Warnings: Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows., Large multi-site or multi-parameter requests should be bounded by date range., Instantaneous operational values can be provisional and not fully quality-assured.
     - Columns: site_no: USGS monitoring site number such as 01646500.; parameter_cd: USGS parameter code such as 00060 for streamflow.; observed_at: Observation timestamp returned by the service, generally UTC when date ranges are supplied without local timezone offsets.; observed_value: Observation value cast to DOUBLE from the nested JSON string value.; qualifiers: USGS value qualifiers such as approved or provisional status flags.
 
+### `usgs.gnis.domestic-names` — USGS GNIS domestic geographic names GeoPackage
+
+- Status: `candidate`
+- Authority: U.S. Geological Survey / U.S. Board on Geographic Names
+- License: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+- DuckDB extensions: spatial
+- Discovery namespace: `odd.usgs_gnis.latest`
+- Tables:
+  - `domestic_names` (`odd.usgs_gnis.latest.domestic_names`): USGS GNIS domestic geographic-name features from the DomesticNames GeoPackage layer. One row per official domestic geographic-name feature.
+    - Ask for: state or territory, national or state/territory extent, feature class, county or local jurisdiction, whether alternate names, history, or federal-code layers are needed, limit
+    - Warnings: National GeoPackage ZIP is large; prefer state or territory products for smoke tests and interactive queries., GNIS refreshes roughly every other month; cite the download or refresh date used for analysis., GeoPackage downloads contain multiple layers; this facade pins the DomesticNames layer for the American Samoa smoke product., Smoke sample: American Samoa GNIS GeoPackage returned feature_id 1388627 Etena and other stable rows on 2026-11-24.
+    - Columns: feature_id: Stable GNIS feature identifier.; feature_name: Official geographic feature name.; feature_class: GNIS feature class such as Populated Place, Cape, Island, or Sea.; state_name: State or territory name associated with the feature.; county_name: County, island, or equivalent local jurisdiction where provided.; prim_lat_dec: Primary latitude in decimal degrees.; prim_long_dec: Primary longitude in decimal degrees.; geom: Geometry from the selected GeoPackage layer.
+    - Validation: `odd.usgs_gnis.latest.domestic_names`
+      ```
+      LOAD open_data_duck;
+      LOAD spatial;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT feature_id, feature_name, feature_class, state_name, county_name, prim_lat_dec, prim_long_dec
+      FROM odd.usgs_gnis.latest.domestic_names
+      WHERE feature_id IN (1388627, 1388628, 1388629, 1388631, 1388632)
+      ORDER BY feature_id;
+      ```
+
 ### `worldbank.wdi.indicators` — World Bank World Development Indicators API
 
 - Status: `candidate`

@@ -10,6 +10,8 @@ require json
 
 require parquet
 
+require spatial
+
 require-env ODD_DUCKDB_NETWORK_TESTS
 
 # Discovery runs release.latest.resolve_sql + duckdb.tables.discover_sql once per
@@ -22,7 +24,7 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
@@ -36,6 +38,7 @@ odd.nps.latest.monthly_visitor_stats	read_csv_auto
 odd.nps.latest.state_monthly_visitor_stats	read_csv_auto
 odd.overturemaps.latest.building	read_parquet
 odd.overturemaps.latest.place	read_parquet
+odd.usgs_gnis.latest.domestic_names	st_read
 odd.wri.latest.global_power_plants	read_csv
 
 query I
@@ -84,6 +87,13 @@ query I
 SELECT count(*) > 0
 FROM odd.overturemaps.latest.segment
 WHERE bbox.xmin <= -149.37 AND bbox.xmax >= -149.39 AND bbox.ymin <= 61.61 AND bbox.ymax >= 61.60;
+----
+true
+
+query I
+SELECT count(*) = 5
+FROM odd.usgs_gnis.latest.domestic_names
+WHERE feature_id IN (1388627, 1388628, 1388629, 1388631, 1388632);
 ----
 true
 

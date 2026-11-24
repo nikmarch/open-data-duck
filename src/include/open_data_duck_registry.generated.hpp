@@ -8,12 +8,12 @@ namespace duckdb {
 namespace open_data_duck {
 
 static constexpr int REGISTRY_SCHEMA_VERSION = 2;
-static constexpr int REGISTRY_SOURCE_COUNT = 32;
+static constexpr int REGISTRY_SOURCE_COUNT = 33;
 
 static const char *const REGISTRY_JSON = R"odd_registry(
 {
   "schema_version": 2,
-  "source_count": 32,
+  "source_count": 33,
   "sources": [
     {
       "attribution": "Overture Maps Foundation and contributing data providers.",
@@ -736,6 +736,76 @@ static const char *const REGISTRY_JSON = R"odd_registry(
             "Responses are nested by time series and values arrays; unnest timeSeries and values before treating observations as rows.",
             "Large multi-site or multi-parameter requests should be bounded by date range.",
             "Instantaneous operational values can be provisional and not fully quality-assured."
+          ]
+        }
+      ]
+    },
+    {
+      "attribution": "Credit U.S. Geological Survey / U.S. Board on Geographic Names, Geographic Names Information System (GNIS), and cite the selected download or refresh date; do not imply USGS endorsement.",
+      "authority": "U.S. Geological Survey / U.S. Board on Geographic Names",
+      "discovery": {
+        "discover_sql": "SELECT 'domestic_names' AS name,\n       'st_read' AS reader,\n       '/vsizip/vsicurl/https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/FullModel/Gazetteer_AS_GPKG.zip/Gazetteer_AS_GPKG.gpkg' AS path,\n       'DomesticNames' AS layer;\n",
+        "namespace": "odd.usgs_gnis.latest"
+      },
+      "id": "usgs.gnis.domestic-names",
+      "license_url": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+      "name": "USGS GNIS domestic geographic names GeoPackage",
+      "release": {
+        "latest": {
+          "method": "static-geopackage-smoke",
+          "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/FullModel/Gazetteer_AS_GPKG.zip"
+        }
+      },
+      "requirements": {
+        "duckdb_extensions": [
+          "spatial"
+        ]
+      },
+      "source_type": "other",
+      "status": "candidate",
+      "tables": [
+        {
+          "ask_for": [
+            "state or territory",
+            "national or state/territory extent",
+            "feature class",
+            "county or local jurisdiction",
+            "whether alternate names, history, or federal-code layers are needed",
+            "limit"
+          ],
+          "columns_hint": {
+            "county_name": "County, island, or equivalent local jurisdiction where provided.",
+            "feature_class": "GNIS feature class such as Populated Place, Cape, Island, or Sea.",
+            "feature_id": "Stable GNIS feature identifier.",
+            "feature_name": "Official geographic feature name.",
+            "geom": "Geometry from the selected GeoPackage layer.",
+            "prim_lat_dec": "Primary latitude in decimal degrees.",
+            "prim_long_dec": "Primary longitude in decimal degrees.",
+            "state_name": "State or territory name associated with the feature."
+          },
+          "description": "USGS GNIS domestic geographic-name features from the DomesticNames GeoPackage layer. One row per official domestic geographic-name feature.",
+          "id": "domestic_names",
+          "ref": "odd.usgs_gnis.latest.domestic_names",
+          "validations": [
+            {
+              "compare": "exact",
+              "description": "Compare the USGS GNIS DomesticNames facade with the direct public American Samoa GeoPackage recipe for stable feature rows.",
+              "direct_sql": "LOAD spatial;\nSELECT feature_id, feature_name, feature_class, state_name, county_name, prim_lat_dec, prim_long_dec\nFROM ST_Read(\n  '/vsizip/vsicurl/https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/FullModel/Gazetteer_AS_GPKG.zip/Gazetteer_AS_GPKG.gpkg',\n  layer = 'DomesticNames'\n)\nWHERE feature_id IN (1388627, 1388628, 1388629, 1388631, 1388632)\nORDER BY feature_id;\n",
+              "id": "odd.usgs_gnis.latest.domestic_names",
+              "limit": 5,
+              "odd_sql": "LOAD open_data_duck;\nLOAD spatial;\nATTACH ':memory:' AS odd (TYPE open_data_duck);\nSELECT feature_id, feature_name, feature_class, state_name, county_name, prim_lat_dec, prim_long_dec\nFROM odd.usgs_gnis.latest.domestic_names\nWHERE feature_id IN (1388627, 1388628, 1388629, 1388631, 1388632)\nORDER BY feature_id;\n",
+              "order_by": [
+                "feature_id"
+              ],
+              "release": "latest",
+              "source_release": "AS"
+            }
+          ],
+          "warnings": [
+            "National GeoPackage ZIP is large; prefer state or territory products for smoke tests and interactive queries.",
+            "GNIS refreshes roughly every other month; cite the download or refresh date used for analysis.",
+            "GeoPackage downloads contain multiple layers; this facade pins the DomesticNames layer for the American Samoa smoke product.",
+            "Smoke sample: American Samoa GNIS GeoPackage returned feature_id 1388627 Etena and other stable rows on 2026-11-24."
           ]
         }
       ]
