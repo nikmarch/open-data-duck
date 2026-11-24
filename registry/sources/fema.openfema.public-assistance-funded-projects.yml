@@ -1,0 +1,82 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: fema.openfema.public-assistance-funded-projects
+name: FEMA OpenFEMA Public Assistance funded projects details
+status: candidate
+source_type: parquet
+authority: Federal Emergency Management Agency OpenFEMA
+license_url: https://www.fema.gov/about/openfema/terms-conditions
+attribution: Cite FEMA OpenFEMA and the Public Assistance Funded Projects Details v2 dataset/retrieval per the OpenFEMA Terms and Conditions citation guidance; do not imply FEMA endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: public_assistance_funded_projects
+  ref: odd.fema.latest.public_assistance_funded_projects
+  description: FEMA Public Assistance funded project records. One row per obligated project worksheet or funded project from the OpenFEMA Public Assistance Funded Projects Details v2 dataset.
+  columns_hint:
+    disasterNumber: FEMA disaster declaration number tied to the Public Assistance project.
+    stateAbbreviation: Two-letter state or territory abbreviation.
+    declarationDate: Date FEMA declared the disaster.
+    incidentType: Disaster incident category such as Severe Storm(s), Flood, Fire, or Hurricane.
+    county: County, parish, borough, census area, municipality, or other project geography where provided.
+    projectAmount: Project worksheet amount from FEMA source systems.
+    federalShareObligated: Federal share obligated for the project worksheet.
+    projectStatus: Current project status in FEMA source systems.
+    projectProcessStep: Current processing step for the project record.
+    damageCategoryCode: Public Assistance damage category code.
+  ask_for:
+  - state or territory
+  - disaster number
+  - declaration date range
+  - incident type
+  - county
+  - project status or process step
+  - damage category
+  - whether raw, unofficial financial fields are acceptable
+  - limit
+  warnings:
+  - FEMA says this raw, unedited FAC-Trax / Grants Manager data can contain a small percentage of human error.
+  - Financial fields are not FEMA's official financial systems and may differ from official publications such as USAspending.gov.
+  - Open projects still under pre-obligation processing are not represented.
+  - "Smoke sample: Public Assistance Funded Projects Details v2 returned 852039 rows, disasterNumber 1239 through 4955, on 2026-11-24."
+  validations:
+  - id: odd.fema.latest.public_assistance_funded_projects
+    description: Compare the FEMA OpenFEMA Public Assistance funded projects facade with the direct public Parquet export for stable state aggregates.
+    release: latest
+    source_release: v2
+    compare: exact
+    order_by:
+    - stateAbbreviation
+    direct_sql: |
+      LOAD httpfs;
+      SELECT stateAbbreviation, count(*) AS projects, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster, CAST(round(sum(federalShareObligated), 2) AS DOUBLE) AS federal_share_obligated
+      FROM read_parquet('https://www.fema.gov/api/open/v2/PublicAssistanceFundedProjectsDetails.parquet')
+      WHERE stateAbbreviation IN ('AK', 'CA')
+      GROUP BY stateAbbreviation
+      ORDER BY stateAbbreviation;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE fema_public_assistance_funded_projects_release = 'v2';
+      SELECT stateAbbreviation, count(*) AS projects, min(disasterNumber) AS first_disaster, max(disasterNumber) AS latest_disaster, CAST(round(sum(federalShareObligated), 2) AS DOUBLE) AS federal_share_obligated
+      FROM odd.fema.latest.public_assistance_funded_projects
+      WHERE stateAbbreviation IN ('AK', 'CA')
+      GROUP BY stateAbbreviation
+      ORDER BY stateAbbreviation;
+release:
+  latest:
+    method: static-parquet
+    url: https://www.fema.gov/api/open/v2/PublicAssistanceFundedProjectsDetails.parquet
+    resolve_sql: |
+      SELECT 'v2' AS release;
+  pinned:
+    duckdb_setting: fema_public_assistance_funded_projects_release
+    example: v2
+discovery:
+  namespace: odd.fema.latest
+  discover_sql: |
+    SELECT 'public_assistance_funded_projects' AS name,
+           'read_parquet' AS reader,
+           'https://www.fema.gov/api/open/v2/PublicAssistanceFundedProjectsDetails.parquet' AS path
+    WHERE '{release}' = 'v2';
