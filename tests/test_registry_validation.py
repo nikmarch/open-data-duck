@@ -448,6 +448,31 @@ def test_cdc_chronic_disease_indicators_source_exposes_bounded_socrata_facade_va
     assert "count(DISTINCT topic)" in validation["odd_sql"]
 
 
+def test_chicago_building_permits_source_exposes_bounded_socrata_facade_validation() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "socrata.chicago.building-permits")
+
+    assert source["source_type"] == "socrata"
+    assert source["requirements"]["duckdb_extensions"] == ["httpfs"]
+    assert source["license_url"] == "https://www.chicago.gov/city/en/narr/foia/data_disclaimer.html"
+    assert source["release"]["latest"]["method"] == "static-soda-export"
+    assert source["discovery"]["namespace"] == "odd.chicago.latest"
+    assert "ydr8-5enu.csv?$select=id,permit_,permit_type" in source["discovery"]["discover_sql"]
+    assert "$where=issue_date%20between%20%272024-01-01T00:00:00%27" in source["discovery"]["discover_sql"]
+    table = source["tables"][0]
+    assert table["id"] == "building_permits"
+    assert table["ref"] == "odd.chicago.latest.building_permits"
+    assert "community area or ward/geography filter" in table["ask_for"]
+    assert any("row_count=287" in warning for warning in table["warnings"])
+    assert any("City disclaimer" in warning for warning in table["warnings"])
+    assert table["columns_hint"]["permit_"] == "City permit number."
+    validation = table["validations"][0]
+    assert validation["id"] == table["ref"]
+    assert "read_csv_auto('https://data.cityofchicago.org/resource/ydr8-5enu.csv" in validation["direct_sql"]
+    assert "FROM odd.chicago.latest.building_permits" in validation["odd_sql"]
+    assert "reported_cost_sum" in validation["odd_sql"]
+
+
 def test_cdc_places_source_has_schema_org_ai_capability_metadata() -> None:
     registry = load_project_registry()
     source = next(source for source in registry["sources"] if source["id"] == "socrata.cdc.places-county-2025")
@@ -560,6 +585,12 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "read_csv_auto" in cdc_chronic_sql
     assert "from odd.cdc.latest.chronic_disease_indicators" in cdc_chronic_sql
     assert "count(distinct topic)" in cdc_chronic_sql
+
+    chicago_sql = all_validation_sql(by_id["socrata.chicago.building-permits"])
+    assert "read_csv_auto" in chicago_sql
+    assert "data.cityofchicago.org/resource/ydr8-5enu.csv" in chicago_sql
+    assert "from odd.chicago.latest.building_permits" in chicago_sql
+    assert "reported_cost_sum" in chicago_sql
 
     nasa_sql = all_validation_sql(by_id["nasa.exoplanet-archive.pscomppars"])
     assert "exoplanetarchive.ipac.caltech.edu/tap/sync" in nasa_sql

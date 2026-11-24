@@ -583,6 +583,30 @@ Table-first catalog of public data sources with legal metadata and executable OD
     - Ask for: date range, borough, complaint type, limit
     - Warnings: Large table requires bounded SODA queries with select/order/limit.
 
+### `socrata.chicago.building-permits` — City of Chicago building permits
+
+- Status: `candidate`
+- Authority: City of Chicago Department of Buildings / Chicago Data Portal
+- License: https://www.chicago.gov/city/en/narr/foia/data_disclaimer.html
+- DuckDB extensions: httpfs
+- Discovery namespace: `odd.chicago.latest`
+- Tables:
+  - `building_permits` (`odd.chicago.latest.building_permits`): City of Chicago building permit records. One row per issued, non-voided, non-revoked building permit in the bounded Socrata sample.
+    - Ask for: issue or application date range, community area or ward/geography filter, permit type or review type, whether addresses and work descriptions are needed, limit
+    - Warnings: Dataset is updated daily and includes street-level permit records and work descriptions; filter by date, geography, and permit type before broad scans., City terms require preserving the City disclaimer and no-warranty language for downstream apps., Facade is a fixed community-area 32 January 2024 validation sample using selected columns, deterministic ordering, and a 50000-row cap until ODD supports parameterized Socrata paging., Smoke sample: community_area=32 January 2024 rows returned row_count=287, permit_types=5, reported_cost_sum=54476382 on 2026-11-24.
+    - Columns: id: Socrata row identifier for the permit record.; permit_: City permit number.; permit_type: Permit category, such as renovation/alteration or wrecking/demolition.; review_type: Review workflow used for the permit.; application_start_date: Date the permit application process started.; issue_date: Date the permit was issued.; reported_cost: Applicant-reported project cost.; community_area: Chicago community area number.
+    - Validation: `odd.chicago.latest.building_permits`
+      ```
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             CAST(min(issue_date) AS DATE) AS min_issue_date,
+             CAST(max(issue_date) AS DATE) AS max_issue_date,
+             count(DISTINCT permit_type) AS permit_types,
+             CAST(round(sum(reported_cost), 2) AS BIGINT) AS reported_cost_sum
+      FROM odd.chicago.latest.building_permits;
+      ```
+
 ### `socrata.cdc.places-county-2025` — CDC PLACES county health estimates, 2025 release
 
 - Status: `candidate`

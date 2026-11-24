@@ -24,12 +24,13 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.fema.latest.disaster_declarations', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.fema.latest.disaster_declarations', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
 odd.cdc.latest.leading_causes_of_death	read_csv_auto
 odd.census.latest.county_20m	st_read
+odd.chicago.latest.building_permits	read_csv_auto
 odd.fema.latest.disaster_declarations	read_parquet
 odd.nasa_exoplanet_archive.latest.planetary_systems_composite	read_csv_auto
 odd.noaa.latest.ghcn_daily	read_csv
@@ -148,6 +149,16 @@ FROM odd.cdc.latest.leading_causes_of_death
 WHERE state = 'Alaska';
 ----
 209	1999	2017	3118
+
+query ITTII
+SELECT count(*) AS row_count,
+       CAST(min(issue_date) AS VARCHAR) AS min_issue_date,
+       CAST(max(issue_date) AS VARCHAR) AS max_issue_date,
+       count(DISTINCT permit_type) AS permit_types,
+       CAST(round(sum(reported_cost), 2) AS BIGINT) AS reported_cost_sum
+FROM odd.chicago.latest.building_permits;
+----
+287	2024-01-02	2024-02-01	5	54476382
 
 statement ok
 SET VARIABLE fema_disaster_declarations_release = 'v2';
