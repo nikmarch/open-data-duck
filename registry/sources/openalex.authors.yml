@@ -1,0 +1,61 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: openalex.authors
+name: OpenAlex authors snapshot
+status: candidate
+source_type: other
+authority: OpenAlex / OurResearch
+license_url: https://openalex.s3.amazonaws.com/LICENSE.txt
+attribution: OpenAlex / OurResearch snapshot data; cite OpenAlex and the accessed snapshot partition.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: authors
+  ref: odd.openalex.latest.authors
+  description: OpenAlex author entity records. One row per author JSON object in the bounded snapshot partition.
+  columns_hint:
+    id: OpenAlex author URI.
+    display_name: Preferred author display name.
+    works_count: Number of works linked to the author.
+    cited_by_count: Total citation count across linked works.
+    affiliations: Nested recent affiliation records.
+  ask_for:
+  - entity type
+  - updated_date partition
+  - whether nested affiliations/ids should be flattened
+  - limit
+  warnings:
+  - The facade is a fixed authors partition smoke sample until ODD supports parameterized OpenAlex snapshot discovery.
+  - Full OpenAlex snapshots are large and heavily nested; request entity type and partitions before broad scans.
+  validations:
+  - id: odd.openalex.latest.authors
+    description: Compare a fixed OpenAlex authors JSONL partition through direct JSON and ODD facade reads.
+    release: latest
+    compare: exact
+    order_by:
+    - row_count
+    limit: 1
+    direct_sql: |
+      LOAD httpfs;
+      SELECT count(*) AS row_count,
+             min(id) AS first_id,
+             max(works_count) AS max_works_count
+      FROM read_json_auto('https://openalex.s3.amazonaws.com/data/jsonl/authors/updated_date=2026-04-08/part_0000.gz');
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(id) AS first_id,
+             max(works_count) AS max_works_count
+      FROM odd.openalex.latest.authors;
+release:
+  latest:
+    method: static-s3-jsonl-smoke
+    url: https://openalex.s3.amazonaws.com/data/jsonl/authors/updated_date=2026-04-08/part_0000.gz
+discovery:
+  namespace: odd.openalex.latest
+  discover_sql: |
+    SELECT 'authors' AS name,
+           'read_json_auto' AS reader,
+           'https://openalex.s3.amazonaws.com/data/jsonl/authors/updated_date=2026-04-08/part_0000.gz' AS path;

@@ -24,27 +24,33 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.census_dhc_nmf.x2020.dhch_block_constraint', 'odd.census_pl94_nmf.x2020.person_pl_state_constraint', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.meta_hrsl.latest.population_points', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.noaa_swpc.latest.boulder_k_index_1m', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.openalex.latest.authors', 'odd.sec_edgar.latest.companyfacts', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
 odd.cdc.latest.leading_causes_of_death	read_csv_auto
 odd.census.latest.county_20m	st_read
+odd.census_dhc_nmf.x2020.dhch_block_constraint	read_parquet
+odd.census_pl94_nmf.x2020.person_pl_state_constraint	read_parquet
 odd.chicago.latest.building_permits	read_csv_auto
 odd.cms.latest.medicare_monthly_enrollment	read_csv_auto
 odd.fema.latest.disaster_declarations	read_parquet
 odd.fema.latest.public_assistance_funded_projects	read_parquet
+odd.meta_hrsl.latest.population_points	read_csv_auto
 odd.nasa_exoplanet_archive.latest.planetary_systems_composite	read_csv_auto
 odd.noaa.latest.ghcn_daily	read_csv
 odd.noaa_coops.latest.hourly_heights	read_csv_auto
+odd.noaa_swpc.latest.boulder_k_index_1m	read_json_auto
 odd.nps.latest.monthly_visitor_stats	read_csv_auto
 odd.nps.latest.state_monthly_visitor_stats	read_csv_auto
 odd.nyc_tlc.latest.fhv_tripdata	read_parquet
 odd.nyc_tlc.latest.fhvhv_tripdata	read_parquet
 odd.nyc_tlc.latest.green_tripdata	read_parquet
 odd.nyc_tlc.latest.yellow_tripdata	read_parquet
+odd.openalex.latest.authors	read_json_auto
 odd.overturemaps.latest.building	read_parquet
 odd.overturemaps.latest.place	read_parquet
+odd.sec_edgar.latest.companyfacts	read_json_auto
 odd.usgs_gnis.latest.domestic_names	st_read
 odd.wri.latest.global_power_plants	read_csv
 
