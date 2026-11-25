@@ -69,6 +69,7 @@ struct OpenDataSource {
 	string auth_variable;
 	string auth_env_var;
 	string auth_query_parameter;
+	string auth_url;
 	bool auth_required = false;
 	//! release.latest.resolve_sql: SQL returning the current release id of a `latest` table.
 	string latest_resolve_sql;
@@ -275,6 +276,7 @@ static void JsonAuth(const JSONValue &source_value, OpenDataSource &source) {
 	source.auth_variable = Stripped(JsonString(auth_value, "duckdb_setting"));
 	source.auth_env_var = Stripped(JsonString(auth_value, "env_var"));
 	source.auth_query_parameter = Stripped(JsonString(auth_value, "query_parameter"));
+	source.auth_url = Stripped(JsonString(auth_value, "url"));
 	source.auth_required = JsonBoolean(auth_value, "required");
 }
 
@@ -288,6 +290,7 @@ static string BuildSearchText(const OpenDataSource &source) {
 	parts.push_back(source.auth_variable);
 	parts.push_back(source.auth_env_var);
 	parts.push_back(source.auth_query_parameter);
+	parts.push_back(source.auth_url);
 	parts.push_back(source.tables_namespace);
 	parts.push_back(source.example_query);
 	parts.push_back(source.validation_query);
@@ -449,25 +452,58 @@ static string ResolveSourceAuthValue(ClientContext &context, const OpenDataSourc
 	if (source.auth_placeholder.empty()) {
 		return string();
 	}
+	auto auth_error = [&]() {
+		string message = "open_data_duck: source '" + source.id + "'";
+		if (!source.name.empty()) {
+			message += " (" + source.name + ")";
+		}
+		message += " requires an API key before querying its ODD facade tables.";
+		if (!source.auth_variable.empty()) {
+			message += " Run SET " + source.auth_variable + " = '<secret>';";
+		}
+		if (!source.auth_env_var.empty()) {
+			message += " Or set environment variable " + source.auth_env_var + ".";
+		}
+		if (!source.auth_url.empty()) {
+			message += " Get a key at " + source.auth_url + ".";
+		}
+		if (!source.auth_query_parameter.empty()) {
+			message += " ODD sends it as query parameter '" + source.auth_query_parameter + "'.";
+		}
+		throw InvalidInputException(message);
+	};
+	auto usable_auth = [&](const string &value) {
+		auto stripped = Stripped(value);
+		return !stripped.empty() && stripped != source.auth_placeholder && stripped != "<secret>";
+	};
 	Value auth_value;
 	if (!source.auth_variable.empty() && context.TryGetCurrentSetting(Identifier(source.auth_variable), auth_value) && !auth_value.IsNull()) {
-		return auth_value.ToString();
+		auto value = auth_value.ToString();
+		if (usable_auth(value)) {
+			return value;
+		}
+		if (source.auth_required) {
+			auth_error();
+		}
 	}
 	if (!source.auth_variable.empty() && ClientConfig::GetConfig(context).GetUserVariable(source.auth_variable, auth_value) &&
 	    !auth_value.IsNull()) {
-		return auth_value.ToString();
+		auto value = auth_value.ToString();
+		if (usable_auth(value)) {
+			return value;
+		}
+		if (source.auth_required) {
+			auth_error();
+		}
 	}
 	if (!source.auth_env_var.empty()) {
 		const auto env_value = std::getenv(source.auth_env_var.c_str());
-		if (env_value && env_value[0] != '\0') {
+		if (env_value && usable_auth(string(env_value))) {
 			return string(env_value);
 		}
 	}
 	if (source.auth_required) {
-		throw InvalidInputException("open_data_duck: source '%s' requires auth. Run SET %s = '<secret>'%s%s.", source.id,
-		                            source.auth_variable,
-		                            source.auth_env_var.empty() ? "" : " or set environment variable ",
-		                            source.auth_env_var.empty() ? "" : source.auth_env_var);
+		auth_error();
 	}
 	return string();
 }
@@ -759,7 +795,7 @@ struct OpenDataAuthGlobalState : public GlobalTableFunctionState {
 static unique_ptr<FunctionData> OpenDataAuthBind(ClientContext &context, TableFunctionBindInput &input,
                                                 vector<LogicalType> &return_types, vector<Identifier> &names) {
 	const char *varchar_columns[] = {"source_id", "auth_type", "setting_name", "env_var", "placeholder",
-	                                 "query_parameter"};
+	                                 "query_parameter", "url"};
 	for (auto column : varchar_columns) {
 		names.emplace_back(column);
 		return_types.emplace_back(LogicalType::VARCHAR);
@@ -795,6 +831,7 @@ static void OpenDataAuthScan(ClientContext &context, TableFunctionInput &data_p,
 		output.data[col++].Append(Value(source.auth_env_var));
 		output.data[col++].Append(Value(source.auth_placeholder));
 		output.data[col++].Append(Value(source.auth_query_parameter));
+		output.data[col++].Append(Value(source.auth_url));
 		output.data[col++].Append(Value::BOOLEAN(source.auth_required));
 		count++;
 	}
@@ -1031,6 +1068,12 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 		}
 		matched_namespace = source.tables_namespace;
 		wanted = lower_table_name.substr(prefix.size());
+		// Fail fast for key-protected sources before table discovery installs/loads
+		// reader extensions or touches source-controlled API URLs. This gives users
+		// the setup message for any table under the protected namespace.
+		if (source.auth_required && source.auth_type == "api_key") {
+			ResolveSourceAuthValue(context, source);
+		}
 		auto discovered = DiscoverTables(context, source);
 		for (auto &table : discovered.tables) {
 			if (StringUtil::Lower(table.name) != wanted) {

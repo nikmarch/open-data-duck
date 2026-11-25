@@ -65,12 +65,12 @@ SELECT count(*) = open_data_duck_registry_source_count() FROM open_data_sources(
 ----
 true
 
-query IIIIIII
-SELECT source_id, auth_type, setting_name, env_var, placeholder, query_parameter, required
+query IIIIIIII
+SELECT source_id, auth_type, setting_name, env_var, placeholder, query_parameter, url, required
 FROM open_data_auth()
 WHERE source_id = 'fred.series-observations';
 ----
-fred.series-observations	api_key	odd_fred_api_key	FRED_API_KEY	{api_key}	api_key	true
+fred.series-observations	api_key	odd_fred_api_key	FRED_API_KEY	{api_key}	api_key	https://fred.stlouisfed.org/docs/api/api_key.html	true
 
 statement ok
 SET odd_fred_api_key = 'dummy';
@@ -79,6 +79,17 @@ query I
 SELECT current_setting('odd_fred_api_key');
 ----
 dummy
+
+statement ok
+RESET odd_fred_api_key;
+
+statement ok
+SET odd_fred_api_key = '<secret>';
+
+statement error
+SELECT * FROM odd.fred.latest.series_observations LIMIT 1;
+----
+Invalid Input Error: open_data_duck: source 'fred.series-observations' (Federal Reserve FRED series observations API) requires an API key before querying its ODD facade tables. Run SET odd_fred_api_key = '<secret>'; Or set environment variable FRED_API_KEY. Get a key at https://fred.stlouisfed.org/docs/api/api_key.html. ODD sends it as query parameter 'api_key'.
 
 statement ok
 RESET odd_fred_api_key;

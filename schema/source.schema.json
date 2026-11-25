@@ -119,6 +119,10 @@
           "type": "string",
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
         },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
         "custom_user_agent": {
           "type": "string"
         }

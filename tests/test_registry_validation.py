@@ -188,6 +188,7 @@ def test_validate_registry_accepts_api_key_auth_source(tmp_path: Path) -> None:
         "env_var": "EXAMPLE_API_KEY",
         "placeholder": "{api_key}",
         "query_parameter": "api_key",
+        "url": "https://example.com/api-key",
         "custom_user_agent": "open-data-duck/dev",
     }
     source["discovery"] = {
@@ -202,6 +203,7 @@ def test_validate_registry_accepts_api_key_auth_source(tmp_path: Path) -> None:
     rendered = render_source_detail(source_obj)
     assert "Auth: api_key" in rendered
     assert "SET example_api_key = '<secret>';" in rendered
+    assert "Key URL: https://example.com/api-key" in rendered
 
 
 def test_validate_registry_rejects_incomplete_api_key_auth(tmp_path: Path) -> None:

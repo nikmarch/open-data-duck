@@ -17,6 +17,7 @@ auth:
   env_var: FRED_API_KEY
   placeholder: "{api_key}"
   query_parameter: api_key
+  url: https://fred.stlouisfed.org/docs/api/api_key.html
   custom_user_agent: open-data-duck/dev
 release:
   latest:
