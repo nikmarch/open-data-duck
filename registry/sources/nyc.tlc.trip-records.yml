@@ -1,0 +1,235 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: nyc.tlc.trip-records
+name: NYC TLC taxi and for-hire vehicle trip records
+status: candidate
+source_type: parquet
+authority: New York City Taxi and Limousine Commission
+license_url: https://www.nyc.gov/home/terms-of-use.page
+attribution: Cite the New York City Taxi and Limousine Commission (TLC) as publisher; preserve NYC.gov terms/no-warranty language and do not imply City endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: yellow_tripdata
+  ref: odd.nyc_tlc.latest.yellow_tripdata
+  description: NYC yellow taxi trip records. One row per yellow taxi trip submitted through TPEP for a published month.
+  columns_hint:
+    VendorID: TPEP provider/vendor identifier.
+    tpep_pickup_datetime: Trip pickup timestamp.
+    tpep_dropoff_datetime: Trip drop-off timestamp.
+    passenger_count: Driver-reported passenger count where provided.
+    trip_distance: Trip distance in miles reported by the taximeter.
+    PULocationID: TLC taxi zone pickup location id.
+    DOLocationID: TLC taxi zone drop-off location id.
+  ask_for:
+  - trip type
+  - year-month release, or latest complete month
+  - pickup or drop-off time range
+  - pickup/drop-off taxi zone ids
+  - fare, tip, payment, or distance fields needed
+  - limit
+  warnings:
+  - Monthly Parquet files are large; filter by month, time, and taxi zones before broad scans.
+  - TLC says trip data was provided by authorized technology providers and TLC makes no representation as to accuracy.
+  - For 2025 onward, yellow taxi files include a cbd_congestion_fee column.
+  - "Latest release resolves to the newest month where yellow, green, FHV, and high-volume FHV files are all published."
+  validations:
+  - id: odd.nyc_tlc.latest.yellow_tripdata
+    description: Compare the yellow taxi trip facade with the direct public TLC Parquet file for a stable January 2024 sample.
+    release: latest
+    source_release: 2024-01
+    compare: exact
+    order_by:
+    - tpep_pickup_datetime
+    - VendorID
+    limit: 5
+    direct_sql: |
+      LOAD httpfs;
+      SELECT VendorID, tpep_pickup_datetime, tpep_dropoff_datetime, trip_distance, PULocationID, DOLocationID
+      FROM read_parquet('https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet')
+      ORDER BY tpep_pickup_datetime, VendorID
+      LIMIT 5;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE nyc_tlc_trip_month = '2024-01';
+      SELECT VendorID, tpep_pickup_datetime, tpep_dropoff_datetime, trip_distance, PULocationID, DOLocationID
+      FROM odd.nyc_tlc.latest.yellow_tripdata
+      ORDER BY tpep_pickup_datetime, VendorID
+      LIMIT 5;
+- id: green_tripdata
+  ref: odd.nyc_tlc.latest.green_tripdata
+  description: NYC green taxi trip records. One row per green taxi or street-hail livery trip submitted through LPEP for a published month.
+  columns_hint:
+    VendorID: LPEP provider/vendor identifier.
+    lpep_pickup_datetime: Trip pickup timestamp.
+    lpep_dropoff_datetime: Trip drop-off timestamp.
+    passenger_count: Driver-reported passenger count where provided.
+    trip_distance: Trip distance in miles reported by the taximeter.
+    PULocationID: TLC taxi zone pickup location id.
+    DOLocationID: TLC taxi zone drop-off location id.
+  ask_for:
+  - trip type
+  - year-month release, or latest complete month
+  - pickup or drop-off time range
+  - pickup/drop-off taxi zone ids
+  - fare, tip, payment, trip type, or distance fields needed
+  - limit
+  warnings:
+  - Monthly Parquet files are large; filter by month, time, and taxi zones before broad scans.
+  - TLC says trip data was provided by authorized technology providers and TLC makes no representation as to accuracy.
+  - For 2025 onward, green taxi files include a cbd_congestion_fee column.
+  validations:
+  - id: odd.nyc_tlc.latest.green_tripdata
+    description: Compare the green taxi trip facade with the direct public TLC Parquet file for a stable January 2024 sample.
+    release: latest
+    source_release: 2024-01
+    compare: exact
+    order_by:
+    - lpep_pickup_datetime
+    - VendorID
+    limit: 5
+    direct_sql: |
+      LOAD httpfs;
+      SELECT VendorID, lpep_pickup_datetime, lpep_dropoff_datetime, trip_distance, PULocationID, DOLocationID
+      FROM read_parquet('https://d37ci6vzurychx.cloudfront.net/trip-data/green_tripdata_2024-01.parquet')
+      ORDER BY lpep_pickup_datetime, VendorID
+      LIMIT 5;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE nyc_tlc_trip_month = '2024-01';
+      SELECT VendorID, lpep_pickup_datetime, lpep_dropoff_datetime, trip_distance, PULocationID, DOLocationID
+      FROM odd.nyc_tlc.latest.green_tripdata
+      ORDER BY lpep_pickup_datetime, VendorID
+      LIMIT 5;
+- id: fhv_tripdata
+  ref: odd.nyc_tlc.latest.fhv_tripdata
+  description: NYC for-hire vehicle trip records. One row per FHV trip record submitted by bases for a published month.
+  columns_hint:
+    dispatching_base_num: TLC license number for the dispatching base.
+    pickup_datetime: Trip pickup timestamp.
+    dropOff_datetime: Trip drop-off timestamp.
+    PUlocationID: TLC taxi zone pickup location id, when reported.
+    DOlocationID: TLC taxi zone drop-off location id, when reported.
+    Affiliated_base_number: Affiliated base license number, when reported.
+  ask_for:
+  - trip type
+  - year-month release, or latest complete month
+  - pickup time range
+  - dispatching or affiliated base
+  - pickup/drop-off taxi zone ids
+  - limit
+  warnings:
+  - Monthly Parquet files are large; filter by month, time, base, and taxi zones before broad scans.
+  - TLC says FHV records come from base submissions and cannot guarantee or confirm accuracy or completeness.
+  - Since 2019, high-volume FHV trips are reported separately in the fhvhv_tripdata table.
+  validations:
+  - id: odd.nyc_tlc.latest.fhv_tripdata
+    description: Compare the FHV trip facade with the direct public TLC Parquet file for a stable January 2024 sample.
+    release: latest
+    source_release: 2024-01
+    compare: exact
+    order_by:
+    - pickup_datetime
+    - dispatching_base_num
+    limit: 5
+    direct_sql: |
+      LOAD httpfs;
+      SELECT dispatching_base_num, pickup_datetime, dropOff_datetime, PUlocationID, DOlocationID
+      FROM read_parquet('https://d37ci6vzurychx.cloudfront.net/trip-data/fhv_tripdata_2024-01.parquet')
+      ORDER BY pickup_datetime, dispatching_base_num
+      LIMIT 5;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE nyc_tlc_trip_month = '2024-01';
+      SELECT dispatching_base_num, pickup_datetime, dropOff_datetime, PUlocationID, DOlocationID
+      FROM odd.nyc_tlc.latest.fhv_tripdata
+      ORDER BY pickup_datetime, dispatching_base_num
+      LIMIT 5;
+- id: fhvhv_tripdata
+  ref: odd.nyc_tlc.latest.fhvhv_tripdata
+  description: NYC high-volume for-hire vehicle trip records. One row per high-volume FHV trip for a published month.
+  columns_hint:
+    hvfhs_license_num: High-volume FHV service license number.
+    dispatching_base_num: TLC license number for the dispatching base.
+    pickup_datetime: Trip pickup timestamp.
+    dropoff_datetime: Trip drop-off timestamp.
+    PULocationID: TLC taxi zone pickup location id.
+    DOLocationID: TLC taxi zone drop-off location id.
+    trip_miles: Trip distance in miles.
+    trip_time: Trip duration in seconds.
+  ask_for:
+  - trip type
+  - year-month release, or latest complete month
+  - pickup or drop-off time range
+  - high-volume FHV service or dispatching base
+  - pickup/drop-off taxi zone ids
+  - fare, driver pay, shared-ride, or distance fields needed
+  - limit
+  warnings:
+  - High-volume FHV monthly files are very large; filter by month, time, base/service, and taxi zones before broad scans.
+  - TLC says FHV records come from base submissions and cannot guarantee or confirm accuracy or completeness.
+  - For 2025 onward, high-volume FHV files include a cbd_congestion_fee column.
+  validations:
+  - id: odd.nyc_tlc.latest.fhvhv_tripdata
+    description: Compare the high-volume FHV trip facade with the direct public TLC Parquet file for a stable January 2024 sample.
+    release: latest
+    source_release: 2024-01
+    compare: exact
+    order_by:
+    - pickup_datetime
+    - hvfhs_license_num
+    - dispatching_base_num
+    limit: 5
+    direct_sql: |
+      LOAD httpfs;
+      SELECT hvfhs_license_num, dispatching_base_num, pickup_datetime, dropoff_datetime, PULocationID, DOLocationID
+      FROM read_parquet('https://d37ci6vzurychx.cloudfront.net/trip-data/fhvhv_tripdata_2024-01.parquet')
+      ORDER BY pickup_datetime, hvfhs_license_num, dispatching_base_num
+      LIMIT 5;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE nyc_tlc_trip_month = '2024-01';
+      SELECT hvfhs_license_num, dispatching_base_num, pickup_datetime, dropoff_datetime, PULocationID, DOLocationID
+      FROM odd.nyc_tlc.latest.fhvhv_tripdata
+      ORDER BY pickup_datetime, hvfhs_license_num, dispatching_base_num
+      LIMIT 5;
+release:
+  latest:
+    method: tlc-trip-record-page
+    url: https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+    resolve_sql: |
+      WITH files AS (
+        SELECT regexp_extract(m, '^(yellow|green|fhv|fhvhv)_tripdata_([0-9]{4}-[0-9]{2})\.parquet$', 1) AS kind,
+               regexp_extract(m, '^(yellow|green|fhv|fhvhv)_tripdata_([0-9]{4}-[0-9]{2})\.parquet$', 2) AS month
+        FROM (SELECT DISTINCT unnest(regexp_extract_all(content, '(yellow|green|fhv|fhvhv)_tripdata_[0-9]{4}-[0-9]{2}\.parquet')) AS m
+              FROM read_text('https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page'))
+      ), complete_months AS (
+        SELECT month
+        FROM files
+        GROUP BY month
+        HAVING count(DISTINCT kind) = 4
+      )
+      SELECT max(month) AS release
+      FROM complete_months;
+  pinned:
+    duckdb_setting: nyc_tlc_trip_month
+    example: 2024-01
+discovery:
+  namespace: odd.nyc_tlc.latest
+  discover_sql: |
+    WITH files AS (
+      SELECT regexp_extract(m, '^(yellow|green|fhv|fhvhv)_tripdata_[0-9]{4}-[0-9]{2}\.parquet$', 1) || '_tripdata' AS name,
+             m AS file_name
+      FROM (SELECT DISTINCT unnest(regexp_extract_all(content, '(yellow|green|fhv|fhvhv)_tripdata_{release}\.parquet')) AS m
+            FROM read_text('https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page'))
+    )
+    SELECT name,
+           'read_parquet' AS reader,
+           'https://d37ci6vzurychx.cloudfront.net/trip-data/' || file_name AS path
+    FROM files
+    ORDER BY name;
