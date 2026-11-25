@@ -153,6 +153,132 @@ tables:
       \ = 's3://overturemaps-us-west-2';\nSELECT id, bbox\nFROM odd.overturemaps.latest.address\n\
       WHERE bbox.xmin <= 66.981\n  AND bbox.xmax >= 66.976\n  AND bbox.ymin <= 39.657\n\
       \  AND bbox.ymax >= 39.652\nORDER BY id\nLIMIT 10;\n"
+- id: water
+  ref: odd.overturemaps.latest.water
+  description: Surface-water polygon and line features. One row per Overture water feature.
+  ask_for:
+  - bbox or area
+  - release or latest
+  - limit
+  warnings:
+  - Large global table; always use tight bbox filters.
+  validations:
+  - id: odd.overturemaps.latest.water
+    description: Compare the latest Overture water facade with the direct public S3 parquet recipe over a sampled bbox.
+    release: latest
+    compare: exact
+    order_by:
+    - id
+    limit: 10
+    direct_sql: |
+      LOAD httpfs;
+      SET s3_region='us-west-2';
+      SET VARIABLE overture_release = '2026-10-21.0';
+      SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+      SELECT id, bbox
+      FROM read_parquet(getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=base/type=water/*')
+      WHERE bbox.xmin <= 67.2
+        AND bbox.xmax >= 66.8
+        AND bbox.ymin <= 39.8
+        AND bbox.ymax >= 39.5
+      ORDER BY id
+      LIMIT 10;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE overture_release = '2026-10-21.0';
+      SELECT id, bbox
+      FROM odd.overturemaps.latest.water
+      WHERE bbox.xmin <= 67.2
+        AND bbox.xmax >= 66.8
+        AND bbox.ymin <= 39.8
+        AND bbox.ymax >= 39.5
+      ORDER BY id
+      LIMIT 10;
+- id: land_use
+  ref: odd.overturemaps.latest.land_use
+  description: Land-use polygons such as parks, campuses, industrial areas, and other human land-use areas. One row per Overture land-use feature.
+  ask_for:
+  - bbox or area
+  - release or latest
+  - limit
+  warnings:
+  - Large global table; always use tight bbox filters.
+  validations:
+  - id: odd.overturemaps.latest.land_use
+    description: Compare the latest Overture land-use facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+    release: latest
+    compare: exact
+    order_by:
+    - id
+    limit: 10
+    direct_sql: |
+      LOAD httpfs;
+      SET s3_region='us-west-2';
+      SET VARIABLE overture_release = '2026-10-21.0';
+      SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+      SELECT id, bbox
+      FROM read_parquet(getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=base/type=land_use/*')
+      WHERE bbox.xmin <= 66.981
+        AND bbox.xmax >= 66.976
+        AND bbox.ymin <= 39.657
+        AND bbox.ymax >= 39.652
+      ORDER BY id
+      LIMIT 10;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE overture_release = '2026-10-21.0';
+      SELECT id, bbox
+      FROM odd.overturemaps.latest.land_use
+      WHERE bbox.xmin <= 66.981
+        AND bbox.xmax >= 66.976
+        AND bbox.ymin <= 39.657
+        AND bbox.ymax >= 39.652
+      ORDER BY id
+      LIMIT 10;
+- id: connector
+  ref: odd.overturemaps.latest.connector
+  description: Transportation connector geometries linking segments and transportation infrastructure. One row per Overture connector feature.
+  ask_for:
+  - bbox or area
+  - release or latest
+  - limit
+  warnings:
+  - Large global table; always use tight bbox filters.
+  validations:
+  - id: odd.overturemaps.latest.connector
+    description: Compare the latest Overture connector facade with the direct public S3 parquet recipe over a sampled tiny bbox.
+    release: latest
+    compare: exact
+    order_by:
+    - id
+    limit: 10
+    direct_sql: |
+      LOAD httpfs;
+      SET s3_region='us-west-2';
+      SET VARIABLE overture_release = '2026-10-21.0';
+      SET VARIABLE overture_s3_base = 's3://overturemaps-us-west-2';
+      SELECT id, bbox
+      FROM read_parquet(getvariable('overture_s3_base') || '/release/' || getvariable('overture_release') || '/theme=transportation/type=connector/*')
+      WHERE bbox.xmin <= 66.981
+        AND bbox.xmax >= 66.976
+        AND bbox.ymin <= 39.657
+        AND bbox.ymax >= 39.652
+      ORDER BY id
+      LIMIT 10;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE overture_release = '2026-10-21.0';
+      SELECT id, bbox
+      FROM odd.overturemaps.latest.connector
+      WHERE bbox.xmin <= 66.981
+        AND bbox.xmax >= 66.976
+        AND bbox.ymin <= 39.657
+        AND bbox.ymax >= 39.652
+      ORDER BY id
+      LIMIT 10;
 release:
   latest:
     method: stac-catalog

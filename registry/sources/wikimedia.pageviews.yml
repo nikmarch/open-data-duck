@@ -1,0 +1,73 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: wikimedia.pageviews
+name: Wikimedia Pageviews hourly dumps
+status: candidate
+source_type: other
+authority: Wikimedia Foundation
+license_url: https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
+attribution: Wikimedia Foundation pageviews dumps; cite the UTC hour/file and access date, and follow Wikimedia Terms of Use.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: pageviews_hourly
+  ref: odd.wikimedia.latest.pageviews_hourly
+  description: Wikimedia hourly pageview aggregates. One row per project and page title for one UTC hour.
+  columns_hint:
+    project: Wikimedia project code such as en, en.m, or commons.m.
+    page_title: URL-escaped page title token from the hourly dump.
+    requests: Number of pageview requests for the project/page/hour.
+    bytes: Number of transferred bytes reported in the dump.
+  ask_for:
+  - UTC year/month/day/hour
+  - project filter
+  - page title filter or limit
+  warnings:
+  - Hourly files are large; choose a UTC hour and filter by project/page before broad analysis.
+  - Page titles are URL-escaped and may need decoding for display.
+  - Wikimedia Terms of Use and dump documentation govern reuse; keep Wikimedia attribution.
+  validations:
+  - id: odd.wikimedia.latest.pageviews_hourly
+    description: Compare the Wikimedia hourly pageviews facade with the direct whitespace-delimited gzip CSV recipe.
+    release: latest
+    compare: exact
+    order_by:
+    - project
+    - page_title
+    limit: 5
+    direct_sql: |
+      LOAD httpfs;
+      SELECT project, page_title, requests, bytes
+      FROM read_csv(
+        'https://dumps.wikimedia.org/other/pageviews/2024/2024-01/pageviews-20240101-000000.gz',
+        delim = ' ',
+        columns = {'project': 'VARCHAR', 'page_title': 'VARCHAR', 'requests': 'BIGINT', 'bytes': 'BIGINT'},
+        ignore_errors = true
+      )
+      ORDER BY project, page_title
+      LIMIT 5;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE wikimedia_pageviews_file = '2024/2024-01/pageviews-20240101-000000.gz';
+      SELECT project, page_title, requests, bytes
+      FROM odd.wikimedia.latest.pageviews_hourly
+      ORDER BY project, page_title
+      LIMIT 5;
+release:
+  latest:
+    method: static-hourly-sample
+    url: https://dumps.wikimedia.org/other/pageviews/
+    resolve_sql: SELECT '2024/2024-01/pageviews-20240101-000000.gz' AS release;
+  pinned:
+    duckdb_setting: wikimedia_pageviews_file
+    example: 2024/2024-01/pageviews-20240101-000000.gz
+discovery:
+  namespace: odd.wikimedia.latest
+  discover_sql: |
+    SELECT 'pageviews_hourly' AS name,
+           'read_csv' AS reader,
+           'https://dumps.wikimedia.org/other/pageviews/{release}' AS path,
+           NULL AS layer,
+           '{"delim":" ","columns":{"project":"VARCHAR","page_title":"VARCHAR","requests":"BIGINT","bytes":"BIGINT"},"ignore_errors":true}' AS reader_options;

@@ -24,7 +24,7 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.census_dhc_nmf.x2020.dhch_block_constraint', 'odd.census_pl94_nmf.x2020.person_pl_state_constraint', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.eurostat.latest.demo_pjan', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.meta_hrsl.latest.population_points', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.noaa_nclimgrid.latest.epinoaa_daily_county', 'odd.noaa_swpc.latest.boulder_k_index_1m', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.openalex.latest.authors', 'odd.sec_edgar.latest.companyfacts', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.connector', 'odd.overturemaps.latest.land_use', 'odd.overturemaps.latest.place', 'odd.overturemaps.latest.water', 'odd.wikimedia.latest.pageviews_hourly', 'odd.census.latest.county_20m', 'odd.census_dhc_nmf.x2020.dhch_block_constraint', 'odd.census_pl94_nmf.x2020.person_pl_state_constraint', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.eurostat.latest.demo_pjan', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.meta_hrsl.latest.population_points', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.noaa_nclimgrid.latest.epinoaa_daily_county', 'odd.noaa_swpc.latest.boulder_k_index_1m', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.openalex.latest.authors', 'odd.sec_edgar.latest.companyfacts', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
@@ -51,9 +51,13 @@ odd.nyc_tlc.latest.green_tripdata	read_parquet
 odd.nyc_tlc.latest.yellow_tripdata	read_parquet
 odd.openalex.latest.authors	read_json_auto
 odd.overturemaps.latest.building	read_parquet
+odd.overturemaps.latest.connector	read_parquet
+odd.overturemaps.latest.land_use	read_parquet
 odd.overturemaps.latest.place	read_parquet
+odd.overturemaps.latest.water	read_parquet
 odd.sec_edgar.latest.companyfacts	read_json_auto
 odd.usgs_gnis.latest.domestic_names	st_read
+odd.wikimedia.latest.pageviews_hourly	read_csv
 odd.wri.latest.global_power_plants	read_csv
 
 query I
@@ -104,6 +108,39 @@ FROM odd.overturemaps.latest.segment
 WHERE bbox.xmin <= -149.37 AND bbox.xmax >= -149.39 AND bbox.ymin <= 61.61 AND bbox.ymax >= 61.60;
 ----
 true
+
+query I
+SELECT count(*) > 0
+FROM odd.overturemaps.latest.water
+WHERE bbox.xmin <= 67.2 AND bbox.xmax >= 66.8 AND bbox.ymin <= 39.8 AND bbox.ymax >= 39.5;
+----
+true
+
+query I
+SELECT count(*) > 0
+FROM odd.overturemaps.latest.land_use
+WHERE bbox.xmin <= 66.981 AND bbox.xmax >= 66.976 AND bbox.ymin <= 39.657 AND bbox.ymax >= 39.652;
+----
+true
+
+query I
+SELECT count(*) > 0
+FROM odd.overturemaps.latest.connector
+WHERE bbox.xmin <= 66.981 AND bbox.xmax >= 66.976 AND bbox.ymin <= 39.657 AND bbox.ymax >= 39.652;
+----
+true
+
+statement ok
+SET VARIABLE wikimedia_pageviews_file = '2024/2024-01/pageviews-20240101-000000.gz';
+
+query I
+SELECT count(*) > 0
+FROM (SELECT project, page_title, requests, bytes FROM odd.wikimedia.latest.pageviews_hourly LIMIT 5);
+----
+true
+
+statement ok
+RESET VARIABLE wikimedia_pageviews_file;
 
 query I
 SELECT count(*) = 5
