@@ -1,0 +1,52 @@
+id: open-data-duck.csv-reader-options-fixture
+name: Open Data Duck CSV reader options fixture
+status: candidate
+source_type: other
+authority: https://github.com/nikmarch/open-data-duck
+license_url: https://github.com/nikmarch/open-data-duck/blob/main/LICENSE
+attribution: Open Data Duck test fixture
+release:
+  latest:
+    url: https://github.com/nikmarch/open-data-duck/blob/main/test/fixtures/pageviews-whitespace.csv.gz
+    method: static fixture release
+    resolve_sql: SELECT 'fixture' AS release
+  pinned:
+    duckdb_setting: odd_fixture_release
+    example: fixture
+tables:
+  - id: pageviews_hourly
+    ref: odd.odd_fixture.latest.pageviews_hourly
+    description: Fixture rows shaped like whitespace-delimited pageview aggregates. One row per project/page count.
+    columns_hint:
+      project: Wikimedia project code from the fixture row.
+      page_title: Page title token from the fixture row.
+      requests: Number of requests in the fixture row.
+      bytes: Number of transferred bytes in the fixture row.
+    warnings:
+      - Local fixture used to prove CSV reader options in the native replacement scan.
+    validations:
+      - id: odd.odd_fixture.latest.pageviews_hourly
+        direct_sql: |
+          SELECT project, page_title, requests, bytes
+          FROM read_csv(
+            'test/fixtures/pageviews-whitespace.csv.gz',
+            delim = ' ',
+            columns = {'project': 'VARCHAR', 'page_title': 'VARCHAR', 'requests': 'BIGINT', 'bytes': 'BIGINT'},
+            ignore_errors = true
+          )
+          ORDER BY project, page_title;
+        odd_sql: |
+          SELECT project, page_title, requests, bytes
+          FROM odd.odd_fixture.latest.pageviews_hourly
+          ORDER BY project, page_title;
+        compare: exact
+discovery:
+  namespace: odd.odd_fixture.latest
+  discover_sql: |
+    WITH release AS (SELECT '{release}' AS release)
+    SELECT 'pageviews_hourly' AS name,
+           'read_csv' AS reader,
+           'test/fixtures/pageviews-whitespace.csv.gz' AS path,
+           NULL AS layer,
+           '{"delim":" ","columns":{"project":"VARCHAR","page_title":"VARCHAR","requests":"BIGINT","bytes":"BIGINT"},"ignore_errors":true}' AS reader_options
+    FROM release

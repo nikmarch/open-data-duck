@@ -74,7 +74,7 @@ LIMIT 10;
 The registry stores no table paths. Each source with a namespace carries two SQL snippets:
 
 - `release.latest.resolve_sql` returns the current release id (Overture: the `latest` child of `https://stac.overturemaps.org/catalog.json`; Census: the newest `GENZ<year>` directory; NOAA: the newest `by_year` file).
-- `duckdb.tables.discover_sql` returns one `(name, reader, path)` row per table for a given `{release}` (Overture: every STAC collection of the release; Census: every county/tract shapefile at every scale).
+- `duckdb.tables.discover_sql` returns one `(name, reader, path)` row per table for a given `{release}` (Overture: every STAC collection of the release; Census: every county/tract shapefile at every scale). CSV-backed facades may return optional trailing `layer` and `reader_options` columns; `reader_options` is a JSON object of whitelisted DuckDB CSV reader arguments such as `delim`, `columns`, and `ignore_errors`.
 
 On the first touch of `odd.tables` or of any `namespace.<table>` in a process, the extension runs both snippets on its own connection and caches the rows for that `source@release`. Pin a release with the source's `release.pinned.duckdb_setting` variable; the pin always wins over the lookup and gets its own cache entry:
 

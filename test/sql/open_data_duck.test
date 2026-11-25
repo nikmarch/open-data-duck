@@ -103,7 +103,7 @@ true
 query I
 SELECT list(DISTINCT namespace ORDER BY namespace) FROM open_data_sources() WHERE namespace <> '';
 ----
-[odd.cdc.latest, odd.census.latest, odd.census_dhc_nmf.x2020, odd.census_pl94_nmf.x2020, odd.chicago.latest, odd.cms.latest, odd.eurostat.latest, odd.fema.latest, odd.meta_hrsl.latest, odd.nasa_exoplanet_archive.latest, odd.naturalearth.latest, odd.noaa.latest, odd.noaa_coops.latest, odd.noaa_nclimgrid.latest, odd.noaa_swpc.latest, odd.nps.latest, odd.nyc_tlc.latest, odd.openalex.latest, odd.overturemaps.latest, odd.sec_edgar.latest, odd.usgs_gnis.latest, odd.wri.latest]
+[odd.cdc.latest, odd.census.latest, odd.census_dhc_nmf.x2020, odd.census_pl94_nmf.x2020, odd.chicago.latest, odd.cms.latest, odd.eurostat.latest, odd.fema.latest, odd.meta_hrsl.latest, odd.nasa_exoplanet_archive.latest, odd.naturalearth.latest, odd.noaa.latest, odd.noaa_coops.latest, odd.noaa_nclimgrid.latest, odd.noaa_swpc.latest, odd.nps.latest, odd.nyc_tlc.latest, odd.odd_fixture.latest, odd.openalex.latest, odd.overturemaps.latest, odd.sec_edgar.latest, odd.usgs_gnis.latest, odd.wri.latest]
 
 query I
 SELECT count(*) > 0 FROM open_data_search('OVERTURE');
@@ -158,7 +158,19 @@ SELECT open_data_validation_sql('noaa.coops.water-level-observations') LIKE '%di
 ----
 true
 
-# Table discovery (odd.tables / open_data_tables()) and the data facades need the
+# Local fixture coverage for CSV-backed replacement-scan reader options. Without
+# the source-controlled options JSON, read_csv(path) parses each whitespace line
+# as one column instead of project/page_title/requests/bytes.
+query TTII
+SELECT project, page_title, requests, bytes
+FROM odd.odd_fixture.latest.pageviews_hourly
+ORDER BY project, page_title;
+----
+en	Main_Page	42	9001
+en	Talk:Sandbox	7	300
+uz	Samarqand	12	1200
+
+# Table discovery (odd.tables / open_data_tables()) and the network-backed data facades need the
 # network; they live in test/sql/open_data_duck_network.test.
 
 # open_data_release(source_id) resolves the release a `latest` table will read.

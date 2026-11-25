@@ -22,6 +22,8 @@
 #include "duckdb/main/attached_database.hpp"
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/parser/parser.hpp"
+#include "duckdb/parser/expression/columnref_expression.hpp"
+#include "duckdb/parser/expression/comparison_expression.hpp"
 #include "duckdb/parser/expression/constant_expression.hpp"
 #include "duckdb/parser/expression/function_expression.hpp"
 #include "duckdb/parser/parsed_data/attach_info.hpp"
@@ -33,6 +35,7 @@
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
 #include <cctype>
+#include <limits>
 #include <mutex>
 #include <unordered_map>
 
@@ -402,6 +405,8 @@ struct OpenDataTable {
 	string reader;
 	string path;
 	string layer;
+	//! Optional JSON object of safe named arguments passed to CSV-backed readers.
+	string reader_options;
 };
 
 struct DiscoveredTables {
@@ -412,6 +417,11 @@ struct DiscoveredTables {
 //! Rows of discovery.discover_sql for the source's current release. Runs once per
 //! process and source@release on its own connection, then serves from cache. Pinning a
 //! different release (SET VARIABLE ...) gets its own cache entry.
+//!
+//! Discovery rows are positional for compatibility:
+//!   name, reader, path[, layer[, reader_options_json]]
+//! `layer` is only applied to ST_Read. `reader_options_json` is a source-controlled
+//! JSON object of whitelisted named arguments for CSV readers.
 static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSource &source) {
 	if (source.tables_discover_sql.empty()) {
 		throw InvalidInputException("open_data_duck: source '%s' has no discovery.discover_sql", source.id);
@@ -453,6 +463,9 @@ static DiscoveredTables DiscoverTables(ClientContext &context, const OpenDataSou
 		table.path = row.GetValue<string>(2);
 		if (query_result->ColumnCount() >= 4) {
 			table.layer = row.IsNull(3) ? string() : row.GetValue<string>(3);
+		}
+		if (query_result->ColumnCount() >= 5) {
+			table.reader_options = row.IsNull(4) ? string() : row.GetValue<string>(4);
 		}
 		if (table.name.empty() || table.path.empty()) {
 			continue;
@@ -740,6 +753,131 @@ static unique_ptr<TableFunctionRef> TableFunctionReplacement(const string &funct
 	return table_function;
 }
 
+static bool IsCsvReader(const string &reader) {
+	auto lower_reader = StringUtil::Lower(reader);
+	return lower_reader == "read_csv" || lower_reader == "read_csv_auto";
+}
+
+static bool IsSafeCsvReaderOption(const string &option) {
+	static const vector<string> allowed = {"all_varchar",    "auto_detect", "columns",       "compression",
+	                                    "dateformat",     "delim",       "escape",        "header",
+	                                    "ignore_errors",  "max_line_size", "names",        "new_line",
+	                                    "null_padding",   "nullstr",     "quote",         "sample_size",
+	                                    "sep",            "skip",        "timestampformat"};
+	for (auto &allowed_option : allowed) {
+		if (option == allowed_option) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static unique_ptr<ParsedExpression> ReaderOptionObjectExpression(const string &source_id, const string &table_name,
+                                                                 const string &option, const JSONValue &value) {
+	if (option != "columns") {
+		throw InvalidInputException(
+		    "open_data_duck: source '%s' table '%s' reader option '%s' must be a scalar, string array, or columns object",
+		    source_id, table_name, option);
+	}
+	child_list_t<Value> fields;
+	value.IterateObject([&](const string &key, JSONValue item) {
+		if (key.empty() || !item.IsString()) {
+			throw InvalidInputException(
+			    "open_data_duck: source '%s' table '%s' reader option 'columns' must map column names to type strings",
+			    source_id, table_name);
+		}
+		fields.emplace_back(Identifier(key), Value(item.GetString()));
+	});
+	if (fields.empty()) {
+		throw InvalidInputException("open_data_duck: source '%s' table '%s' reader option 'columns' must not be empty",
+		                            source_id, table_name);
+	}
+	return ConstantExpression::FromValue(Value::STRUCT(fields));
+}
+
+static unique_ptr<ParsedExpression> ReaderOptionArrayExpression(const string &source_id, const string &table_name,
+                                                                const string &option, const JSONValue &value) {
+	vector<Value> values;
+	value.IterateArray([&](JSONValue item) {
+		if (!item.IsString()) {
+			throw InvalidInputException(
+			    "open_data_duck: source '%s' table '%s' reader option '%s' arrays may only contain strings", source_id,
+			    table_name, option);
+		}
+		values.emplace_back(item.GetString());
+	});
+	if (values.empty()) {
+		return ConstantExpression::FromValue(Value::LIST(LogicalType::VARCHAR, std::move(values)));
+	}
+	return ConstantExpression::FromValue(Value::LIST(std::move(values)));
+}
+
+static unique_ptr<ParsedExpression> ReaderOptionExpression(const string &source_id, const string &table_name,
+                                                           const string &option, const JSONValue &value) {
+	if (value.IsString()) {
+		return ConstantExpression::String(value.GetString());
+	}
+	if (value.GetType() == JSONValueType::BOOLEAN) {
+		return ConstantExpression::Boolean(value.GetBoolean());
+	}
+	if (value.GetType() == JSONValueType::SIGNED_INTEGER) {
+		return ConstantExpression::Integer(value.GetSignedInteger());
+	}
+	if (value.GetType() == JSONValueType::UNSIGNED_INTEGER) {
+		auto unsigned_value = value.GetUnsignedInteger();
+		if (unsigned_value > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+			throw InvalidInputException("open_data_duck: source '%s' table '%s' reader option '%s' is too large",
+			                            source_id, table_name, option);
+		}
+		return ConstantExpression::Integer(static_cast<int64_t>(unsigned_value));
+	}
+	if (value.GetType() == JSONValueType::DOUBLE || value.GetType() == JSONValueType::RAW) {
+		return ConstantExpression::Number(value.ToString());
+	}
+	if (value.IsArray()) {
+		return ReaderOptionArrayExpression(source_id, table_name, option, value);
+	}
+	if (value.IsObject()) {
+		return ReaderOptionObjectExpression(source_id, table_name, option, value);
+	}
+	throw InvalidInputException("open_data_duck: source '%s' table '%s' reader option '%s' has unsupported JSON value",
+	                            source_id, table_name, option);
+}
+
+static void AppendReaderOptions(const string &source_id, const OpenDataTable &table, vector<FunctionArgument> &children) {
+	auto options = Stripped(table.reader_options);
+	if (options.empty()) {
+		return;
+	}
+	if (!IsCsvReader(table.reader)) {
+		throw InvalidInputException(
+		    "open_data_duck: source '%s' table '%s' declares reader options for unsupported reader '%s'", source_id,
+		    table.name, table.reader);
+	}
+	auto document = JSONDocument::Parse(options.c_str(), options.size());
+	auto root = document->GetRoot();
+	if (!root.IsObject()) {
+		throw InvalidInputException("open_data_duck: source '%s' table '%s' reader options must be a JSON object", source_id,
+		                            table.name);
+	}
+	root.IterateObject([&](const string &key, JSONValue value) {
+		auto option = StringUtil::Lower(Stripped(key));
+		if (option.empty() || !IsSafeCsvReaderOption(option)) {
+			throw InvalidInputException("open_data_duck: source '%s' table '%s' has unsafe CSV reader option '%s'",
+			                            source_id, table.name, key);
+		}
+		// Use the legacy `name = expression` shape instead of FunctionArgument's
+		// explicit name constructor here. DuckDB v2.0.0's distribution build
+		// headers compile both forms, but its table-function binder only preserves
+		// the comparison-expression shape for replacement scans; otherwise CSV
+		// options bind as positional arguments in CI.
+		auto named_option = make_uniq<ComparisonExpression>(ExpressionType::COMPARE_EQUAL,
+		                                                     make_uniq<ColumnRefExpression>(Identifier(option)),
+		                                                     ReaderOptionExpression(source_id, table.name, option, value));
+		children.emplace_back(std::move(named_option));
+	});
+}
+
 static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, ReplacementScanInput &input,
                                                         optional_ptr<ReplacementScanData> data) {
 	auto table_name = ReplacementScan::GetFullPath(input);
@@ -776,6 +914,7 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 			if (!table.layer.empty() && StringUtil::Lower(table.reader) == "st_read") {
 				children.emplace_back(Identifier("layer"), ConstantExpression::String(table.layer));
 			}
+			AppendReaderOptions(source.id, table, children);
 			table_function->function = make_uniq<FunctionExpression>(Identifier(table.reader), std::move(children));
 			table_function->alias = Identifier(table.name);
 			return std::move(table_function);
