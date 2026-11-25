@@ -40,6 +40,8 @@ def _render_auth_text(auth: dict[str, Any]) -> list[str]:
         lines.append(f"DuckDB setting: SET {setting} = '<secret>';")
     if env_var:
         lines.append(f"Environment variable: {env_var}")
+    if auth.get("url"):
+        lines.append(f"Key URL: {auth['url']}")
     if auth.get("custom_user_agent"):
         lines.append(f"Suggested user agent: {auth['custom_user_agent']}")
     return lines
@@ -57,6 +59,8 @@ def _render_auth_markdown(auth: dict[str, Any]) -> list[str]:
         lines.append(f"- Secret setup: `SET {setting} = '<secret>';`")
     if env_var:
         lines.append(f"- Environment variable fallback: `{env_var}`")
+    if auth.get("url"):
+        lines.append(f"- Key URL: {auth['url']}")
     if auth.get("custom_user_agent"):
         lines.append(f"- Suggested user agent: `{auth['custom_user_agent']}`")
     return lines
