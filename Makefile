@@ -11,7 +11,13 @@ REGISTRY_HEADER := $(PROJ_DIR)src/include/open_data_duck_registry.generated.hpp
 REGISTRY_GENERATOR_INPUTS := $(PROJ_DIR)registry/sources.yml $(REGISTRY_SOURCES) $(PROJ_DIR)odd/extension_registry.py $(PROJ_DIR)odd/registry_model.py
 
 $(REGISTRY_HEADER): $(REGISTRY_GENERATOR_INPUTS)
-	cd $(PROJ_DIR) && uv run odd generate-extension-registry
+	cd $(PROJ_DIR) && \
+		if command -v uv >/dev/null 2>&1; then \
+			uv run odd generate-extension-registry; \
+		else \
+			python3 -m pip install . && \
+			python3 -m odd.cli generate-extension-registry; \
+		fi
 
 release: $(REGISTRY_HEADER)
 
