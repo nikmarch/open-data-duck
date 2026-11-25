@@ -658,6 +658,11 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     assert "station=8518750" in coops_sql
     assert "from odd.noaa_coops.latest.hourly_heights" in coops_sql
 
+    eurostat_sql = all_validation_sql(by_id["eurostat.dissemination-api"])
+    assert "ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/demo_pjan" in eurostat_sql
+    assert "geo=de" in eurostat_sql
+    assert "from odd.eurostat.latest.demo_pjan" in eurostat_sql
+
     cdc_sql = all_validation_sql(by_id["socrata.cdc.nchs-leading-causes-of-death"])
     assert "read_csv_auto" in cdc_sql
     assert "from odd.cdc.latest.leading_causes_of_death" in cdc_sql
@@ -861,6 +866,65 @@ def test_project_usgs_gnis_uses_geopackage_domestic_names_metadata() -> None:
     assert "american samoa" in rendered_metadata
     assert "feature_id 1388627" in rendered_metadata
     assert "domesticnames" in rendered_metadata
+
+
+def test_project_eurostat_dissemination_api_exposes_bounded_jsonstat_facade_metadata() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "eurostat.dissemination-api")
+    table = source["tables"][0]
+    validation = table["validations"][0]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            table["description"],
+            "\n".join(table.get("ask_for", [])),
+            "\n".join(table.get("warnings", [])),
+            "\n".join(table.get("columns_hint", {}).values()),
+            validation["direct_sql"],
+            validation["odd_sql"],
+            source["discovery"]["discover_sql"],
+        ]
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "Eurostat / European Commission"
+    assert source["license_url"] == "https://ec.europa.eu/eurostat/en/help/copyright-notice"
+    assert source["requirements"] == {"duckdb_extensions": ["httpfs"]}
+    assert "duckdb" not in source
+    assert "description" not in source
+    assert "homepage" not in source
+    assert "ai" not in source
+    assert table["id"] == "demo_pjan"
+    assert table["ref"] == "odd.eurostat.latest.demo_pjan"
+    assert validation["id"] == table["ref"]
+    assert "read_json_auto('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/demo_pjan" in validation["direct_sql"]
+    assert "FROM odd.eurostat.latest.demo_pjan" in validation["odd_sql"]
+    assert source["release"]["latest"] == {
+        "method": "static-jsonstat-api-sample",
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/demo_pjan",
+    }
+    assert source["discovery"] == {
+        "namespace": "odd.eurostat.latest",
+        "discover_sql": (
+            "SELECT 'demo_pjan' AS name,\n"
+            "       'read_json_auto' AS reader,\n"
+            "       'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/demo_pjan?geo=DE&sex=T&age=TOTAL&time=2023' AS path;\n"
+        ),
+    }
+    assert any("dataset code" in item for item in table["ask_for"])
+    assert any("dimension filters" in item for item in table["ask_for"])
+    assert "raw json-stat smoke sample" in rendered_metadata
+    assert "dimension-flattening recipe" in rendered_metadata
+    assert "geo=de" in rendered_metadata
+    assert "sex=t" in rendered_metadata
+    assert "age=total" in rendered_metadata
+    assert "time=2023" in rendered_metadata
+    assert "value.\"0\"" in rendered_metadata
+    assert "load stac" not in rendered_metadata
+    assert "install stac" not in rendered_metadata
 
 
 def test_project_noaa_coops_water_level_observations_uses_parameterized_public_csv_api_metadata() -> None:
