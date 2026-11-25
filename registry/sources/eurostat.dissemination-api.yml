@@ -1,0 +1,60 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: eurostat.dissemination-api
+name: Eurostat dissemination API datasets
+status: candidate
+source_type: other
+authority: Eurostat / European Commission
+license_url: https://ec.europa.eu/eurostat/en/help/copyright-notice
+attribution: Eurostat; cite the dataset code, selected dimensions, access date, and any changes made.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: demo_pjan
+  ref: odd.eurostat.latest.demo_pjan
+  description: Eurostat population on 1 January JSON-stat API response. One row per bounded parameter selection response for the selected geography, sex, age, and time.
+  columns_hint:
+    label: Dataset title returned by the JSON-stat response.
+    source: Eurostat source identifier.
+    updated: Last update timestamp for the returned dataset response.
+    value: Nested JSON-stat observation value struct for the bounded selection.
+    dimension: Nested JSON-stat dimension metadata for frequency, unit, age, sex, geography, and time.
+  ask_for:
+  - Eurostat dataset code
+  - dimension filters such as geo, sex, age, unit, and time
+  - whether the response should stay raw JSON-stat or be flattened to observation rows
+  - limit or bounded parameter selection
+  warnings:
+  - The facade is a fixed raw JSON-stat smoke sample until ODD supports a Eurostat dimension-flattening recipe.
+  - Broad unfiltered Eurostat API requests can be large; choose dataset code and dimensions before querying.
+  - Preserve Eurostat attribution and cite the selected dataset code, dimensions, endpoint, access date, and any changes.
+  - 'Validation facade is a small fixed smoke sample: dataset=demo_pjan, geo=DE, sex=T, age=TOTAL, time=2023; expected value."0" is the Germany total population observation for 2023.'
+  validations:
+  - id: odd.eurostat.latest.demo_pjan
+    description: Compare the Eurostat demo_pjan raw JSON-stat sample facade with the direct bounded API recipe.
+    release: latest
+    compare: exact
+    direct_sql: |
+      LOAD httpfs;
+      SELECT count(*) AS row_count,
+             min(source) AS source,
+             min(value."0") AS population
+      FROM read_json_auto('https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/demo_pjan?geo=DE&sex=T&age=TOTAL&time=2023');
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(source) AS source,
+             min(value."0") AS population
+      FROM odd.eurostat.latest.demo_pjan;
+release:
+  latest:
+    method: static-jsonstat-api-sample
+    url: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/demo_pjan
+discovery:
+  namespace: odd.eurostat.latest
+  discover_sql: |
+    SELECT 'demo_pjan' AS name,
+           'read_json_auto' AS reader,
+           'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/demo_pjan?geo=DE&sex=T&age=TOTAL&time=2023' AS path;
