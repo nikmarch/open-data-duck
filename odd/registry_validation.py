@@ -41,11 +41,38 @@ def _validate_hygiene(registry: dict[str, Any]) -> list[ValidationError]:
             value = _nested_get(source, field_path)
             if not isinstance(value, str) or not value.strip():
                 errors.append(ValidationError(f"{source_path}.{'.'.join(field_path)}", "must be present and non-blank"))
+        errors.extend(_validate_auth(source, source_path))
         errors.extend(_validate_discovery(source, source_path))
         errors.extend(_validate_tables(source, source_path))
         for table_index, table in enumerate(_mapping_list(source.get("tables"))):
             table_id = table.get("id", table_index)
             errors.extend(_validate_validation_pairs(table, f"{source_path}.tables[{table_index}]({table_id})"))
+    return errors
+
+
+def _validate_auth(source: dict[str, Any], source_path: str) -> list[ValidationError]:
+    auth = source.get("auth")
+    if auth is None or not isinstance(auth, dict):
+        return []
+    errors: list[ValidationError] = []
+    auth_type = auth.get("type")
+    if auth_type == "api_key":
+        for field in ("duckdb_setting", "env_var", "placeholder", "query_parameter"):
+            value = auth.get(field)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(ValidationError(f"{source_path}.auth.{field}", "must be present and non-blank for api_key auth"))
+    placeholder = auth.get("placeholder")
+    if isinstance(placeholder, str) and placeholder.strip():
+        sql_parts = []
+        discovery = source.get("discovery")
+        if isinstance(discovery, dict):
+            sql_parts.append(str(discovery.get("discover_sql", "")))
+        for table in _mapping_list(source.get("tables")):
+            for validation in _mapping_list(table.get("validations")):
+                sql_parts.append(str(validation.get("direct_sql", "")))
+                sql_parts.append(str(validation.get("odd_sql", "")))
+        if not any(placeholder in part for part in sql_parts):
+            errors.append(ValidationError(f"{source_path}.auth.placeholder", "must appear in discovery or validation SQL"))
     return errors
 
 

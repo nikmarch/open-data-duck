@@ -35,6 +35,7 @@
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 
 #include <cctype>
+#include <cstdlib>
 #include <limits>
 #include <mutex>
 #include <unordered_map>
@@ -62,6 +63,13 @@ struct OpenDataSource {
 	string example_query;
 	//! First table validation rendered as direct control + ODD facade SQL.
 	string validation_query;
+	//! auth metadata for sources that require user-provided values in discovered paths.
+	string auth_type;
+	string auth_placeholder;
+	string auth_variable;
+	string auth_env_var;
+	string auth_query_parameter;
+	bool auth_required = false;
 	//! release.latest.resolve_sql: SQL returning the current release id of a `latest` table.
 	string latest_resolve_sql;
 	//! release.pinned.duckdb_setting: user variable that pins the release instead.
@@ -90,6 +98,11 @@ static vector<string> JsonStringArray(const JSONValue &object, const string &key
 		}
 	});
 	return result;
+}
+
+static bool JsonBoolean(const JSONValue &object, const string &key) {
+	auto member = object.GetMember(key);
+	return member.IsValid() && member.GetType() == JSONValueType::BOOLEAN && member.GetBoolean();
 }
 
 static string Stripped(string value) {
@@ -252,12 +265,29 @@ static void JsonFirstValidationPair(const JSONValue &source_value, OpenDataSourc
 	});
 }
 
+static void JsonAuth(const JSONValue &source_value, OpenDataSource &source) {
+	auto auth_value = source_value.GetMember("auth");
+	if (!auth_value.IsValid() || !auth_value.IsObject()) {
+		return;
+	}
+	source.auth_type = Stripped(JsonString(auth_value, "type"));
+	source.auth_placeholder = Stripped(JsonString(auth_value, "placeholder"));
+	source.auth_variable = Stripped(JsonString(auth_value, "duckdb_setting"));
+	source.auth_env_var = Stripped(JsonString(auth_value, "env_var"));
+	source.auth_query_parameter = Stripped(JsonString(auth_value, "query_parameter"));
+	source.auth_required = JsonBoolean(auth_value, "required");
+}
+
 static string BuildSearchText(const OpenDataSource &source) {
 	vector<string> parts {source.id,   source.name,       source.status,      source.source_type,
 	                      source.authority, source.license_url, source.attribution};
 	for (auto &extension : source.extensions) {
 		parts.push_back(extension);
 	}
+	parts.push_back(source.auth_type);
+	parts.push_back(source.auth_variable);
+	parts.push_back(source.auth_env_var);
+	parts.push_back(source.auth_query_parameter);
 	parts.push_back(source.tables_namespace);
 	parts.push_back(source.example_query);
 	parts.push_back(source.validation_query);
@@ -290,6 +320,7 @@ static vector<OpenDataSource> ParseEmbeddedRegistry() {
 		}
 		JsonDiscovery(item, source);
 		JsonFirstValidationPair(item, source);
+		JsonAuth(item, source);
 		auto release_value = item.GetMember("release");
 		if (release_value.IsValid() && release_value.IsObject()) {
 			auto latest_value = release_value.GetMember("latest");
@@ -413,6 +444,44 @@ struct DiscoveredTables {
 	string release;
 	vector<OpenDataTable> tables;
 };
+
+static string ResolveSourceAuthValue(ClientContext &context, const OpenDataSource &source) {
+	if (source.auth_placeholder.empty()) {
+		return string();
+	}
+	Value auth_value;
+	if (!source.auth_variable.empty() && context.TryGetCurrentSetting(Identifier(source.auth_variable), auth_value) && !auth_value.IsNull()) {
+		return auth_value.ToString();
+	}
+	if (!source.auth_variable.empty() && ClientConfig::GetConfig(context).GetUserVariable(source.auth_variable, auth_value) &&
+	    !auth_value.IsNull()) {
+		return auth_value.ToString();
+	}
+	if (!source.auth_env_var.empty()) {
+		const auto env_value = std::getenv(source.auth_env_var.c_str());
+		if (env_value && env_value[0] != '\0') {
+			return string(env_value);
+		}
+	}
+	if (source.auth_required) {
+		throw InvalidInputException("open_data_duck: source '%s' requires auth. Run SET %s = '<secret>'%s%s.", source.id,
+		                            source.auth_variable,
+		                            source.auth_env_var.empty() ? "" : " or set environment variable ",
+		                            source.auth_env_var.empty() ? "" : source.auth_env_var);
+	}
+	return string();
+}
+
+static string ResolveAuthenticatedPath(ClientContext &context, const OpenDataSource &source, const string &path) {
+	if (source.auth_placeholder.empty() || !StringUtil::Contains(path, source.auth_placeholder)) {
+		return path;
+	}
+	auto auth_value = ResolveSourceAuthValue(context, source);
+	if (auth_value.empty()) {
+		return path;
+	}
+	return StringUtil::Replace(path, source.auth_placeholder, auth_value);
+}
 
 //! Rows of discovery.discover_sql for the source's current release. Runs once per
 //! process and source@release on its own connection, then serves from cache. Pinning a
@@ -671,6 +740,65 @@ static void OpenDataSourcesScan(ClientContext &context, TableFunctionInput &data
 	}
 }
 
+//===--------------------------------------------------------------------===//
+// open_data_auth()
+//===--------------------------------------------------------------------===//
+
+struct OpenDataAuthBindData : public TableFunctionData {
+	vector<idx_t> selected;
+};
+
+struct OpenDataAuthGlobalState : public GlobalTableFunctionState {
+	idx_t offset = 0;
+
+	idx_t MaxThreads() const override {
+		return 1;
+	}
+};
+
+static unique_ptr<FunctionData> OpenDataAuthBind(ClientContext &context, TableFunctionBindInput &input,
+                                                vector<LogicalType> &return_types, vector<Identifier> &names) {
+	const char *varchar_columns[] = {"source_id", "auth_type", "setting_name", "env_var", "placeholder",
+	                                 "query_parameter"};
+	for (auto column : varchar_columns) {
+		names.emplace_back(column);
+		return_types.emplace_back(LogicalType::VARCHAR);
+	}
+	names.emplace_back("required");
+	return_types.emplace_back(LogicalType::BOOLEAN);
+	auto result = make_uniq<OpenDataAuthBindData>();
+	auto &registry = GetEmbeddedRegistry();
+	for (idx_t i = 0; i < registry.size(); i++) {
+		if (!registry[i].auth_type.empty()) {
+			result->selected.push_back(i);
+		}
+	}
+	return result;
+}
+
+static unique_ptr<GlobalTableFunctionState> OpenDataAuthInit(ClientContext &context, TableFunctionInitInput &input) {
+	return make_uniq<OpenDataAuthGlobalState>();
+}
+
+static void OpenDataAuthScan(ClientContext &context, TableFunctionInput &data_p, DataChunk &output) {
+	auto &bind_data = data_p.bind_data->Cast<OpenDataAuthBindData>();
+	auto &state = data_p.global_state->Cast<OpenDataAuthGlobalState>();
+	auto &registry = GetEmbeddedRegistry();
+
+	idx_t count = 0;
+	while (state.offset < bind_data.selected.size() && count < STANDARD_VECTOR_SIZE) {
+		auto &source = registry[bind_data.selected[state.offset++]];
+		idx_t col = 0;
+		output.data[col++].Append(Value(source.id));
+		output.data[col++].Append(Value(source.auth_type));
+		output.data[col++].Append(Value(source.auth_variable));
+		output.data[col++].Append(Value(source.auth_env_var));
+		output.data[col++].Append(Value(source.auth_placeholder));
+		output.data[col++].Append(Value(source.auth_query_parameter));
+		output.data[col++].Append(Value::BOOLEAN(source.auth_required));
+		count++;
+	}
+}
 
 //===--------------------------------------------------------------------===//
 // open_data_tables() and the replacement scan
@@ -910,7 +1038,7 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 			}
 			auto table_function = make_uniq<TableFunctionRef>();
 			vector<FunctionArgument> children;
-			children.emplace_back(ConstantExpression::String(table.path));
+			children.emplace_back(ConstantExpression::String(ResolveAuthenticatedPath(context, source, table.path)));
 			if (!table.layer.empty() && StringUtil::Lower(table.reader) == "st_read") {
 				children.emplace_back(Identifier("layer"), ConstantExpression::String(table.layer));
 			}
@@ -944,6 +1072,8 @@ public:
 			sql = "SELECT * FROM open_data_sources()";
 		} else if (entry_name == Identifier("tables")) {
 			sql = "SELECT * FROM open_data_tables()";
+		} else if (entry_name == Identifier("auth")) {
+			sql = "SELECT * FROM open_data_auth()";
 		} else {
 			return nullptr;
 		}
@@ -957,7 +1087,7 @@ public:
 	}
 
 	vector<Identifier> GetDefaultEntries() override {
-		return {Identifier("index"), Identifier("tables")};
+		return {Identifier("index"), Identifier("tables"), Identifier("auth")};
 	}
 
 private:
@@ -996,7 +1126,23 @@ struct OpenDataDuckStorageExtension : StorageExtension {
 // Registration
 //===--------------------------------------------------------------------===//
 
+static void RegisterSourceAuthSettings(ExtensionLoader &loader) {
+	auto &config = DBConfig::GetConfig(loader.GetDatabaseInstance());
+	for (auto &source : GetEmbeddedRegistry()) {
+		if (source.auth_variable.empty()) {
+			continue;
+		}
+		const auto setting_name = Identifier(source.auth_variable);
+		if (config.HasExtensionOption(setting_name)) {
+			continue;
+		}
+		config.AddExtensionOption(setting_name, "Secret value for Open Data Duck source " + source.id,
+		                          LogicalType::VARCHAR, Value());
+	}
+}
+
 static void LoadInternal(ExtensionLoader &loader) {
+	RegisterSourceAuthSettings(loader);
 	loader.RegisterFunction(ScalarFunction("open_data_duck_ping", {}, LogicalType::VARCHAR, OpenDataDuckPingFunction));
 	loader.RegisterFunction(
 	    ScalarFunction("open_data_duck_version", {}, LogicalType::VARCHAR, OpenDataDuckVersionFunction));
@@ -1031,6 +1177,9 @@ static void LoadInternal(ExtensionLoader &loader) {
 
 	TableFunction tables("open_data_tables", {}, OpenDataTablesScan, OpenDataTablesBind, OpenDataTablesInit);
 	loader.RegisterFunction(tables);
+
+	TableFunction auth("open_data_auth", {}, OpenDataAuthScan, OpenDataAuthBind, OpenDataAuthInit);
+	loader.RegisterFunction(auth);
 
 	StorageExtension::Register(DBConfig::GetConfig(loader.GetDatabaseInstance()), "open_data_duck",
 	                           make_shared_ptr<OpenDataDuckStorageExtension>());

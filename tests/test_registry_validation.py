@@ -167,6 +167,7 @@ def test_schema_source_required_fields_are_small_core_without_duckdb() -> None:
         "tables",
     ]
     assert "duckdb" not in schema["$defs"]["source"]["properties"]
+    assert "auth" in schema["$defs"]["source"]["properties"]
     assert "description" not in schema["$defs"]["source"]["properties"]
     assert "validations" not in schema["$defs"]["source"]["properties"]
     assert "validations" in schema["$defs"]["table"]["properties"]
@@ -175,6 +176,44 @@ def test_schema_source_required_fields_are_small_core_without_duckdb() -> None:
     assert schema["$defs"]["ai_capabilities"]["required"] == ["grain", "safe_operations", "example_questions"]
     assert schema["$defs"]["validation"]["required"] == ["id", "direct_sql", "odd_sql"]
     assert schema["$defs"]["source"]["additionalProperties"] is False
+
+
+def test_validate_registry_accepts_api_key_auth_source(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
+    source = registry["sources"][0]
+    source["auth"] = {
+        "type": "api_key",
+        "required": True,
+        "duckdb_setting": "example_api_key",
+        "env_var": "EXAMPLE_API_KEY",
+        "placeholder": "{api_key}",
+        "query_parameter": "api_key",
+        "custom_user_agent": "open-data-duck/dev",
+    }
+    source["discovery"] = {
+        "namespace": "odd.example.latest",
+        "discover_sql": "SELECT 'rows' AS name, 'read_json' AS reader, 'https://example.com/api?api_key={api_key}' AS path",
+    }
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    assert validate_registry(registry_path, schema_path) == []
+    source_obj = find_source(registry_path, "example.source")
+    assert source_obj is not None
+    rendered = render_source_detail(source_obj)
+    assert "Auth: api_key" in rendered
+    assert "SET example_api_key = '<secret>';" in rendered
+
+
+def test_validate_registry_rejects_incomplete_api_key_auth(tmp_path: Path) -> None:
+    registry = yaml.safe_load(yaml.safe_dump(VALID_REGISTRY))
+    registry["sources"][0]["auth"] = {"type": "api_key", "placeholder": "{api_key}"}
+    registry_path, schema_path = write_registry(tmp_path, registry)
+
+    errors = validate_registry(registry_path, schema_path)
+
+    assert any("auth.duckdb_setting" in error.path for error in errors)
+    assert any("auth.env_var" in error.path for error in errors)
+    assert any("auth.query_parameter" in error.path for error in errors)
 
 
 @pytest.mark.parametrize("legacy_field", ["duckdb", "description", "homepage", "tags", "topics", "coverage", "cadence", "ai"])
