@@ -516,6 +516,35 @@ def test_chicago_building_permits_source_exposes_bounded_socrata_facade_validati
     assert "reported_cost_sum" in validation["odd_sql"]
 
 
+def test_nyc_tlc_trip_records_source_exposes_complete_month_parquet_facades() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "nyc.tlc.trip-records")
+
+    assert source["source_type"] == "parquet"
+    assert source["requirements"]["duckdb_extensions"] == ["httpfs"]
+    assert source["license_url"] == "https://www.nyc.gov/home/terms-of-use.page"
+    assert source["release"]["latest"]["method"] == "tlc-trip-record-page"
+    assert source["release"]["pinned"]["duckdb_setting"] == "nyc_tlc_trip_month"
+    assert "HAVING count(DISTINCT kind) = 4" in source["release"]["latest"]["resolve_sql"]
+    assert source["discovery"]["namespace"] == "odd.nyc_tlc.latest"
+    assert "tripdata_{release}\\.parquet" in source["discovery"]["discover_sql"]
+    assert "d37ci6vzurychx.cloudfront.net/trip-data/" in source["discovery"]["discover_sql"]
+
+    tables = {table["id"]: table for table in source["tables"]}
+    assert set(tables) == {"yellow_tripdata", "green_tripdata", "fhv_tripdata", "fhvhv_tripdata"}
+    assert tables["yellow_tripdata"]["ref"] == "odd.nyc_tlc.latest.yellow_tripdata"
+    assert "year-month release, or latest complete month" in tables["yellow_tripdata"]["ask_for"]
+    assert any("cbd_congestion_fee" in warning for warning in tables["yellow_tripdata"]["warnings"])
+    assert tables["fhv_tripdata"]["columns_hint"]["dispatching_base_num"].startswith("TLC license number")
+
+    for table in tables.values():
+        validation = table["validations"][0]
+        assert validation["id"] == table["ref"]
+        assert "d37ci6vzurychx.cloudfront.net/trip-data/" in validation["direct_sql"]
+        assert f"FROM {table['ref']}" in validation["odd_sql"]
+        assert "SET VARIABLE nyc_tlc_trip_month = '2024-01'" in validation["odd_sql"]
+
+
 def test_cdc_places_source_has_schema_org_ai_capability_metadata() -> None:
     registry = load_project_registry()
     source = next(source for source in registry["sources"] if source["id"] == "socrata.cdc.places-county-2025")

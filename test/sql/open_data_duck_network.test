@@ -24,7 +24,7 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
@@ -39,6 +39,10 @@ odd.noaa.latest.ghcn_daily	read_csv
 odd.noaa_coops.latest.hourly_heights	read_csv_auto
 odd.nps.latest.monthly_visitor_stats	read_csv_auto
 odd.nps.latest.state_monthly_visitor_stats	read_csv_auto
+odd.nyc_tlc.latest.fhv_tripdata	read_parquet
+odd.nyc_tlc.latest.fhvhv_tripdata	read_parquet
+odd.nyc_tlc.latest.green_tripdata	read_parquet
+odd.nyc_tlc.latest.yellow_tripdata	read_parquet
 odd.overturemaps.latest.building	read_parquet
 odd.overturemaps.latest.place	read_parquet
 odd.usgs_gnis.latest.domestic_names	st_read
@@ -192,6 +196,18 @@ FROM odd.fema.latest.public_assistance_funded_projects
 WHERE stateAbbreviation = 'AK';
 ----
 true
+
+statement ok
+SET VARIABLE nyc_tlc_trip_month = '2024-01';
+
+query I
+SELECT count(*) > 0
+FROM (SELECT VendorID FROM odd.nyc_tlc.latest.yellow_tripdata LIMIT 1);
+----
+true
+
+statement ok
+RESET VARIABLE nyc_tlc_trip_month;
 
 statement ok
 SET VARIABLE wri_global_power_plants_release = 'v1x3x0';
