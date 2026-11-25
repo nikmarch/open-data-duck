@@ -1,0 +1,68 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: meta.hrsl.population
+name: Meta/CIESIN High Resolution Settlement Layer population CSV
+status: candidate
+source_type: other
+authority: Meta Data for Good and CIESIN, Columbia University
+license_url: https://creativecommons.org/licenses/by/4.0/
+attribution: Meta and Center for International Earth Science Information Network - CIESIN - Columbia University; preserve documented source-imagery attribution.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: population_points
+  ref: odd.meta_hrsl.latest.population_points
+  description: High Resolution Settlement Layer population points. One row per latitude/longitude grid point for a bounded country, month, and demographic type.
+  columns_hint:
+    latitude: Grid point latitude.
+    longitude: Grid point longitude.
+    population: Estimated population for the point and demographic type.
+    country: ISO-style country code partition.
+    month: Source month partition.
+    type: Population demographic partition.
+  ask_for:
+  - country code
+  - month
+  - demographic type
+  - bbox or region
+  - limit
+  warnings:
+  - The facade is a fixed New Caledonia total-population June 2019 validation sample until ODD supports parameterized HRSL partitions.
+  - Preserve Meta/CIESIN attribution and source-imagery attribution in downstream uses.
+  - Country/type/month partitions should be chosen before broad scans.
+  validations:
+  - id: odd.meta_hrsl.latest.population_points
+    description: Compare the HRSL New Caledonia total-population CSV sample through direct CSV and ODD facade reads.
+    release: latest
+    compare: exact
+    order_by:
+    - row_count
+    limit: 1
+    direct_sql: |
+      LOAD httpfs;
+      SELECT count(*) AS row_count,
+             min(country) AS country,
+             min(month) AS month,
+             min(type) AS type,
+             CAST(round(sum(population), 2) AS DOUBLE) AS population_sum
+      FROM read_csv_auto('https://dataforgood-fb-data.s3.amazonaws.com/csv/month=2019-06/country=NCL/type=total_population/NCL_total_population.csv.gz');
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(country) AS country,
+             min(month) AS month,
+             min(type) AS type,
+             CAST(round(sum(population), 2) AS DOUBLE) AS population_sum
+      FROM odd.meta_hrsl.latest.population_points;
+release:
+  latest:
+    method: static-s3-csv-smoke
+    url: https://dataforgood-fb-data.s3.amazonaws.com/csv/month=2019-06/country=NCL/type=total_population/NCL_total_population.csv.gz
+discovery:
+  namespace: odd.meta_hrsl.latest
+  discover_sql: |
+    SELECT 'population_points' AS name,
+           'read_csv_auto' AS reader,
+           'https://dataforgood-fb-data.s3.amazonaws.com/csv/month=2019-06/country=NCL/type=total_population/NCL_total_population.csv.gz' AS path;

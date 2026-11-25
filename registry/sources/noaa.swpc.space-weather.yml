@@ -1,0 +1,57 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: noaa.swpc.space-weather
+name: NOAA SWPC space-weather JSON feeds
+status: candidate
+source_type: other
+authority: NOAA Space Weather Prediction Center
+license_url: https://www.noaa.gov/information-technology/open-data-dissemination
+attribution: NOAA Space Weather Prediction Center; credit NOAA/SWPC and do not imply NOAA endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: boulder_k_index_1m
+  ref: odd.noaa_swpc.latest.boulder_k_index_1m
+  description: Boulder K-index one-minute JSON feed. One row per timestamped K-index observation in the rolling feed.
+  columns_hint:
+    time_tag: Observation timestamp.
+    k_index: Boulder K-index value.
+  ask_for:
+  - SWPC product/feed name
+  - time window
+  - whether forecast or observation feeds are needed
+  warnings:
+  - SWPC feeds are rolling operational products, not stable historical snapshots.
+  - Start with one stable JSON feed; other SWPC products have different schemas.
+  validations:
+  - id: odd.noaa_swpc.latest.boulder_k_index_1m
+    description: Compare the NOAA SWPC Boulder K-index feed through direct JSON and ODD facade reads.
+    release: latest
+    compare: exact
+    order_by:
+    - row_count
+    limit: 1
+    direct_sql: |
+      LOAD httpfs;
+      SELECT count(*) AS row_count,
+             min(time_tag) AS first_time,
+             max(time_tag) AS last_time
+      FROM read_json_auto('https://noaa-swpc-pds.s3.amazonaws.com/json/boulder_k_index_1m.json');
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(time_tag) AS first_time,
+             max(time_tag) AS last_time
+      FROM odd.noaa_swpc.latest.boulder_k_index_1m;
+release:
+  latest:
+    method: static-json-feed
+    url: https://noaa-swpc-pds.s3.amazonaws.com/json/boulder_k_index_1m.json
+discovery:
+  namespace: odd.noaa_swpc.latest
+  discover_sql: |
+    SELECT 'boulder_k_index_1m' AS name,
+           'read_json_auto' AS reader,
+           'https://noaa-swpc-pds.s3.amazonaws.com/json/boulder_k_index_1m.json' AS path;

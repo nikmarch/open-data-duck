@@ -1,0 +1,58 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: sec.edgar.companyfacts
+name: SEC EDGAR company facts
+status: candidate
+source_type: other
+authority: U.S. Securities and Exchange Commission EDGAR
+license_url: https://www.sec.gov/privacy.htm
+attribution: U.S. Securities and Exchange Commission EDGAR companyfacts API; respect SEC fair-access guidance and do not imply SEC endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: companyfacts
+  ref: odd.sec_edgar.latest.companyfacts
+  description: SEC companyfacts API document for one registrant. One row per bounded CIK JSON document with nested XBRL facts.
+  columns_hint:
+    cik: SEC Central Index Key for the registrant.
+    entityName: Registrant name from the companyfacts document.
+    facts: Nested taxonomy, concept, unit, and filing-fact observations.
+  ask_for:
+  - CIK
+  - taxonomy and concept filters
+  - unit filters
+  - whether nested facts should be flattened for analysis
+  warnings:
+  - SEC fair-access guidance applies; keep automated requests bounded and identifiable.
+  - The facade is a fixed Apple CIK smoke sample until ODD supports parameterized companyfacts requests.
+  - The raw `facts` column is deeply nested; downstream analysis should flatten selected taxonomy concepts.
+  validations:
+  - id: odd.sec_edgar.latest.companyfacts
+    description: Compare the fixed SEC companyfacts smoke document through the direct JSON reader and ODD facade.
+    release: latest
+    compare: exact
+    order_by:
+    - cik
+    limit: 1
+    direct_sql: |
+      LOAD httpfs;
+      SELECT cik, entityName
+      FROM read_json_auto('https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json')
+      LIMIT 1;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT cik, entityName
+      FROM odd.sec_edgar.latest.companyfacts
+      LIMIT 1;
+release:
+  latest:
+    method: static-companyfacts-smoke
+    url: https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json
+discovery:
+  namespace: odd.sec_edgar.latest
+  discover_sql: |
+    SELECT 'companyfacts' AS name,
+           'read_json_auto' AS reader,
+           'https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json' AS path;
