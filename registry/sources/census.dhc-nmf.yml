@@ -1,0 +1,65 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: census.dhc-nmf
+name: Census 2020 DHC noisy measurement file
+status: candidate
+source_type: parquet
+authority: U.S. Census Bureau
+license_url: https://creativecommons.org/publicdomain/zero/1.0/
+attribution: U.S. Census Bureau 2020 DHC noisy measurement file; cite the Census product and accessed partition.
+requirements:
+  duckdb_extensions:
+  - httpfs
+  - parquet
+tables:
+- id: dhch_block_constraint
+  ref: odd.census_dhc_nmf.x2020.dhch_block_constraint
+  description: 2020 DHC noisy-measurement constraint rows at block geography. One row per query/geocode constraint observation in the bounded Puerto Rico county/block sample.
+  columns_hint:
+    geocode: Census geography code.
+    query_name: Noisy-measurement query name.
+    sign: Constraint sign.
+    sex: Sex category where applicable.
+    hhage: Household age category where applicable.
+    hisp: Hispanic-origin category where applicable.
+    race: Race category where applicable.
+  ask_for:
+  - product subfamily
+  - geography level
+  - DPQuery or Constraint partition
+  - state/county partition
+  warnings:
+  - The facade is a fixed 2020 DHC Block Constraint sample until ODD supports partition discovery.
+  - Census disclosure-avoidance products are specialist data; explain query semantics before analysis.
+  validations:
+  - id: odd.census_dhc_nmf.x2020.dhch_block_constraint
+    description: Compare the fixed Census DHC NMF Parquet partition through direct Parquet and ODD facade reads.
+    release: x2020
+    source_release: '2020'
+    compare: exact
+    order_by:
+    - row_count
+    limit: 1
+    direct_sql: |
+      LOAD httpfs;
+      SELECT count(*) AS row_count,
+             min(geocode) AS first_geocode,
+             count(DISTINCT query_name) AS query_names
+      FROM read_parquet('https://uscb-2020-product-releases.s3.us-west-2.amazonaws.com/decennial/dhc/2020/nmf/2020-dhc-nmf/PR_DHCH_PROD/Block.parquet/Constraint/State=072/County=07210001/part-00000-45e4a3be-bf89-441a-9055-1743227be3f9.c000.gz.parquet');
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SELECT count(*) AS row_count,
+             min(geocode) AS first_geocode,
+             count(DISTINCT query_name) AS query_names
+      FROM odd.census_dhc_nmf.x2020.dhch_block_constraint;
+release:
+  latest:
+    method: static-2020-parquet-smoke
+    url: https://uscb-2020-product-releases.s3.us-west-2.amazonaws.com/decennial/dhc/2020/nmf/2020-dhc-nmf/PR_DHCH_PROD/Block.parquet/Constraint/State=072/County=07210001/part-00000-45e4a3be-bf89-441a-9055-1743227be3f9.c000.gz.parquet
+discovery:
+  namespace: odd.census_dhc_nmf.x2020
+  discover_sql: |
+    SELECT 'dhch_block_constraint' AS name,
+           'read_parquet' AS reader,
+           'https://uscb-2020-product-releases.s3.us-west-2.amazonaws.com/decennial/dhc/2020/nmf/2020-dhc-nmf/PR_DHCH_PROD/Block.parquet/Constraint/State=072/County=07210001/part-00000-45e4a3be-bf89-441a-9055-1743227be3f9.c000.gz.parquet' AS path;
