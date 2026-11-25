@@ -24,7 +24,7 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.census_dhc_nmf.x2020.dhch_block_constraint', 'odd.census_pl94_nmf.x2020.person_pl_state_constraint', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.meta_hrsl.latest.population_points', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.noaa_swpc.latest.boulder_k_index_1m', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.openalex.latest.authors', 'odd.sec_edgar.latest.companyfacts', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.place', 'odd.census.latest.county_20m', 'odd.census_dhc_nmf.x2020.dhch_block_constraint', 'odd.census_pl94_nmf.x2020.person_pl_state_constraint', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.meta_hrsl.latest.population_points', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.noaa_nclimgrid.latest.epinoaa_daily_county', 'odd.noaa_swpc.latest.boulder_k_index_1m', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.openalex.latest.authors', 'odd.sec_edgar.latest.companyfacts', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
@@ -40,6 +40,7 @@ odd.meta_hrsl.latest.population_points	read_csv_auto
 odd.nasa_exoplanet_archive.latest.planetary_systems_composite	read_csv_auto
 odd.noaa.latest.ghcn_daily	read_csv
 odd.noaa_coops.latest.hourly_heights	read_csv_auto
+odd.noaa_nclimgrid.latest.epinoaa_daily_county	read_csv_auto
 odd.noaa_swpc.latest.boulder_k_index_1m	read_json_auto
 odd.nps.latest.monthly_visitor_stats	read_csv_auto
 odd.nps.latest.state_monthly_visitor_stats	read_csv_auto
@@ -114,6 +115,22 @@ query I
 SELECT count(*) > 0 FROM odd.noaa.latest.ghcn_daily LIMIT 1;
 ----
 true
+
+statement ok
+SET VARIABLE noaa_nclimgrid_epinoaa_month = '195101';
+
+query IIII
+SELECT count(*) AS row_count,
+       min(date) AS min_date,
+       max(date) AS max_date,
+       CAST(round(avg(tavg), 2) AS DOUBLE) AS avg_tavg
+FROM odd.noaa_nclimgrid.latest.epinoaa_daily_county
+WHERE fips = '01001';
+----
+31	1951-01-01	1951-01-31	5.68
+
+statement ok
+RESET VARIABLE noaa_nclimgrid_epinoaa_month;
 
 query I
 SELECT count(*) = 48 FROM odd.noaa_coops.latest.hourly_heights;

@@ -107,6 +107,7 @@ def test_real_duckdb_can_install_and_load_supported_extensions() -> None:
         ("census.cartographic.tract-boundaries", r"20\d{2}"),
         ("noaa.ncei.storm-events", r"20\d{2}"),
         ("aws.noaa-ghcn-daily", r"20\d{2}"),
+        ("noaa.nclimgrid-epinoaa", r"20\d{4}"),
     ],
 )
 def test_latest_release_resolve_sql_returns_release_id(source_id: str, pattern: str) -> None:
@@ -134,6 +135,7 @@ def test_latest_release_resolve_sql_returns_release_id(source_id: str, pattern: 
         ("census.cartographic.tract-boundaries", {"tract_5m", "tract_500k"}),
         ("noaa.ncei.storm-events", {"storm_events_details", "storm_events_fatalities", "storm_events_locations"}),
         ("aws.noaa-ghcn-daily", {"ghcn_daily"}),
+        ("noaa.nclimgrid-epinoaa", {"epinoaa_daily_county"}),
     ],
 )
 def test_discover_sql_lists_tables_for_latest_release(source_id: str, expected_names: set[str]) -> None:
@@ -143,7 +145,7 @@ def test_discover_sql_lists_tables_for_latest_release(source_id: str, expected_n
     connection = duckdb.connect(":memory:")
     try:
         release = connection.execute(source.release["latest"]["resolve_sql"]).fetchone()[0]
-        discover_sql = source.duckdb["tables"]["discover_sql"].replace("{release}", release)
+        discover_sql = source.discovery["discover_sql"].replace("{release}", release)
         cursor = connection.execute(discover_sql)
         columns = [column[0] for column in cursor.description]
         rows = cursor.fetchall()
@@ -152,5 +154,5 @@ def test_discover_sql_lists_tables_for_latest_release(source_id: str, expected_n
     assert columns == ["name", "reader", "path"]
     names = {row[0] for row in rows}
     assert expected_names <= names, names
-    assert all(row[1] in {"read_parquet", "read_csv", "read_json", "st_read"} for row in rows)
+    assert all(row[1] in {"read_parquet", "read_csv", "read_csv_auto", "read_json", "st_read"} for row in rows)
     assert all(release in row[2] for row in rows), rows
