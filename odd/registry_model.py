@@ -28,6 +28,7 @@ class Source:
     attribution: str
     tables: list[dict[str, Any]]
     requirements: dict[str, Any]
+    auth: dict[str, Any]
     release: dict[str, Any]
     discovery: dict[str, Any]
 
@@ -43,6 +44,7 @@ class Source:
             attribution=str(source["attribution"]),
             tables=_mapping_list(source.get("tables")),
             requirements=dict(source.get("requirements", {})),
+            auth=dict(source.get("auth", {})),
             release=dict(source.get("release", {})),
             discovery=dict(source.get("discovery", {})),
         )
@@ -59,6 +61,7 @@ class Source:
                 self.license_url,
                 self.attribution,
                 _flatten_text(self.requirements),
+                _flatten_text(self.auth),
                 _flatten_text(self.release),
                 _flatten_text(self.discovery),
                 _flatten_text(self.tables),
@@ -84,6 +87,7 @@ class Source:
             "license_url": self.license_url,
             "attribution": self.attribution,
             "requirements": self.requirements,
+            "auth": self.auth,
             "release": self.release,
             "discovery": self.discovery,
             "tables": tables,

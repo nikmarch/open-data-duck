@@ -21,6 +21,7 @@ _SOURCE_FIELDS = (
     "license_url",
     "attribution",
     "requirements",
+    "auth",
     "release",
     "discovery",
     "tables",

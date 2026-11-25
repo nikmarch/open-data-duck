@@ -28,6 +28,40 @@ def _first_validation_pair(source: Source) -> dict[str, Any] | None:
     return None
 
 
+def _render_auth_text(auth: dict[str, Any]) -> list[str]:
+    if not auth:
+        return []
+    lines = [f"Auth: {auth.get('type', 'custom')}"]
+    if auth.get("required"):
+        lines.append("Auth required: yes")
+    setting = auth.get("duckdb_setting")
+    env_var = auth.get("env_var")
+    if setting:
+        lines.append(f"DuckDB setting: SET {setting} = '<secret>';")
+    if env_var:
+        lines.append(f"Environment variable: {env_var}")
+    if auth.get("custom_user_agent"):
+        lines.append(f"Suggested user agent: {auth['custom_user_agent']}")
+    return lines
+
+
+def _render_auth_markdown(auth: dict[str, Any]) -> list[str]:
+    if not auth:
+        return []
+    lines = [f"- Auth: `{auth.get('type', 'custom')}`"]
+    if auth.get("required"):
+        lines.append("- Auth required: `true`")
+    setting = auth.get("duckdb_setting")
+    env_var = auth.get("env_var")
+    if setting:
+        lines.append(f"- Secret setup: `SET {setting} = '<secret>';`")
+    if env_var:
+        lines.append(f"- Environment variable fallback: `{env_var}`")
+    if auth.get("custom_user_agent"):
+        lines.append(f"- Suggested user agent: `{auth['custom_user_agent']}`")
+    return lines
+
+
 def _render_validation_pair_sql(source: Source, validation_pair: dict[str, Any]) -> str:
     validation_id = str(validation_pair.get("id", source.id))
     return (
@@ -69,6 +103,7 @@ def render_source_detail(source: Source) -> str:
     extensions = source.requirements.get("duckdb_extensions", [])
     if extensions:
         lines.append(f"DuckDB extensions: {_inline_value(extensions)}")
+    lines.extend(_render_auth_text(source.auth))
     if source.discovery:
         lines.append(f"Discovery namespace: {source.discovery.get('namespace', '')}")
     if source.tables:
@@ -116,6 +151,7 @@ def render_index_markdown(sources: list[Source]) -> str:
             extensions = source.requirements.get("duckdb_extensions", [])
             if extensions:
                 lines.append(f"- DuckDB extensions: {_inline_value(extensions)}")
+            lines.extend(_render_auth_markdown(source.auth))
             if source.discovery:
                 lines.append(f"- Discovery namespace: `{source.discovery.get('namespace')}`")
             if source.tables:
@@ -176,6 +212,7 @@ def _source_dataset(source: Source) -> dict[str, Any]:
             "publisher": {"@type": "Organization", "name": source.authority},
             "license": source.license_url,
             "citation": source.attribution,
+            "odd:auth": source.auth,
             "hasPart": [_table_dataset(source, table) for table in source.tables],
         }
     )
