@@ -909,6 +909,48 @@ def test_project_usgs_gnis_uses_geopackage_domestic_names_metadata() -> None:
     assert "domesticnames" in rendered_metadata
 
 
+def test_project_geonames_daily_dumps_stays_connector_blocked_until_zip_reader_exists() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "geonames.daily-dumps")
+    table = source["tables"][0]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            table["description"],
+            "\n".join(table.get("ask_for", [])),
+            "\n".join(table.get("warnings", [])),
+            "\n".join(table.get("columns_hint", {}).values()),
+        ]
+    ).casefold()
+
+    assert source["status"] == "connector-blocked"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "GeoNames"
+    assert source["license_url"] == "https://creativecommons.org/licenses/by/4.0/"
+    assert "duckdb" not in source
+    assert "description" not in source
+    assert "homepage" not in source
+    assert "ai" not in source
+    assert "discovery" not in source
+    assert "release" not in source
+    assert table["id"] == "cities500"
+    assert "ref" not in table
+    assert "validations" not in table
+    assert "geonames populated-place records" in table["description"].casefold()
+    assert "geonameid" in table["columns_hint"]
+    assert "feature_code" in table["columns_hint"]
+    assert "modification_date" in table["columns_hint"]
+    assert any("dump name" in item for item in table["ask_for"])
+    assert any("alternate names" in item for item in table["ask_for"])
+    assert "zip archives containing tab-delimited text" in rendered_metadata
+    assert "read_csv cannot read the remote zip directly" in rendered_metadata
+    assert "unsupported zip compression" in rendered_metadata
+    assert "cc by 4.0" in rendered_metadata
+    assert "cities500.txt has no header row" in rendered_metadata
+
+
 def test_project_eurostat_dissemination_api_exposes_bounded_jsonstat_facade_metadata() -> None:
     registry = load_project_registry()
     source = next(source for source in registry["sources"] if source["id"] == "eurostat.dissemination-api")
