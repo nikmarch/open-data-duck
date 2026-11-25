@@ -1,0 +1,76 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: noaa.nclimgrid-epinoaa
+name: NOAA NClimGrid EpiNOAA daily county climate CSV files
+status: candidate
+source_type: other
+authority: NOAA National Centers for Environmental Information
+license_url: https://www.noaa.gov/information-policies-and-instructions/copyrights-and-credits
+attribution: NOAA National Centers for Environmental Information, nClimGrid-Daily EpiNOAA;
+  credit NOAA/NCEI and do not imply NOAA endorsement.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: epinoaa_daily_county
+  ref: odd.noaa_nclimgrid.latest.epinoaa_daily_county
+  description: EpiNOAA daily county climate observations derived from NOAA nClimGrid-Daily.
+    One row per county and observation date.
+  columns_hint:
+    fips: County FIPS code as a zero-padded string.
+    tmax: Daily maximum temperature in degrees Celsius.
+    tmin: Daily minimum temperature in degrees Celsius.
+    tavg: Daily average temperature in degrees Celsius.
+    prcp: Daily precipitation in millimeters.
+  ask_for:
+  - month
+  - county FIPS or state postal code
+  - climate metric
+  - whether preliminary latest-month data is acceptable
+  warnings:
+  - Daily county CSV files are monthly and can be large; filter by month and geography early.
+  - NClimGrid EpiNOAA CSV region folders have different grains; this facade uses the cty county files only.
+  validations:
+  - id: odd.noaa_nclimgrid.latest.epinoaa_daily_county
+    description: Compare the NOAA NClimGrid EpiNOAA daily county facade with the direct monthly county CSV recipe.
+    release: latest
+    compare: exact
+    order_by:
+    - fips
+    - date
+    limit: 10
+    direct_sql: |
+      LOAD httpfs;
+      SELECT fips, postal_code, region_name, date, tavg, prcp
+      FROM read_csv_auto('https://noaa-nclimgrid-daily-pds.s3.amazonaws.com/EpiNOAA/v1-0-0/csv/cty/195101-scaled.csv')
+      WHERE fips = '01001'
+      ORDER BY fips, date
+      LIMIT 10;
+    odd_sql: |
+      LOAD open_data_duck;
+      ATTACH ':memory:' AS odd (TYPE open_data_duck);
+      SET VARIABLE noaa_nclimgrid_epinoaa_month = '195101';
+      SELECT fips, postal_code, region_name, date, tavg, prcp
+      FROM odd.noaa_nclimgrid.latest.epinoaa_daily_county
+      WHERE fips = '01001'
+      ORDER BY fips, date
+      LIMIT 10;
+release:
+  latest:
+    method: s3-listing
+    url: https://noaa-nclimgrid-daily-pds.s3.amazonaws.com/?list-type=2&prefix=EpiNOAA/v1-0-0/csv/cty/
+    resolve_sql: |
+      SELECT max(regexp_extract(m, '([0-9]{6})-scaled\.csv', 1)) AS release
+      FROM (
+        SELECT unnest(regexp_extract_all(content, 'EpiNOAA/v1-0-0/csv/cty/[0-9]{6}-scaled\.csv')) AS m
+        FROM read_text('https://noaa-nclimgrid-daily-pds.s3.amazonaws.com/?list-type=2&prefix=EpiNOAA/v1-0-0/csv/cty/')
+      );
+  pinned:
+    duckdb_setting: noaa_nclimgrid_epinoaa_month
+    example: '195101'
+discovery:
+  namespace: odd.noaa_nclimgrid.latest
+  discover_sql: |
+    SELECT 'epinoaa_daily_county' AS name,
+           'read_csv_auto' AS reader,
+           'https://noaa-nclimgrid-daily-pds.s3.amazonaws.com/EpiNOAA/v1-0-0/csv/cty/{release}-scaled.csv' AS path;

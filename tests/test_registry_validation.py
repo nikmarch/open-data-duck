@@ -601,6 +601,7 @@ def test_seed_validation_pairs_use_odd_ids_and_direct_sql_contract() -> None:
     assert "odd.overturemaps.latest.place" in {validation["id"] for validation in validations}
     assert "odd.overturemaps.x2026x10x21.place" in {validation["id"] for validation in validations}
     assert "odd.noaa.latest.storm_events_details" in {validation["id"] for validation in validations}
+    assert "odd.noaa_nclimgrid.latest.epinoaa_daily_county" in {validation["id"] for validation in validations}
     table_refs = {
         table["ref"]
         for source in registry["sources"]
@@ -642,6 +643,10 @@ def test_known_table_validation_queries_preserve_direct_readers_and_facades() ->
     noaa_sql = all_validation_sql(by_id["noaa.ncei.storm-events"])
     assert "read_csv_auto" in noaa_sql
     assert "from odd.noaa.latest.storm_events_details" in noaa_sql
+
+    nclimgrid_sql = all_validation_sql(by_id["noaa.nclimgrid-epinoaa"])
+    assert "noaa-nclimgrid-daily-pds.s3.amazonaws.com" in nclimgrid_sql
+    assert "from odd.noaa_nclimgrid.latest.epinoaa_daily_county" in nclimgrid_sql
 
     fema_public_assistance_sql = all_validation_sql(by_id["fema.openfema.public-assistance-funded-projects"])
     assert "read_parquet" in fema_public_assistance_sql
@@ -1205,6 +1210,7 @@ LATEST_TABLES = {
     "census.cartographic.tract-boundaries": ("census_cartographic_year", "odd.census.latest"),
     "noaa.ncei.storm-events": ("noaa_storm_events_year", "odd.noaa.latest"),
     "aws.noaa-ghcn-daily": ("noaa_ghcn_year", "odd.noaa.latest"),
+    "noaa.nclimgrid-epinoaa": ("noaa_nclimgrid_epinoaa_month", "odd.noaa_nclimgrid.latest"),
 }
 
 
