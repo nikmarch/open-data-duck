@@ -298,6 +298,7 @@ ODD_SOCRATA_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_socrata_engine.
 - Source-controlled discovery SQL runs inside the [source SQL security boundary](docs/plugin-sql-security.md), isolated from the caller's session secrets and attached databases.
 - AI capability metadata maps table provenance to schema.org and keeps ODD analytics hints in [docs/ai-capability-metadata.md](docs/ai-capability-metadata.md).
 - Community submission notes live in [`docs/community-extension-submission.md`](docs/community-extension-submission.md), with the descriptor at [`docs/community-extensions/open_data_duck/description.yml`](docs/community-extensions/open_data_duck/description.yml).
+- Legal/project policy docs: [Terms](TERMS.md), [Privacy](PRIVACY.md), [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [data source policy](docs/legal/data-source-policy.md).
 - MCP server for AI clients: `uv sync --extra mcp && uv run python -m odd.mcp_server`.
 
 Non-goals:
