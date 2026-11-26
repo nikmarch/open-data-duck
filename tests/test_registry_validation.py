@@ -1030,6 +1030,53 @@ def test_project_epa_aqs_airdata_uses_zipfs_behind_facades() -> None:
     assert "epa disclaimer" in rendered_metadata
 
 
+def test_project_bls_laus_series_observations_exposes_fixed_api_smoke_facade() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "bls.laus-series-observations")
+    table = source["tables"][0]
+    validation = table["validations"][0]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            table["description"],
+            "\n".join(table.get("ask_for", [])),
+            "\n".join(table.get("warnings", [])),
+            "\n".join(table.get("columns_hint", {}).values()),
+            validation["direct_sql"],
+            validation["odd_sql"],
+            source["discovery"]["discover_sql"],
+        ]
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "U.S. Bureau of Labor Statistics Local Area Unemployment Statistics"
+    assert source["license_url"] == "https://www.bls.gov/bls/linksite.htm"
+    assert source["requirements"] == {"duckdb_extensions": ["httpfs"]}
+    assert source["release"]["latest"] == {
+        "method": "static-api-smoke",
+        "url": "https://api.bls.gov/publicAPI/v2/timeseries/data/LASST020000000000003",
+    }
+    assert source["discovery"] == {
+        "namespace": "odd.bls_laus.latest",
+        "discover_sql": (
+            "SELECT 'series_observations' AS name,\n"
+            "       'read_text' AS reader,\n"
+            "       'https://api.bls.gov/publicAPI/v2/timeseries/data/LASST020000000000003' AS path;\n"
+        ),
+    }
+    assert table["ref"] == "odd.bls_laus.latest.series_observations"
+    assert validation["id"] == table["ref"]
+    assert "from odd.bls_laus.latest.series_observations" in rendered_metadata
+    assert "alaska statewide unemployment-rate smoke sample" in rendered_metadata
+    assert "parameterized laus series ids" in rendered_metadata
+    assert "rate-limit unauthenticated requests" in rendered_metadata
+    assert "try_cast" in rendered_metadata
+    assert any("area and measure selection" in item for item in table["ask_for"])
+
+
 def test_project_eurostat_dissemination_api_exposes_bounded_jsonstat_facade_metadata() -> None:
     registry = load_project_registry()
     source = next(source for source in registry["sources"] if source["id"] == "eurostat.dissemination-api")

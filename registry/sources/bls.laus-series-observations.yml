@@ -1,0 +1,89 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: bls.laus-series-observations
+name: BLS Local Area Unemployment Statistics series observations API
+status: candidate
+source_type: other
+authority: U.S. Bureau of Labor Statistics Local Area Unemployment Statistics
+license_url: https://www.bls.gov/bls/linksite.htm
+attribution: Cite the Bureau of Labor Statistics as the source, including the LAUS series ID and retrieval date.
+requirements:
+  duckdb_extensions:
+  - httpfs
+tables:
+- id: series_observations
+  ref: odd.bls_laus.latest.series_observations
+  description: BLS LAUS API response for a fixed Alaska statewide unemployment-rate smoke sample; unnest the series data array for one row per monthly observation.
+  columns_hint:
+    status: BLS API request status, normally REQUEST_SUCCEEDED for successful responses.
+    message: BLS API warning or error messages, including unauthenticated rate-limit responses.
+    Results: Nested API payload containing the requested LAUS series ID and its observation data array.
+    series_id: LAUS series identifier such as LASST020000000000003 for the Alaska statewide unemployment rate.
+    year: Observation year inside the nested data array.
+    period: BLS period code such as M01 for January or M13 for annual averages when present.
+    value: Observation value returned as a string; use TRY_CAST before numeric analysis because missing values can be '-'.
+    footnotes: BLS footnotes such as preliminary or unavailable-data markers.
+  ask_for:
+  - LAUS series id or area and measure selection
+  - start year
+  - end year
+  - whether annual periods and preliminary footnotes should be included
+  - whether the fixed Alaska smoke-sample facade is sufficient or a parameterized query is needed
+  warnings:
+  - The current facade is a fixed Alaska statewide unemployment-rate smoke sample until ODD supports parameterized LAUS series IDs.
+  - The public BLS API can rate-limit unauthenticated requests; inspect the status and message fields before trusting rows.
+  - API responses are nested JSON; unnest Results.series[0].data before treating observations as rows.
+  - Values are strings and can contain '-' for unavailable periods, so use TRY_CAST for numeric analysis.
+  - BLS flat time-series files may be a better bulk integration path, but download.bls.gov returned HTTP 403 from the scout host.
+  validations:
+  - id: odd.bls_laus.latest.series_observations
+    description: Compare the fixed BLS LAUS Alaska unemployment-rate smoke response through the direct API text reader and the ODD facade.
+    release: latest
+    direct_sql: |
+      LOAD httpfs;
+      WITH raw AS (
+        SELECT json(content) AS j
+        FROM read_text('https://api.bls.gov/publicAPI/v2/timeseries/data/LASST020000000000003')
+      ), observations AS (
+        SELECT d.value AS observation
+        FROM raw,
+        UNNEST(json_extract(j, '$.Results.series[0].data')::JSON[]) AS d(value)
+      )
+      SELECT json_extract_string(observation, '$.year') AS year,
+             json_extract_string(observation, '$.period') AS period,
+             TRY_CAST(json_extract_string(observation, '$.value') AS DOUBLE) AS unemployment_rate
+      FROM observations
+      WHERE json_extract_string(observation, '$.year') = '2024'
+      ORDER BY year, period
+      LIMIT 5;
+    odd_sql: |
+      WITH raw AS (
+        SELECT json(content) AS j
+        FROM odd.bls_laus.latest.series_observations
+      ), observations AS (
+        SELECT d.value AS observation
+        FROM raw,
+        UNNEST(json_extract(j, '$.Results.series[0].data')::JSON[]) AS d(value)
+      )
+      SELECT json_extract_string(observation, '$.year') AS year,
+             json_extract_string(observation, '$.period') AS period,
+             TRY_CAST(json_extract_string(observation, '$.value') AS DOUBLE) AS unemployment_rate
+      FROM observations
+      WHERE json_extract_string(observation, '$.year') = '2024'
+      ORDER BY year, period
+      LIMIT 5;
+    compare: exact
+    order_by:
+    - year
+    - period
+    limit: 5
+release:
+  latest:
+    method: static-api-smoke
+    url: https://api.bls.gov/publicAPI/v2/timeseries/data/LASST020000000000003
+discovery:
+  namespace: odd.bls_laus.latest
+  discover_sql: |
+    SELECT 'series_observations' AS name,
+           'read_text' AS reader,
+           'https://api.bls.gov/publicAPI/v2/timeseries/data/LASST020000000000003' AS path;
