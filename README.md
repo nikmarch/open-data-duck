@@ -268,6 +268,8 @@ uv run odd index
 uv run odd index --format json
 ```
 
+MCP-compatible clients can query ODD through an existing DuckDB MCP server or inspect ODD registry metadata through the bundled MCP server. See [Open Data Duck with MCP clients](docs/mcp.md).
+
 Render a local Overture spatial-query map from a pre-community release:
 
 ```bash
@@ -299,7 +301,7 @@ ODD_SOCRATA_NETWORK_TESTS=1 uv run --extra dev pytest tests/test_socrata_engine.
 - AI capability metadata maps table provenance to schema.org and keeps ODD analytics hints in [docs/ai-capability-metadata.md](docs/ai-capability-metadata.md).
 - Community submission notes live in [`docs/community-extension-submission.md`](docs/community-extension-submission.md), with the descriptor at [`docs/community-extensions/open_data_duck/description.yml`](docs/community-extensions/open_data_duck/description.yml).
 - Legal/project policy docs: [Terms](TERMS.md), [Privacy](PRIVACY.md), [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [data source policy](docs/legal/data-source-policy.md).
-- MCP server for AI clients: `uv sync --extra mcp && uv run python -m odd.mcp_server`.
+- MCP server for AI clients: `uv sync --extra mcp && uv run open-data-duck-mcp`. For real SQL execution through Claude, Hermes, and other MCP-compatible clients, see [`docs/mcp.md`](docs/mcp.md).
 
 Non-goals:
 

@@ -42,6 +42,7 @@ def test_readme_links_engine_maintenance_tracker() -> None:
     assert "[Engine maintenance track](docs/engine-maintenance.md)" in readme
     assert "[docs/architecture](docs/architecture/README.md)" in readme
     assert "[docs/ai-capability-metadata.md](docs/ai-capability-metadata.md)" in readme
+    assert "[Open Data Duck with MCP clients](docs/mcp.md)" in readme
 
 
 def test_ai_capability_metadata_docs_explain_schema_org_and_odd_fields() -> None:
@@ -73,3 +74,20 @@ def test_readme_overture_facade_example_sets_region_and_uses_exact_table_refs() 
     assert "Overture facade table names are singular" in readme
     assert "FROM odd.overturemaps.latest.building" in readme
     assert "odd.overturemaps.latest.buildings" not in readme
+
+
+def test_mcp_docs_explain_query_and_registry_server_paths() -> None:
+    docs = Path("docs/mcp.md").read_text(encoding="utf-8")
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    assert "mcp-server-motherduck" in docs
+    assert "--init-sql" in docs
+    assert "FORCE INSTALL open_data_duck" in docs
+    assert "ATTACH ':memory:' AS odd (TYPE open_data_duck);" in docs
+    assert "open-data-duck-mcp" in docs
+    assert "odd.overturemaps.latest.building" in docs
+    assert "Wasilla" in docs
+    assert "read-only mode is not enough" in docs
+    assert "odd_search" in docs
+    assert "open-data-duck-mcp = \"odd.mcp_server:main\"" in pyproject
+    assert '"mcp>=1.0,<2"' in pyproject
