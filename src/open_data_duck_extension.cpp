@@ -45,8 +45,13 @@ namespace duckdb {
 //===--------------------------------------------------------------------===//
 // Embedded registry (issue #31 contract, parsed once per process)
 //===--------------------------------------------------------------------===//
+struct DuckDBExtensionRequirement {
+	string name;
+	string repository;
+};
 
 struct OpenDataSource {
+
 	string id;
 	string name;
 	string source_type;
@@ -54,7 +59,7 @@ struct OpenDataSource {
 	string authority;
 	string license_url;
 	string attribution;
-	vector<string> extensions;
+	vector<DuckDBExtensionRequirement> extensions;
 	//! discovery.namespace: odd.<provider>.<version> prefix of this source's data tables.
 	string tables_namespace;
 	//! discovery.discover_sql: SQL returning (name, reader, path) rows, with {release} substituted.
@@ -109,6 +114,43 @@ static bool JsonBoolean(const JSONValue &object, const string &key) {
 static string Stripped(string value) {
 	StringUtil::Trim(value);
 	return value;
+}
+
+static vector<DuckDBExtensionRequirement> JsonDuckDBExtensions(const JSONValue &requirements_value) {
+	vector<DuckDBExtensionRequirement> result;
+	auto member = requirements_value.GetMember("duckdb_extensions");
+	if (!member.IsValid() || !member.IsArray()) {
+		return result;
+	}
+	member.IterateArray([&](JSONValue item) {
+		DuckDBExtensionRequirement requirement;
+		if (item.IsString()) {
+			requirement.name = Stripped(item.GetString());
+		} else if (item.IsObject()) {
+			requirement.name = Stripped(JsonString(item, "name"));
+			requirement.repository = Stripped(JsonString(item, "repository"));
+		}
+		if (!requirement.name.empty()) {
+			result.push_back(std::move(requirement));
+		}
+	});
+	return result;
+}
+
+static string ExtensionDisplayString(const DuckDBExtensionRequirement &extension) {
+	if (extension.repository.empty()) {
+		return extension.name;
+	}
+	return extension.name + " FROM " + extension.repository;
+}
+
+static vector<string> ExtensionDisplayStrings(const vector<DuckDBExtensionRequirement> &extensions) {
+	vector<string> result;
+	result.reserve(extensions.size());
+	for (auto &extension : extensions) {
+		result.push_back(ExtensionDisplayString(extension));
+	}
+	return result;
 }
 
 //===--------------------------------------------------------------------===//
@@ -180,33 +222,35 @@ static void ValidateSourceControlledSql(const string &source_id, const string &p
 	}
 }
 
-static string ValidateSourceExtensionName(const string &source_id, const string &extension) {
-	auto stripped = Stripped(extension);
+static string ValidateExtensionIdentifier(const string &source_id, const string &kind, const string &value) {
+	auto stripped = Stripped(value);
 	if (stripped.empty()) {
 		return stripped;
 	}
 	for (auto c : stripped) {
 		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) {
-			throw InvalidInputException("open_data_duck: source '%s' declares invalid DuckDB extension '%s'", source_id,
-			                            extension);
+			throw InvalidInputException("open_data_duck: source '%s' declares invalid DuckDB extension %s '%s'",
+			                            source_id, kind, value);
 		}
 	}
 	return stripped;
 }
 
-static unique_ptr<QueryResult> RunSourceControlledSql(ClientContext &context, const OpenDataSource &source,
-                                                     const string &purpose, const string &sql) {
-	ValidateSourceControlledSql(source.id, purpose, sql);
-	Connection connection(DatabaseInstance::GetDatabase(context));
+static void EnsureSourceExtensions(Connection &connection, const OpenDataSource &source) {
 	for (auto &extension : source.extensions) {
-		auto extension_name = ValidateSourceExtensionName(source.id, extension);
+		auto extension_name = ValidateExtensionIdentifier(source.id, "name", extension.name);
 		if (extension_name.empty()) {
 			continue;
 		}
-		auto install_result = connection.Query("INSTALL " + extension_name);
+		auto repository_name = ValidateExtensionIdentifier(source.id, "repository", extension.repository);
+		string install_sql = "INSTALL " + extension_name;
+		if (!repository_name.empty()) {
+			install_sql += " FROM " + repository_name;
+		}
+		auto install_result = connection.Query(install_sql);
 		if (install_result->HasError()) {
 			throw InvalidInputException("open_data_duck: could not install DuckDB extension '%s' for source '%s': %s",
-			                            extension_name, source.id, install_result->GetError());
+			                            ExtensionDisplayString(extension), source.id, install_result->GetError());
 		}
 		auto load_result = connection.Query("LOAD " + extension_name);
 		if (load_result->HasError()) {
@@ -214,6 +258,18 @@ static unique_ptr<QueryResult> RunSourceControlledSql(ClientContext &context, co
 			                            extension_name, source.id, load_result->GetError());
 		}
 	}
+}
+
+static void EnsureSourceExtensions(ClientContext &context, const OpenDataSource &source) {
+	Connection connection(DatabaseInstance::GetDatabase(context));
+	EnsureSourceExtensions(connection, source);
+}
+
+static unique_ptr<QueryResult> RunSourceControlledSql(ClientContext &context, const OpenDataSource &source,
+                                                     const string &purpose, const string &sql) {
+	ValidateSourceControlledSql(source.id, purpose, sql);
+	Connection connection(DatabaseInstance::GetDatabase(context));
+	EnsureSourceExtensions(connection, source);
 	return connection.Query(sql);
 }
 
@@ -284,7 +340,7 @@ static string BuildSearchText(const OpenDataSource &source) {
 	vector<string> parts {source.id,   source.name,       source.status,      source.source_type,
 	                      source.authority, source.license_url, source.attribution};
 	for (auto &extension : source.extensions) {
-		parts.push_back(extension);
+		parts.push_back(ExtensionDisplayString(extension));
 	}
 	parts.push_back(source.auth_type);
 	parts.push_back(source.auth_variable);
@@ -319,7 +375,7 @@ static vector<OpenDataSource> ParseEmbeddedRegistry() {
 
 		auto requirements_value = item.GetMember("requirements");
 		if (requirements_value.IsValid() && requirements_value.IsObject()) {
-			source.extensions = JsonStringArray(requirements_value, "duckdb_extensions");
+			source.extensions = JsonDuckDBExtensions(requirements_value);
 		}
 		JsonDiscovery(item, source);
 		JsonFirstValidationPair(item, source);
@@ -770,7 +826,7 @@ static void OpenDataSourcesScan(ClientContext &context, TableFunctionInput &data
 		output.data[col++].Append(Value(source.authority));
 		output.data[col++].Append(Value(source.license_url));
 		output.data[col++].Append(Value(source.attribution));
-		output.data[col++].Append(StringListValue(source.extensions));
+		output.data[col++].Append(StringListValue(ExtensionDisplayStrings(source.extensions)));
 		output.data[col++].Append(Value(source.tables_namespace));
 		count++;
 	}
@@ -1079,6 +1135,7 @@ static unique_ptr<TableRef> OpenDataDuckReplacementScan(ClientContext &context, 
 			if (StringUtil::Lower(table.name) != wanted) {
 				continue;
 			}
+			EnsureSourceExtensions(context, source);
 			auto table_function = make_uniq<TableFunctionRef>();
 			vector<FunctionArgument> children;
 			children.emplace_back(ConstantExpression::String(ResolveAuthenticatedPath(context, source, table.path)));
