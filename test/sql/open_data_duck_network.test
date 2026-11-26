@@ -24,7 +24,7 @@ true
 query II
 SELECT table_reference, reader
 FROM odd.tables
-WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.connector', 'odd.overturemaps.latest.land_use', 'odd.overturemaps.latest.place', 'odd.overturemaps.latest.water', 'odd.wikimedia.latest.pageviews_hourly', 'odd.census.latest.county_20m', 'odd.census_dhc_nmf.x2020.dhch_block_constraint', 'odd.census_pl94_nmf.x2020.person_pl_state_constraint', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.eurostat.latest.demo_pjan', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.geonames.latest.cities500', 'odd.meta_hrsl.latest.population_points', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.noaa_nclimgrid.latest.epinoaa_daily_county', 'odd.noaa_swpc.latest.boulder_k_index_1m', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.openalex.latest.authors', 'odd.sec_edgar.latest.companyfacts', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
+WHERE table_reference IN ('odd.overturemaps.latest.building', 'odd.overturemaps.latest.connector', 'odd.overturemaps.latest.land_use', 'odd.overturemaps.latest.place', 'odd.overturemaps.latest.water', 'odd.wikimedia.latest.pageviews_hourly', 'odd.census.latest.county_20m', 'odd.census_dhc_nmf.x2020.dhch_block_constraint', 'odd.census_pl94_nmf.x2020.person_pl_state_constraint', 'odd.cdc.latest.chronic_disease_indicators', 'odd.cdc.latest.leading_causes_of_death', 'odd.chicago.latest.building_permits', 'odd.cms.latest.medicare_monthly_enrollment', 'odd.epa_aqs.latest.annual_aqi_by_county', 'odd.epa_aqs.latest.daily_aqi_by_county', 'odd.eurostat.latest.demo_pjan', 'odd.fema.latest.disaster_declarations', 'odd.fema.latest.public_assistance_funded_projects', 'odd.geonames.latest.cities500', 'odd.meta_hrsl.latest.population_points', 'odd.nasa_exoplanet_archive.latest.planetary_systems_composite', 'odd.noaa.latest.ghcn_daily', 'odd.noaa_coops.latest.hourly_heights', 'odd.noaa_nclimgrid.latest.epinoaa_daily_county', 'odd.noaa_swpc.latest.boulder_k_index_1m', 'odd.nps.latest.monthly_visitor_stats', 'odd.nps.latest.state_monthly_visitor_stats', 'odd.nyc_tlc.latest.fhv_tripdata', 'odd.nyc_tlc.latest.fhvhv_tripdata', 'odd.nyc_tlc.latest.green_tripdata', 'odd.nyc_tlc.latest.yellow_tripdata', 'odd.openalex.latest.authors', 'odd.sec_edgar.latest.companyfacts', 'odd.usgs_gnis.latest.domestic_names', 'odd.wri.latest.global_power_plants')
 ORDER BY table_reference;
 ----
 odd.cdc.latest.chronic_disease_indicators	read_csv_auto
@@ -34,6 +34,8 @@ odd.census_dhc_nmf.x2020.dhch_block_constraint	read_parquet
 odd.census_pl94_nmf.x2020.person_pl_state_constraint	read_parquet
 odd.chicago.latest.building_permits	read_csv_auto
 odd.cms.latest.medicare_monthly_enrollment	read_csv_auto
+odd.epa_aqs.latest.annual_aqi_by_county	read_csv_auto
+odd.epa_aqs.latest.daily_aqi_by_county	read_csv_auto
 odd.eurostat.latest.demo_pjan	read_json_auto
 odd.fema.latest.disaster_declarations	read_parquet
 odd.fema.latest.public_assistance_funded_projects	read_parquet
@@ -149,6 +151,26 @@ FROM odd.geonames.latest.cities500
 WHERE geonameid = 3038832
   AND name = 'Vila'
   AND country_code = 'AD';
+----
+true
+
+query I
+SELECT count(*) = 1
+FROM odd.epa_aqs.latest.annual_aqi_by_county
+WHERE State = 'Alabama'
+  AND County = 'Baldwin'
+  AND Year = 2025
+  AND "Days with AQI" = 355;
+----
+true
+
+query I
+SELECT count(*) = 1
+FROM odd.epa_aqs.latest.daily_aqi_by_county
+WHERE "State Name" = 'Alabama'
+  AND "county Name" = 'Baldwin'
+  AND Date = DATE '2025-01-01'
+  AND AQI = 20;
 ----
 true
 

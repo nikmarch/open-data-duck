@@ -1,0 +1,124 @@
+# Open Data Duck source definition.
+# Canonical source files live one-per-file to keep source PRs additive.
+id: epa.aqs-airdata
+name: EPA AQS AirData pre-generated air quality files
+status: candidate
+source_type: other
+authority: U.S. Environmental Protection Agency Air Quality System / AirData
+license_url: https://www.epa.gov/web-policies-and-procedures/epa-disclaimers
+attribution: Attribute the U.S. Environmental Protection Agency AirData / Air Quality System, cite the selected file family, year, and retrieval date, and do not imply EPA endorsement.
+requirements:
+  duckdb_extensions:
+  - name: zipfs
+    repository: community
+tables:
+- id: annual_aqi_by_county
+  ref: odd.epa_aqs.latest.annual_aqi_by_county
+  description: Annual county-level AQI summaries from EPA AirData. One row per state, county, and year with day counts by AQI category and summary AQI statistics.
+  columns_hint:
+    State: State name published in the AirData file.
+    County: County name published in the AirData file.
+    Year: Calendar year summarized by the row.
+    Days with AQI: Number of days in the year with an AQI value for the county.
+    Good Days: Count of days classified as Good AQI.
+    Moderate Days: Count of days classified as Moderate AQI.
+    Unhealthy for Sensitive Groups Days: Count of days classified as Unhealthy for Sensitive Groups.
+    Unhealthy Days: Count of days classified as Unhealthy.
+    Very Unhealthy Days: Count of days classified as Very Unhealthy.
+    Hazardous Days: Count of days classified as Hazardous.
+    Max AQI: Maximum AQI value in the county-year summary.
+    90th Percentile AQI: 90th percentile AQI value in the county-year summary.
+    Median AQI: Median AQI value in the county-year summary.
+    Days CO: Number of days where carbon monoxide drove AQI.
+    Days NO2: Number of days where nitrogen dioxide drove AQI.
+    Days Ozone: Number of days where ozone drove AQI.
+    Days PM2.5: Number of days where PM2.5 drove AQI.
+    Days PM10: Number of days where PM10 drove AQI.
+  ask_for:
+  - year
+  - state or county filter
+  - whether annual county, daily county, monitor, hourly, or pollutant-specific files are needed
+  - AQI category or pollutant-day fields to include
+  - limit
+  warnings:
+  - EPA AirData data files are ZIP archives containing CSV files; ODD uses DuckDB community zipfs behind the facade to read the selected member.
+  - Column names contain spaces and pollutant punctuation in the published CSV; quote columns such as "Days with AQI" and "Max AQI" in SQL.
+  - EPA disclaimer and reuse terms need review before treating this as a verified public facade.
+  - zipfs availability depends on DuckDB community extension artifacts for the active DuckDB version and platform.
+  validations:
+  - id: odd.epa_aqs.latest.annual_aqi_by_county
+    description: Compare a fixed EPA AQS annual county AQI ZIP member row through the direct zipfs CSV reader and ODD facade.
+    release: latest
+    direct_sql: |
+      INSTALL zipfs FROM community;
+      LOAD zipfs;
+      SELECT State, County, Year, "Days with AQI", "Max AQI", "Median AQI"
+      FROM read_csv_auto('zip://https://aqs.epa.gov/aqsweb/airdata/annual_aqi_by_county_2025.zip/annual_aqi_by_county_2025.csv')
+      WHERE State = 'Alabama' AND County = 'Baldwin' AND Year = 2025;
+    odd_sql: |
+      SELECT State, County, Year, "Days with AQI", "Max AQI", "Median AQI"
+      FROM odd.epa_aqs.latest.annual_aqi_by_county
+      WHERE State = 'Alabama' AND County = 'Baldwin' AND Year = 2025;
+    compare: exact
+    order_by:
+    - State
+    - County
+    limit: 1
+- id: daily_aqi_by_county
+  ref: odd.epa_aqs.latest.daily_aqi_by_county
+  description: Daily county-level AQI observations from EPA AirData. One row per state, county, and date with AQI value, category, defining pollutant, and defining site metadata.
+  columns_hint:
+    State Name: State name published in the AirData file.
+    county Name: County name published in the AirData file.
+    State Code: EPA state code.
+    County Code: EPA county code.
+    Date: Observation date.
+    AQI: Daily AQI value.
+    Category: AQI category for the day.
+    Defining Parameter: Pollutant parameter defining the AQI value.
+    Defining Site: Monitoring site that defined the AQI value.
+    Number of Sites Reporting: Count of reporting sites for the county-day.
+  ask_for:
+  - year
+  - state or county filter
+  - AQI category or defining pollutant
+  - date range
+  - limit
+  warnings:
+  - EPA AirData data files are ZIP archives containing CSV files; ODD uses DuckDB community zipfs behind the facade to read the selected member.
+  - Daily county files can contain hundreds of thousands of rows per year; filter by state, county, date, category, or defining pollutant before broad scans.
+  - Column names contain spaces and pollutant punctuation in the published CSV; quote columns such as "State Name" and "Defining Parameter" in SQL.
+  - EPA disclaimer and reuse terms need review before treating this as a verified public facade.
+  - zipfs availability depends on DuckDB community extension artifacts for the active DuckDB version and platform.
+  validations:
+  - id: odd.epa_aqs.latest.daily_aqi_by_county
+    description: Compare a fixed EPA AQS daily county AQI ZIP member row through the direct zipfs CSV reader and ODD facade.
+    release: latest
+    direct_sql: |
+      INSTALL zipfs FROM community;
+      LOAD zipfs;
+      SELECT "State Name", "county Name", "State Code", "County Code", Date, AQI, Category, "Defining Parameter"
+      FROM read_csv_auto('zip://https://aqs.epa.gov/aqsweb/airdata/daily_aqi_by_county_2025.zip/daily_aqi_by_county_2025.csv')
+      WHERE "State Name" = 'Alabama' AND "county Name" = 'Baldwin' AND Date = DATE '2025-01-01';
+    odd_sql: |
+      SELECT "State Name", "county Name", "State Code", "County Code", Date, AQI, Category, "Defining Parameter"
+      FROM odd.epa_aqs.latest.daily_aqi_by_county
+      WHERE "State Name" = 'Alabama' AND "county Name" = 'Baldwin' AND Date = DATE '2025-01-01';
+    compare: exact
+    order_by:
+    - Date
+    limit: 1
+release:
+  latest:
+    method: static-zip-member
+    url: https://aqs.epa.gov/aqsweb/airdata/download_files.html
+discovery:
+  namespace: odd.epa_aqs.latest
+  discover_sql: |
+    SELECT 'annual_aqi_by_county' AS name,
+           'read_csv_auto' AS reader,
+           'zip://https://aqs.epa.gov/aqsweb/airdata/annual_aqi_by_county_2025.zip/annual_aqi_by_county_2025.csv' AS path
+    UNION ALL
+    SELECT 'daily_aqi_by_county' AS name,
+           'read_csv_auto' AS reader,
+           'zip://https://aqs.epa.gov/aqsweb/airdata/daily_aqi_by_county_2025.zip/daily_aqi_by_county_2025.csv' AS path;

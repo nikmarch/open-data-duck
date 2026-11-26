@@ -969,6 +969,67 @@ def test_project_geonames_daily_dumps_uses_zipfs_behind_facade() -> None:
     assert "cc by 4.0" in rendered_metadata
 
 
+def test_project_epa_aqs_airdata_uses_zipfs_behind_facades() -> None:
+    registry = load_project_registry()
+    source = next(source for source in registry["sources"] if source["id"] == "epa.aqs-airdata")
+    annual_table = next(table for table in source["tables"] if table["id"] == "annual_aqi_by_county")
+    daily_table = next(table for table in source["tables"] if table["id"] == "daily_aqi_by_county")
+    annual_validation = annual_table["validations"][0]
+    daily_validation = daily_table["validations"][0]
+    rendered_metadata = "\n".join(
+        [
+            source["name"],
+            source["authority"],
+            source["attribution"],
+            annual_table["description"],
+            daily_table["description"],
+            "\n".join(annual_table.get("ask_for", [])),
+            "\n".join(daily_table.get("ask_for", [])),
+            "\n".join(annual_table.get("warnings", [])),
+            "\n".join(daily_table.get("warnings", [])),
+            "\n".join(annual_table.get("columns_hint", {}).values()),
+            "\n".join(daily_table.get("columns_hint", {}).values()),
+            annual_validation["direct_sql"],
+            annual_validation["odd_sql"],
+            daily_validation["direct_sql"],
+            daily_validation["odd_sql"],
+            source["discovery"]["discover_sql"],
+        ]
+    ).casefold()
+
+    assert source["status"] == "candidate"
+    assert source["source_type"] == "other"
+    assert source["authority"] == "U.S. Environmental Protection Agency Air Quality System / AirData"
+    assert source["license_url"] == "https://www.epa.gov/web-policies-and-procedures/epa-disclaimers"
+    assert source["requirements"] == {"duckdb_extensions": [{"name": "zipfs", "repository": "community"}]}
+    assert "duckdb" not in source
+    assert "description" not in source
+    assert "homepage" not in source
+    assert "ai" not in source
+    assert source["release"]["latest"] == {
+        "method": "static-zip-member",
+        "url": "https://aqs.epa.gov/aqsweb/airdata/download_files.html",
+    }
+    assert source["discovery"]["namespace"] == "odd.epa_aqs.latest"
+    assert annual_table["ref"] == "odd.epa_aqs.latest.annual_aqi_by_county"
+    assert daily_table["ref"] == "odd.epa_aqs.latest.daily_aqi_by_county"
+    assert annual_validation["id"] == annual_table["ref"]
+    assert daily_validation["id"] == daily_table["ref"]
+    assert "zip://https://aqs.epa.gov/aqsweb/airdata/annual_aqi_by_county_2025.zip/annual_aqi_by_county_2025.csv" in rendered_metadata
+    assert "zip://https://aqs.epa.gov/aqsweb/airdata/daily_aqi_by_county_2025.zip/daily_aqi_by_county_2025.csv" in rendered_metadata
+    assert "FROM odd.epa_aqs.latest.annual_aqi_by_county" in annual_validation["odd_sql"]
+    assert "FROM odd.epa_aqs.latest.daily_aqi_by_county" in daily_validation["odd_sql"]
+    assert "annual county-level aqi summaries" in rendered_metadata
+    assert "daily county-level aqi observations" in rendered_metadata
+    assert "maximum aqi value" in annual_table["columns_hint"]["Max AQI"].casefold()
+    assert "pollutant parameter" in daily_table["columns_hint"]["Defining Parameter"].casefold()
+    assert any("state or county filter" in item for item in annual_table["ask_for"])
+    assert any("date range" in item for item in daily_table["ask_for"])
+    assert "zip archives containing csv files" in rendered_metadata
+    assert "community zipfs behind the facade" in rendered_metadata
+    assert "epa disclaimer" in rendered_metadata
+
+
 def test_project_eurostat_dissemination_api_exposes_bounded_jsonstat_facade_metadata() -> None:
     registry = load_project_registry()
     source = next(source for source in registry["sources"] if source["id"] == "eurostat.dissemination-api")
