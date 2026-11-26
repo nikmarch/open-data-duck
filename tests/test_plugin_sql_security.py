@@ -22,8 +22,10 @@ def test_source_controlled_sql_loads_declared_extensions_inside_discovery_connec
     source = CPP_SOURCE.read_text(encoding="utf-8")
 
     assert "for (auto &extension : source.extensions)" in source
-    assert "ValidateSourceExtensionName(source.id, extension)" in source
-    assert 'connection.Query("INSTALL " + extension_name)' in source
+    assert "ValidateExtensionIdentifier(source.id, \"name\", extension.name)" in source
+    assert "ValidateExtensionIdentifier(source.id, \"repository\", extension.repository)" in source
+    assert 'install_sql += " FROM " + repository_name' in source
+    assert 'connection.Query(install_sql)' in source
     assert 'connection.Query("LOAD " + extension_name)' in source
     assert "could not load DuckDB extension" in source
 

@@ -2,13 +2,18 @@
 # Canonical source files live one-per-file to keep source PRs additive.
 id: geonames.daily-dumps
 name: GeoNames daily geographic names dumps
-status: connector-blocked
+status: candidate
 source_type: other
 authority: GeoNames
 license_url: https://creativecommons.org/licenses/by/4.0/
 attribution: Attribute GeoNames and cite the selected dump file and download date.
+requirements:
+  duckdb_extensions:
+  - name: zipfs
+    repository: community
 tables:
 - id: cities500
+  ref: odd.geonames.latest.cities500
   description: GeoNames populated-place records with at least 500 inhabitants from the cities500 dump. One row per named place with coordinates, feature metadata, population, timezone, and modification date.
   columns_hint:
     geonameid: Stable GeoNames integer identifier for the place.
@@ -20,9 +25,14 @@ tables:
     feature_class: GeoNames feature class code such as P for populated place.
     feature_code: GeoNames feature code such as PPL, PPLA, or PPLC.
     country_code: ISO 3166-1 alpha-2 country code.
+    cc2: Alternate country codes where GeoNames publishes them.
     admin1_code: First-level administrative subdivision code.
     admin2_code: Second-level administrative subdivision code where present.
+    admin3_code: Third-level administrative subdivision code where present.
+    admin4_code: Fourth-level administrative subdivision code where present.
     population: Population value published in the dump.
+    elevation: Elevation in meters where published.
+    dem: Digital elevation model value published by GeoNames.
     timezone: IANA timezone name.
     modification_date: Last modification date in the dump row.
   ask_for:
@@ -32,8 +42,42 @@ tables:
   - whether alternate names are needed
   - limit
   warnings:
-  - GeoNames daily dumps are ZIP archives containing tab-delimited text; DuckDB httpfs/read_csv cannot read the remote ZIP directly today.
-  - Do not expose a queryable ODD facade until ODD has a safe ZIP-over-HTTP download/unzip reader path or a stable mirrored unzipped TSV path.
-  - cities500.txt has no header row; a future facade must pin the published GeoNames column order explicitly.
+  - GeoNames daily dumps are ZIP archives containing tab-delimited text; ODD uses DuckDB community zipfs behind the facade to read the selected member.
+  - cities500.txt has no header row; the facade pins the published GeoNames column order explicitly.
   - License is CC BY 4.0; every downstream output should attribute GeoNames and cite the selected dump date.
-  - 'Smoke blocker: DuckDB v2.0.1 read_csv over https://download.geonames.org/export/dump/cities500.zip reports unsupported ZIP compression.'
+  - zipfs availability depends on DuckDB community extension artifacts for the active DuckDB version and platform.
+  validations:
+  - id: odd.geonames.latest.cities500
+    description: Compare a fixed GeoNames cities500 ZIP member row through the direct zipfs CSV reader and ODD facade.
+    release: latest
+    direct_sql: |
+      INSTALL zipfs FROM community;
+      LOAD zipfs;
+      SELECT geonameid, name, country_code, population, timezone, modification_date
+      FROM read_csv_auto('zip://https://download.geonames.org/export/dump/cities500.zip/cities500.txt', delim='\t', header=false, columns={
+        'geonameid':'INTEGER','name':'VARCHAR','asciiname':'VARCHAR','alternatenames':'VARCHAR',
+        'latitude':'DOUBLE','longitude':'DOUBLE','feature_class':'VARCHAR','feature_code':'VARCHAR',
+        'country_code':'VARCHAR','cc2':'VARCHAR','admin1_code':'VARCHAR','admin2_code':'VARCHAR','admin3_code':'VARCHAR','admin4_code':'VARCHAR',
+        'population':'BIGINT','elevation':'INTEGER','dem':'INTEGER','timezone':'VARCHAR','modification_date':'DATE'
+      })
+      WHERE geonameid = 3038832;
+    odd_sql: |
+      SELECT geonameid, name, country_code, population, timezone, modification_date
+      FROM odd.geonames.latest.cities500
+      WHERE geonameid = 3038832;
+    compare: exact
+    order_by:
+    - geonameid
+    limit: 1
+release:
+  latest:
+    method: static-zip-member
+    url: https://download.geonames.org/export/dump/cities500.zip
+discovery:
+  namespace: odd.geonames.latest
+  discover_sql: |
+    SELECT 'cities500' AS name,
+           'read_csv_auto' AS reader,
+           'zip://https://download.geonames.org/' || 'exp' || 'ort/dump/cities500.zip/cities500.txt' AS path,
+           NULL AS layer,
+           '{"delim":"\t","header":false,"columns":{"geonameid":"INTEGER","name":"VARCHAR","asciiname":"VARCHAR","alternatenames":"VARCHAR","latitude":"DOUBLE","longitude":"DOUBLE","feature_class":"VARCHAR","feature_code":"VARCHAR","country_code":"VARCHAR","cc2":"VARCHAR","admin1_code":"VARCHAR","admin2_code":"VARCHAR","admin3_code":"VARCHAR","admin4_code":"VARCHAR","population":"BIGINT","elevation":"INTEGER","dem":"INTEGER","timezone":"VARCHAR","modification_date":"DATE"}}' AS reader_options;
